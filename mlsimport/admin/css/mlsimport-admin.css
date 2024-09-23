@@ -1,0 +1,521 @@
+/*Real Homes admin adjusments*/
+
+.post-type-property  .column-property-thumbnail img{
+	width: 130px;
+	height: auto;
+}
+
+
+
+/*Plugin CSS*/
+
+.mlsimport-tab-wrapper{
+
+}
+
+.mlsimport-tab-wrapper .nav-tab {
+	font-size: .8125rem;
+	line-height: 1.46154;
+	font-weight: bold;
+	letter-spacing: -0.08px;
+	text-transform: uppercase;
+	color: #23202c;
+	padding: 15px 25px;
+	background: #f1f1f1;
+}
+
+.mlsimport-tab-wrapper .nav-tab.nav-tab-active{
+	background-color: #fff;
+	border-top: 2px solid #ff4270;
+}
+
+.content-nav-tab{
+	display:none;
+	padding: 30px 15px;
+	background: #fff;
+	border: 1px solid #ccc;
+	border-top: 0px;
+}
+
+.mlsimport-fieldset-wrapper input,
+input[type=checkbox].mlsimport_select_import_admin_all,
+input[type=checkbox].mlsimport_select_import_all {
+	border: 1px solid #ccc;
+	border-radius: 2px;
+	background-color: #fff!important;
+}
+
+
+.mlsimport_button{
+	position: relative;
+	/* display: inline-block; */
+	width: auto;
+	padding: 8px 24px!important;
+	text-align: center;
+
+	box-shadow: 0 4px 6px rgba(50,50,93,0.11), 0 1px 3px rgba(0,0,0,0.08);
+	text-transform: uppercase;
+	text-decoration: none!important;
+	letter-spacing: -0.08px;
+	font-weight: bold;
+	border-radius: 3px;
+	color: #fff !important;
+	white-space: nowrap;
+	-webkit-backface-visibility: hidden;
+	backface-visibility: hidden;
+	transition: all 200ms ease-out;
+	-webkit-transition: all 200ms ease-out;
+	font-size: .8125rem;
+	line-height: 1.53846;
+	border: none!important;
+	cursor:pointer;
+	margin-bottom: 30px;
+}
+.button.mlsimport_button:focus,
+.button.mlsimport_button{
+		background: #ff4270;
+}
+.button.mlsimport_button:active,
+.button.mlsimport_button:hover{
+	background-color:#cc3459;
+}
+
+
+
+.content-nav-tab-active{
+	display:block;
+}
+
+.mlsfield_import_title {
+    margin: 0px 0px 10px 0px;
+    font-size: 15px;
+}
+
+.mandatory_fields_wrapper_exp,
+.mls_mandatory_fields{
+	margin: 10px 0px 5px 0px;
+}
+
+.mls_mandatory_fields{
+	color: #888;
+	margin-bottom: 10px;
+	max-width: 600px;
+}
+.mandatory_fields_wrapper_exp{
+	color: #888;
+	max-width: 600px;
+}
+
+.mlsimport-label{
+	font-weight: 600;
+	display: inline-block;
+	float: left;
+	width: 100%;
+	line-height: 1.6em;
+	font-size: 14px;
+}
+
+.mls_explanations{
+	line-height: 1.6em;
+}
+
+.mlsimport-fieldset.mlsfield_map_post_meta,
+.mlsimport-fieldset.mlsfield_label{
+    margin: 0px;
+}
+
+.mlsimport-fieldset select.mlsfield_map_post_tax_select{
+    max-width: 200px;
+    min-width: 200px;
+    padding: 0px 12px
+}
+
+input.mlsimport_select_import_all,
+input.mlsimport_select_import_admin_all{
+	margin-top: 5px;
+}
+
+.mlsimport-exp{
+	margin: 0px;
+	font-size: 14px;
+	line-height: 1.6em;
+	margin-bottom: 5px;
+	max-width: 450px;
+}
+
+
+.mlsimport_hidden_field_button{
+	cursor: pointer;
+	background-color: #068018;
+	padding: 5px 10px;
+	color: #fff;
+	width: auto;
+	border-radius: 3px;
+}
+
+.mlsimport-input-wrapper{
+	clear: both;
+}
+
+input[type=password].mlsimport-input,
+input[type=text].mlsimport-input,
+.mlsimport-input{
+	min-width: 450px;
+	border-color: #ccc;
+	padding: 5px 12px;
+}
+
+#mlsimport_mls_name_front{
+	border-color: #ccc;
+	min-width: 450px;
+	padding: 5px 12px;
+}
+
+
+.mlsimport-fieldset select{
+	border-color: #ccc;
+	min-width: 450px;
+	padding: 5px 12px;
+}
+
+.wp-admin select.mlsimport-select{
+	min-width: 450px;
+	border-color: #ccc;
+	padding: 5px 12px 5px 12px;
+}
+.wp-admin select.mlsimport-select option{
+	padding: 3px 0px;
+}
+
+.mlsimport_param_wrapper{
+	background-color: #f5f5f5;
+	padding:20px;
+	border-radius: 5px;
+}
+
+.postbox .inside .mlsimport_param_wrapper  h2{
+	font-size: 20px!important;
+	font-weight: 600;
+	padding-left: 0px!important;
+	padding-bottom: 19px!important;
+}
+
+
+.mlsimport-fieldset-item{
+	display: flex;
+    flex-direction: column;
+}
+.mlsimport-fieldset-wrapper{
+	display: flex;
+	gap:30px;
+}
+
+.mlsimport-fieldset{
+	margin: 20px 0px;
+    position: relative;   
+}
+
+.mandatory_fields_wrapper fieldset.mlsimport-fieldset{
+	padding: 10px 20px;
+	margin: 0px;
+}
+
+.mandatory_fields_wrapper .mlsimport-fieldset:nth-child(even){
+	background-color: #f7f7f7;
+}
+
+.mlsimport_auto_switch{
+	margin: 0px;
+	padding: 10px;
+}
+
+.mls_import_selec_all_class {
+	background-color: #cc3459;
+	color: #fff;
+	display: inline-block;
+	padding: 5px;
+	margin-right: 10px;
+	margin-bottom: 5px;
+	cursor: pointer;
+	padding: 7px 14px;
+	border-radius:5px;
+}
+
+.mls_import_selec_all_class:hover {
+	background-color: #a31034;
+}
+
+#mlsimport_myProgress_wrapper{
+	width:800px;
+	margin-top: 10px;
+/*    display:none;*/
+}
+
+#mlsimport_transfer_stop{
+	padding: 7px;
+	background: #af3737;
+	color: #fff;
+	display: inline-block;
+	margin-top: 10px;
+	cursor: pointer;
+}
+
+#mlsimport_myBar{
+	width: 0%;
+	height: 20px;
+	background-color: green;
+}
+
+#mlsimport_myProgress_wrapper{
+	width:800px;
+	margin-top: 10px;
+/*    display:none;*/
+}
+
+#mlsimport_monster_myProgress {
+	width: 100%;
+	background-color: #cbc8c8;
+}
+#mlsimport_transfer_stop{
+	display: none;
+}
+
+#log_container{
+	width: 750px;
+	background: #f1f1f1;
+	padding: 15px;
+	margin-top: 15px;
+	max-height: 500px;
+	overflow-y: auto;
+}
+
+
+.mlsimport_import_no{
+	font-size: 14px;
+	max-width: 775px;
+	margin-bottom: 10px;
+}
+
+
+#mlsimport-start_item,
+#mlsimport-start{
+	background: #068018!important;
+}
+
+#mlsimport-start_item:hover,
+#mlsimport-start:hover{
+	background: #056614!important;
+}
+
+
+#mlsimport-clear-cache{
+	background: #3d7028!important;
+	margin: 15px 0px;
+	display: block;
+}
+
+#mlsimport_stop_item,
+#mlsimport_stop{
+	margin-bottom: 30px;
+	margin-left: 15px;
+}
+
+.cron_job_explainin{
+	max-width: 800px;
+	margin-top: 5px;
+}
+
+.mlsimport_tool_field_item_wrapper{
+	margin-bottom: 30px;
+}
+#mlsimport-disable-history,
+#mlsimport-disable-logs{
+	margin-top: 10px;
+}
+
+
+
+
+
+
+
+
+
+
+
+/*==WpResidence*/
+#property_uploaded_thumb_wrapepr img{
+	max-width: 200px;
+}
+
+table.media .column-title .media-icon img {
+	width:60px;
+}
+.mlsimport_notification,
+.mlsimport_validated,
+.mlsimport_warning{
+	background: #cc3459;
+	color: #fff;
+	padding: 10px;
+	margin-bottom: 10px;
+	max-width: 300px;
+	border-radius: 2px;
+	max-width: 430px;
+
+}
+
+.mlsimport_warning a{
+	color:#fff;
+}
+
+.mlsimport_populate_warning{
+	background: #ff4270;
+	color: #fff;
+	padding: 10px;
+	margin-bottom: 10px;
+	border-radius: 2px;
+}
+
+
+.mlsimport_validated{
+	background: #068018;
+	max-width: 750px;
+}
+
+.mlsimport_notification{
+	background: #a5862b;
+}
+
+
+#mlsimport_item_status{
+	width: auto;
+	background-color: #f5f5f5;
+	overflow-y: scroll;
+	padding: 10px;
+	border-radius: 5px;
+	margin-bottom: 30px;
+}
+
+
+label.mlsimport_switch {
+	position: absolute;
+	display: inline-block;
+	width: 53px!important;
+	height: 25px;
+	top: 7px;
+	left: 205px;
+}
+
+.mlsimport_switch input {
+	opacity: 0;
+	width: 0;
+	height: 0;
+}
+
+.slider {
+	position: absolute;
+	cursor: pointer;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background-color: #ccc;
+	-webkit-transition: .4s;
+	transition: .4s;
+}
+
+.slider:before {
+	position: absolute;
+	content: "";
+	height: 18px;
+	width: 18px;
+	left: 4px;
+	bottom: 4px;
+	background-color: white;
+	-webkit-transition: .4s;
+	transition: .4s;
+}
+
+.mlsimport_switch  input:checked + .slider {
+	background-color: #2196F3;
+}
+
+.mlsimport_switch  input:focus + .slider {
+	box-shadow: 0 0 1px #2196F3;
+}
+
+.mlsimport_switch  input:checked + .slider:before {
+	-webkit-transform: translateX(26px);
+	-ms-transform: translateX(26px);
+	transform: translateX(26px);
+}
+
+
+
+
+.slider.round {
+	border-radius: 25px;
+}
+.slider.round:before {
+	border-radius: 50%;
+}
+
+
+#mlsimport-delete-notification{
+	margin-bottom: 10px;
+}
+
+#mlsimport-delete-prop{
+	margin-top: 15px;
+}
+
+.fieldset_mlsimport_tresle_client_id,
+.fieldset_mlsimport_tresle_client_secret{
+	display:none;
+}
+
+
+
+
+.mlsimport_param_wrapper input[type=text]{
+	min-width: 450px;
+	border-color: #ccc;
+	padding: 5px 12px;
+}
+
+#mlsimport_item_min_price,
+#mlsimport_item_max_price{
+	min-width: 210px;
+	max-width: 210px;
+}
+
+
+.mlsimport_signup{
+	display: inline-block;
+	background-color: #f0f0f1;
+	border-radius: 5px;
+	padding: 20px;
+	font-size: 15px;
+	margin-bottom: 15px;
+}
+.mlsimport_signup p{
+	font-size: 15px;
+}
+.mlsimport_signup_button{
+	float:left;
+	clear:left;
+}
+
+
+/*==WpEstate*/
+
+/*==Houzez*/
+
+.column-thumbnail img {
+	max-width: 100%;
+	height: auto;
+	min-width:
+	102px ;
+}
+
+/*==RealHomes*/
