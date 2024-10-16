@@ -822,7 +822,7 @@ class ThemeImport {
 			$mlsImportItemStatus = array_map('strtolower', $mlsImportItemStatus);
 		}
 
-		if (!isset($property['ListingKey'])) {
+		if (!isset($property['ListingKey']) || empty($property['ListingKey'])) {
 			$this->writeImportLogs('ERROR: No Listing Key ' . PHP_EOL, $tipImport);
 			return;
 		}
@@ -833,6 +833,11 @@ class ThemeImport {
 		$listingPostType 	= $mlsimport->admin->env_data->get_property_post_type();
 		$propertyId 		= intval($this->mlsimportSaasRetrievePropertyById($ListingKey, $listingPostType));
 		$status 			= isset($property['StandardStatus']) ? strtolower($property['StandardStatus']) : strtolower($property['extra_meta']['MlsStatus']);
+		
+		
+		$this->writeImportLogs('FIxing: on inserting ' .$status.'-->'.json_encode($mlsImportItemStatus). PHP_EOL, $tipImport);
+
+
 		$isInsert			= $this->shouldInsertProperty($propertyId, $status, $mlsImportItemStatus, $tipImport);
 
 		$log = $this->mlsimportMemUsage() . '==========' . wp_json_encode($mlsImportItemStatus) . '/' . $newAuthor . '/' . $newAgent . '/' . $propertyStatus . '/ We have property with $ListingKey=' . $ListingKey . ' id=' . $propertyId . ' with status ' . $status . ' is insert? ' . $isInsert . PHP_EOL;
@@ -850,21 +855,16 @@ class ThemeImport {
 				'post_type' 	=> $listingPostType,
 				'post_author' 	=> $newAuthor,
 			];
-
+ 
 			$propertyId = wp_insert_post($post);
 			if (is_wp_error($propertyId)) {
 				$this->writeImportLogs('ERROR: on inserting ' . PHP_EOL, $tipImport);
 			} else {
 				update_post_meta($propertyId, 'ListingKey', $ListingKey);
-				$keep_on_delete='delete';
-				if( is_array($mlsImportItemStatusDelete) && !in_array($status,$mlsImportItemStatusDelete)){
-					$keep_on_delete='keep';
-					update_post_meta($propertyId, 'mlsImportItemStatusDelete', $keep_on_delete);
-				}
+				update_post_meta($propertyId, 'MLSimport_item_inserted', $itemIdArray['item_id'],);
+				update_post_meta($propertyId, 'mlsImportItemStatusDelete', $mlsImportItemStatusDelete);
 
-
-	
-			
+				
 				
 				$propertyHistory[] = date('F j, Y, g:i a') . ': We Inserted the property with Default title :  ' . $submitTitle . ' and received id:' . $propertyId.'. The delete statuses are '.$keep_on_delete;
 			}
@@ -873,14 +873,22 @@ class ThemeImport {
 
 		} elseif ($propertyId !== 0) {
 
-			$keep_on_delete='delete';
-			if(is_array($mlsImportItemStatusDelete) &&  !in_array($status,$mlsImportItemStatusDelete)){
-				$keep_on_delete='keep';
-				update_post_meta($propertyId, 'mlsImportItemStatusDelete', $keep_on_delete);
-			}
+			$keep = $this->check_if_delete_when_status($property_id);
 
-			$propertyHistory = $this->updateExistingProperty($propertyId,$mlsImportItemStatusDelete, $content, $listingPostType, $newAuthor, $status, $mlsImportItemStatus, $propertyHistory, $tipImport, $ListingKey);
+			if(!$keep){
+				$log = 'Property with ID ' . $propertyId . ' and with name ' . get_the_title($propertyId) . ' has a status of <strong>' . $status . ' / '.$post_status.'</strong> and will be deleted' . PHP_EOL;
+				$this->deleteProperty($propertyId, $ListingKey);
+				$this->writeImportLogs($log, $tipImport);
+			}else{	
+				update_post_meta($propertyId, 'mlsImportItemStatusDelete', $mlsImportItemStatusDelete);
+				$propertyHistory = $this->updateExistingProperty($propertyId,$mlsImportItemStatusDelete, $content, $listingPostType, $newAuthor, $status, $mlsImportItemStatus, $propertyHistory, $tipImport, $ListingKey);
+			}
 		}
+
+
+
+
+
 
 		if ($propertyId === 0) {
 			$this->writeImportLogs('ERROR property id is 0' . PHP_EOL, $tipImport);
@@ -909,20 +917,97 @@ class ThemeImport {
 	 * @param string $tipImport The import type.
 	 * @return string 'yes' or 'no' indicating if the property should be inserted.
 	 */
-	private function shouldInsertProperty($propertyId, $status, $mlsImportItemStatus, $tipImport) {
-		
-		if ($propertyId === 0) {
-			if (in_array($status, ['active', 'active under contract', 'active with contract', 'activewithcontract', 'status', 'activeundercontract', 'comingsoon', 'coming soon', 'pending'])) {
-				if ($tipImport === 'cron' && !in_array($status, $mlsImportItemStatus)) {
-					return 'no';
-				}
-				return 'yes';
-			}
+	private function shouldInsertProperty($propertyId, $status, $mlsImportItemStatus, $tipImport): string{
+		$this->writeImportLogs(
+			"Checking: on inserting {$propertyId}={$status} vs " . 
+			json_encode($mlsImportItemStatus) . " -- {$tipImport}" . PHP_EOL,
+			$tipImport
+		);
+
+		if ($propertyId !== 0 || !is_array($mlsImportItemStatus)) {
 			return 'no';
 		}
-		return 'no';
-		
+
+		$activeStatuses = [
+			'active',
+			'active under contract',
+			'active with contract',
+			'activewithcontract',
+			'status',
+			'activeundercontract',
+			'comingsoon',
+			'coming soon',
+			'pending'
+		];
+		if(is_array($mlsImportItemStatus)){
+			if (!in_array(strtolower($status), $mlsImportItemStatus, true)) {
+				return 'no';
+			}
+	
+			if ($tipImport === 'cron' && !in_array($status, $mlsImportItemStatus, true)) {
+				return 'no';
+			}
+	
+		}else{
+			if(!in_array($status, $activeStatuses, true) ){
+				return 'no';
+			}
+		}
+	
+		return 'yes';
 	}
+
+	
+	/**
+	 * Check for property status agains mls item delete status to see if we keep or delete the listing
+	 *
+	 * 
+	 */
+
+	 public function check_if_delete_when_status($property_id){
+		$delete_status= get_post_meta( $property_id, 'mlsImportItemStatusDelete', true );
+	
+
+		if (taxonomy_exists('property_status')) {
+			// wpresidence
+			$termObjList = get_the_terms($property_id, 'property_status');
+		}else if(taxonomy_exists('property_label')){
+			// houzez
+			$termObjList = get_the_terms($property_id, 'property_label');
+		} else {
+			//real homes
+			$termObjList = get_post_meta( $property_id, 'inspiry_property_label', true );
+		}
+
+		//	property_label // houzez
+		//	inspiry_property_label
+		
+		if(isset($termObjList) && is_array($termObjList)){
+			$post_status = $termObjList[0]->name;
+		}
+
+
+		$keep=true;
+		if(!empty($delete_status)){
+			
+			if(is_array($delete_status) && in_array($post_status, $delete_status)){
+				$keep=false;
+			
+			}else if($post_status==$delete_status){
+				$keep=false;
+			}
+
+		}
+
+		print  wp_kses_post('</br></br>' .$property_id. ' ------------------------- Kept: '.$property_id.' /'.$post_status.'<-');
+		var_dump($delete_status);
+		print '</br><br>';
+
+		return $keep;
+	}
+
+
+
 
 	/**
 	 * Update existing property
@@ -940,35 +1025,26 @@ class ThemeImport {
 	 */
 	private function updateExistingProperty($propertyId,$mlsImportItemStatusDelete, $content, $listingPostType, $newAuthor, $status, $mlsImportItemStatus, &$propertyHistory, $tipImport, $ListingKey) {
 		
-		if (is_array($mlsImportItemStatusDelete)) {
-			$mlsImportItemStatusDelete = array_map('strtolower', $mlsImportItemStatusDelete);
-		}
+		
+		$post = [
+			'ID' => $propertyId,
+			'post_content' => $content,
+			'post_type' => $listingPostType,
+			'post_author' => $newAuthor,
+		];
 
-		if (is_array($mlsImportItemStatusDelete) &&  in_array($status, $mlsImportItemStatusDelete)) {
-			$log = 'Property with ID ' . $propertyId . ' and with name ' . get_the_title($propertyId) . ' has a status of <strong>' . $status . '</strong> and will be deleted' . PHP_EOL;
-			$this->deleteProperty($propertyId, $ListingKey);
-			$this->writeImportLogs($log, $tipImport);
+		$log = 'Property with ID ' . $propertyId . ' and with name ' . get_the_title($propertyId) . ' has a status of <strong>' . $status . '</strong> and will be Edited</br>';
+		$this->writeImportLogs($log, $tipImport);
+
+		$propertyId = wp_update_post($post);
+		if (is_wp_error($propertyId)) {
+			$this->writeImportLogs('ERROR: on edit ' . PHP_EOL, $tipImport);
 		} else {
-			$post = [
-				'ID' => $propertyId,
-				'post_content' => $content,
-				'post_type' => $listingPostType,
-				'post_author' => $newAuthor,
-			];
-
-			$log = 'Property with ID ' . $propertyId . ' and with name ' . get_the_title($propertyId) . ' has a status of <strong>' . $status . '</strong> and will be Edited</br>';
-			$this->writeImportLogs($log, $tipImport);
-
-			$propertyId = wp_update_post($post);
-			if (is_wp_error($propertyId)) {
-				$this->writeImportLogs('ERROR: on edit ' . PHP_EOL, $tipImport);
-			} else {
-				$submitTitle = get_the_title($propertyId);
-				$propertyHistory[] = gmdate('F j, Y, g:i a') . ': Property with title: ' . $submitTitle . ', id:' . $propertyId . ', ListingKey:' . $ListingKey . ', Status:' . $status . ' will be edited';
-			}
-			clean_post_cache( $propertyId );
+			$submitTitle = get_the_title($propertyId);
+			$propertyHistory[] = gmdate('F j, Y, g:i a') . ': Property with title: ' . $submitTitle . ', id:' . $propertyId . ', ListingKey:' . $ListingKey . ', Status:' . $status . ' will be edited';
 		}
-
+		clean_post_cache( $propertyId );
+		
 		return $propertyHistory;
 	}
 

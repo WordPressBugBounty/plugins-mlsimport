@@ -542,8 +542,44 @@ class Mlsimport_Admin {
 	 */
 	public function mlsimport_hidden_fields() {
 		global $post;
+
 		$options = get_option( $this->plugin_name . '_admin_fields_select' );
-		echo  'ListingKey: '.get_post_meta( $post->ID, 'ListingKey', true ).'<br>';
+
+		$MLSimport_item_inserted = get_post_meta( $post->ID, 'MLSimport_item_inserted', true );
+		$MLSimport_item_updated = get_post_meta( $post->ID, 'MLSimport_item_updated', true );
+		$listing_key = get_post_meta( $post->ID, 'ListingKey', true );
+		$mlsImportItemStatusDelete = get_post_meta($post->ID, 'mlsImportItemStatusDelete', true);
+
+
+
+		// Check if the ListingKey exists
+		if ( !empty( $listing_key ) ) {
+			echo 'ListingKey: ' . $listing_key . '<br>';
+		}
+
+		// Check if MLSimport_item_inserted exists
+		if ( !empty( $MLSimport_item_inserted ) ) {
+			echo 'Added via MLS item id: ' . $MLSimport_item_inserted . ' - ' . get_the_title( $MLSimport_item_inserted ) . '<br>';
+		}
+
+		// Check if MLSimport_item_updated exists
+		if ( !empty( $MLSimport_item_updated ) ) {
+			echo 'Updated via MLS item id: ' . $MLSimport_item_updated . ' - ' . get_the_title( $MLSimport_item_updated ) . '<br>';
+		}
+
+
+		if(!empty($mlsImportItemStatusDelete)) {
+			if(is_array($mlsImportItemStatusDelete)) {
+				
+				echo 'Do not delete if status: ' .  implode(',' ,$mlsImportItemStatusDelete) . '<br>';
+			} else {
+
+				echo 'Do not delete if status: ' .  esc_html($mlsImportItemStatusDelete) . '<br>';
+
+			}
+			
+		}
+
 		foreach ( $options['mls-fields-admin'] as $key => $value ) {
 			if ( 1 === intval($options['mls-fields-admin'][ $key ] ) ) {
 				if ( isset( $options['mls-fields-label'][ $key ] ) &&  '' !== $options['mls-fields-label'][ $key ] ) {
@@ -662,7 +698,7 @@ class Mlsimport_Admin {
 						set_timeout( $mlsimport_delete_timeout );
 					}
 
-					$mlsimport->admin->theme_importer->mlsimport_saas_delete_property_via_mysql( $delete_get_id, ' delete from tools ' );
+					$mlsimport->admin->theme_importer->mlsimportSaasDeletePropertyViaMysql( $delete_get_id, ' delete from tools ' );
 				}
 
 				wp_update_term_count_now( array( $category->term_id ), $mlsimport_delete_category );
@@ -1354,7 +1390,6 @@ class Mlsimport_Admin {
 		if ( '' === $last_date  ) {
 			$last_date = $this->mlsimport_saas_update_last_date( $item_id );
 		}
-
 		return $last_date;
 	}
 
@@ -1367,7 +1402,7 @@ class Mlsimport_Admin {
 	public function mlsimport_saas_update_last_date( $item_id ) {
 
 		$unix_time         = current_time( 'timestamp', 0 ) - ( 2 * 60 * 60 );
-		$last_date_to_save = date( 'Y-m-d\TH:i', $unix_time );
+		print $last_date_to_save = date( 'Y-m-d\TH:i', $unix_time );
 		update_post_meta( $item_id, 'mlsimport_last_date', $last_date_to_save );
 
 		return $last_date_to_save;
@@ -1383,10 +1418,12 @@ class Mlsimport_Admin {
 	public function mlsimport_saas_start_cron_links_per_item( $item_id ) {
 
 		$last_date = $this->mlsimport_saas_get_last_date( $item_id );
-
-		esc_html_e('we work with','mlsimport').' '. esc_html($last_date ). PHP_EOL;
+		print 'MLSitem id: '.$item_id.' - ';
+		esc_html_e('date to consider: ','mlsimport'); 
+		print esc_html($last_date ). '. ';
 
 		$mlsrequest  = $this->mlsimport_make_listing_requests( $item_id, $last_date );
+	
 		$found_items = 0;
 		if ( isset( $mlsrequest['results'] ) ) {
 			$found_items = intval( $mlsrequest['results'] );
@@ -1394,7 +1431,7 @@ class Mlsimport_Admin {
 			delete_transient( 'mlsimport_saas_token' );
 		}
 
-		print esc_html__('we found ','mlsimport') .esc_html( $found_items ). '</br>' . PHP_EOL;
+		print esc_html__('We found ','mlsimport') .esc_html( $found_items ). ' listings.</br>' . PHP_EOL;
 
 		$attachments_to_move = array();
 
@@ -1442,7 +1479,7 @@ class Mlsimport_Admin {
 		if ( empty( $listingKey_in_Local ) ) {
 			return;
 		}
-
+ 
 
 		$mls_data          = $this->mlsimport_saas_get_mls_reconciliation_data();
 		$listingKey_in_MLS = $mls_data['all_data'];
@@ -1457,21 +1494,26 @@ class Mlsimport_Admin {
 				$listingkey  = $item->meta_value;
 				$property_id = $item->iD;
 				++$counter;
+
+			//print '</br>'.$counter. ' **************************</br>';
 			
-			if ( in_array( $listingkey, $listingKey_in_MLS ) ) {
+			if ( in_array( $listingkey, $listingKey_in_MLS )  ) {
 				print  wp_kses_post('</br>'.$listingkey .  ' IS FOUND');
 			} else {
-				$delete_status= get_post_meta( $property_id, 'mlsImportItemStatusDelete', true );
+				
+				$keep = $mlsimport->admin->theme_importer->check_if_delete_when_status($property_id);
 
-				if($delete_status=='' || $delete_status=='delete'){
+				if(!$keep){
 					++$to_delete;
-					print  wp_kses_post('</br>' .$listingkey. ' ------------------------- NOT FOUND delete: '.$property_id.' <-');
-				//	$mlsimport->admin->theme_importer->mlsimport_saas_delete_property_via_mysql( $property_id, $listingkey );
+					print  wp_kses_post('</br>' .$listingkey. ' ------------------------- NOT FOUND delete: '.$property_id.' /'.$post_status.'<-');
+				 	$mlsimport->admin->theme_importer->mlsimportSaasDeletePropertyViaMysql( $property_id, $listingkey );
 				}else{	
-					print  wp_kses_post('</br>' .$listingkey. ' ------------------------- NOT FOUND BUT MARKED AS KEEP: '.$property_id.' / '.$delete_status.'<-');
+					print  wp_kses_post('</br>' .$listingkey. ' ------------------------- NOT FOUND BUT MARKED AS KEEP: '.$property_id.' /'.$post_status.'<-');
 				}
 
 			}
+
+			//print '</br> ************************** ';
 		}
 
 		print  esc_html(' to delete:' .$to_delete);
@@ -1831,13 +1873,14 @@ class Mlsimport_Admin {
 			
 		}
 
+
 		$permited_status=array('active','active under contract','coming soon','activeundercontract','comingsoon','pending');
 		$permited_status_lower = array_map('strtolower', $permited_status);
 
 		// Filter out permitted statuses from array1 values
-		$standardstatus_delete_array = array_filter($standardstatus_delete_array, function ($value) use ($permited_status_lower) {
-			return !in_array(strtolower($value), $permited_status_lower);
-		});
+	//	$standardstatus_delete_array = array_filter($standardstatus_delete_array, function ($value) use ($permited_status_lower) {
+	//		return !in_array(strtolower($value), $permited_status_lower);
+//		}); 
 
 	
 
@@ -1909,7 +1952,7 @@ class Mlsimport_Admin {
 			),
 			'StandardStatusDelete'                 => array(
 				'label'       => esc_html__( 'Delete Statuses', 'mlsimport' ),
-				'description' => __( 'If you edit the Delete Statuses after importing listings, the changes will NOT apply to listings that have already been imported.', 'mlsimport' ),
+				'description' => __( 'Properties with these statuses will be deleted from your website after they are removed from MLS database. If you edit the field after importing, the changes will NOT apply to listings that have already been imported.', 'mlsimport' ),
 				'type'        => 'select',
 				'multiple'    => 'yes',
 				'values'      => $standardstatus_delete_array,
