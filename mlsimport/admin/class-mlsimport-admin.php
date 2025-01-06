@@ -1070,6 +1070,8 @@ class Mlsimport_Admin {
 									: 0;
 		
 		$mlsRequest = $this->mlsimport_make_listing_requests($postId);
+		//print_r($mlsRequest	);
+	
 		if (isset($mlsRequest['success']) && !$mlsRequest['success']) {
 			echo '<div class="mlsimport_warning">' . esc_html($mlsRequest['message']) . '</div>';
 		}
@@ -1099,6 +1101,7 @@ class Mlsimport_Admin {
 	 * @return string The generated HTML.
 	 */
 	private function generateMetaOptionsHtml($postId, $foundItems, $lastDate, $mlsimportItemHowMany, $mlsimportItemStatCron, $mlsimportMlsId, $fieldImport) {
+
 		ob_start();
 
 		?>
@@ -1479,12 +1482,10 @@ class Mlsimport_Admin {
 		if ( empty( $listingKey_in_Local ) ) {
 			return;
 		}
- 
 
 		$mls_data          = $this->mlsimport_saas_get_mls_reconciliation_data();
 		$listingKey_in_MLS = $mls_data['all_data'];
-
-		if ( empty( $listingKey_in_MLS ) ) {
+                if ( empty( $listingKey_in_MLS ) ) {
 			return;
 		}
 
@@ -1495,30 +1496,38 @@ class Mlsimport_Admin {
 				$property_id = $item->iD;
 				++$counter;
 
-			//print '</br>'.$counter. ' **************************</br>';
-			
-			if ( in_array( $listingkey, $listingKey_in_MLS )  ) {
-				print  wp_kses_post('</br>'.$listingkey .  ' IS FOUND');
-			} else {
+				print '</br>'.$counter. ' **************************';
+                       
+				if ( in_array( $listingkey, $listingKey_in_MLS )  ) {
+									$keep_when_in_mls = $mlsimport->admin->theme_importer->check_if_delete_when_status_when_in_mls($property_id);
+									if(!$keep_when_in_mls){
+						++$to_delete;
+						print  wp_kses_post('</br>WE DELETE -------' .$listingkey. ' -------------------------  FOUND but item option says delete: '.$property_id.' <-');
+						$mlsimport->admin->theme_importer->mlsimportSaasDeletePropertyViaMysql( $property_id, $listingkey );
+					}else{	
+						print  wp_kses_post('</br> WE KEEP ->>>>>> '.$listingkey .  ' IS FOUND with '.$property_id);
+					}	
+				} else {
+					
 				
-				$keep = $mlsimport->admin->theme_importer->check_if_delete_when_status($property_id);
+									$keep = $mlsimport->admin->theme_importer->check_if_delete_when_status($property_id);
+					if(!$keep){
+						++$to_delete;
+						print  wp_kses_post('</br>WE DELETE -------' .$listingkey. ' ------------------------- NOT FOUND delete: '.$property_id.' /'.$post_status.'<-');
+						$mlsimport->admin->theme_importer->mlsimportSaasDeletePropertyViaMysql( $property_id, $listingkey );
+					}else{	
+						print  wp_kses_post('</br>WE KEEP ->>>>>>' .$listingkey. ' ------------------------- NOT FOUND BUT MARKED AS KEEP: '.$property_id.' /'.$post_status.'<-');
+					}
 
-				if(!$keep){
-					++$to_delete;
-					print  wp_kses_post('</br>' .$listingkey. ' ------------------------- NOT FOUND delete: '.$property_id.' /'.$post_status.'<-');
-				 	$mlsimport->admin->theme_importer->mlsimportSaasDeletePropertyViaMysql( $property_id, $listingkey );
-				}else{	
-					print  wp_kses_post('</br>' .$listingkey. ' ------------------------- NOT FOUND BUT MARKED AS KEEP: '.$property_id.' /'.$post_status.'<-');
 				}
 
-			}
 
-			//print '</br> ************************** ';
 		}
 
 		print  esc_html(' to delete:' .$to_delete);
 		return;
 	}
+
 
 
 	/**

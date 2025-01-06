@@ -963,29 +963,33 @@ class ThemeImport {
 	 *
 	 * 
 	 */
-
-	 public function check_if_delete_when_status($property_id){
+	public function check_if_delete_when_status($property_id){
 		$delete_status= get_post_meta( $property_id, 'mlsImportItemStatusDelete', true );
 	
 
-		if (taxonomy_exists('property_status')) {
+		if (post_type_exists('estate_property')) {
 			// wpresidence
 			$termObjList = get_the_terms($property_id, 'property_status');
-		}else if(taxonomy_exists('property_label')){
+				
+				if(isset($termObjList) && is_array($termObjList)){
+						$post_status = $termObjList[0]->name;
+				}
+		
+				print 'from wpresidence : '.$post_status.' | ';
+                          
+		}else if(post_type_exists('property') && taxonomy_exists('property_label')){
 			// houzez
 			$termObjList = get_the_terms($property_id, 'property_label');
+                        
+				if(isset($termObjList) && is_array($termObjList)){
+						$post_status = $termObjList[0]->name;
+				}
+				print 'from houzez : '.$post_status.' | ';
 		} else {
 			//real homes
-			$termObjList = get_post_meta( $property_id, 'inspiry_property_label', true );
+			$post_status = get_post_meta( $property_id, 'inspiry_property_label', true );
+			print 'from real homes : '.$post_status.' | ';
 		}
-
-		//	property_label // houzez
-		//	inspiry_property_label
-		
-		if(isset($termObjList) && is_array($termObjList)){
-			$post_status = $termObjList[0]->name;
-		}
-
 
 		$keep=true;
 		if(!empty($delete_status)){
@@ -999,12 +1003,78 @@ class ThemeImport {
 
 		}
 
-		print  wp_kses_post('</br></br>' .$property_id. ' ------------------------- Kept: '.$property_id.' /'.$post_status.'<-');
+		print  wp_kses_post('</br></br>' .$property_id. ' ------------------------- Check keep when not found: '.$property_id.' /'.$post_status.'<-</br>');
 		var_dump($delete_status);
-		print '</br><br>';
+		print '</br>';
 
 		return $keep;
 	}
+
+
+
+
+	/**
+	 * Check for property status agains mls item standart status to see if we keep or delete the listing 
+	 * Function is used when we detect the property still exist in mls
+	 *
+	 * 
+	 */
+
+	 public function check_if_delete_when_status_when_in_mls($property_id){
+		   
+		$MLSimport_item_inserted = get_post_meta( $property_id, 'MLSimport_item_inserted', true );
+		$mlsimport_item_standardstatus= get_post_meta( $MLSimport_item_inserted, 'mlsimport_item_standardstatus', true );
+	 
+		if (post_type_exists('estate_property')) {
+			// wpresidence
+			$termObjList = get_the_terms($property_id, 'property_status');
+						
+			if(isset($termObjList) && is_array($termObjList)){
+				$post_status = $termObjList[0]->name;
+			}
+	
+			print 'from wpresidence : '.$post_status.' | ';
+						
+		}else if(post_type_exists('property') && taxonomy_exists('property_label')){
+			// houzez
+			$termObjList = get_the_terms($property_id, 'property_label');
+			
+			if(isset($termObjList) && is_array($termObjList)){
+					$post_status = $termObjList[0]->name;
+			}
+			print 'from houzez : '.$post_status.' | ';
+		} else {
+			//real homes
+			$post_status = get_post_meta( $property_id, 'inspiry_property_label', true );
+			print 'from real homes : '.$post_status.' | ';
+		}
+
+
+		var_dump($mlsimport_item_standardstatus); 
+		print '****';
+
+
+		$keep=true;
+		if(!empty($mlsimport_item_standardstatus)){
+			
+			if(is_array($mlsimport_item_standardstatus) && in_array($post_status, $mlsimport_item_standardstatus)){
+				$keep=true;
+			
+			}else if($post_status==$mlsimport_item_standardstatus){
+				$keep=true;
+			}else{
+				$keep=false;
+			}
+
+		}
+
+		print  wp_kses_post('</br></br>' .$property_id. ' Property Found in mls - check keep when found: '.$property_id.' /post_status: '.$post_status.'<-</br>');
+		var_dump($mlsimport_item_standardstatus);
+		print '</br>';
+
+		return $keep;
+		}
+
 
 
 

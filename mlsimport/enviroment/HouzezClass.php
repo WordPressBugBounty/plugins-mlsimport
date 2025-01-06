@@ -110,7 +110,7 @@ class HouzezClass {
 					
 					
 					if( isset( $options['mls-fields-map-postmeta'][ $meta_name ]) && $options['mls-fields-map-postmeta'][ $meta_name ]!==''   ){
-						$new_post_meta_key=$options['mls-fields-map-postmeta'][ $meta_name ];
+						$new_post_meta_key=$options['mls-fields-map-postmeta'][ $orignal_meta_name ];
 						update_post_meta( $property_id, $new_post_meta_key, $meta_value );
 						$property_history .= 'Updated CUSTOM post meta ' . $new_post_meta_key . ' original ' . $meta_name . ' and value ' . $meta_value . '</br>';
 						$extra_meta_log   .= 'Property with ID ' . $property_id . '  Update EXTRA Meta ' . $meta_name . ' with value ' . $meta_value . PHP_EOL;

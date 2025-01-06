@@ -2,12 +2,11 @@
 Contributors: mlsimport
 Tags: Multiple Listing Services, MLS Integration, MLS, Real Estate, Real Estate properties, MLS Data Download, Real Estate Data, MLS Integration, Property Listings, Data Synchronization, MLS Connectivity, Real Estate Software,  Real Estate Listings, MLS API, Data Import, Real Estate Solutions, Property Search, Real Estate Agents, MLS Access,  MLS Automation, Property Database, MLS Services, Real Estate Professionals, MLS Plugin
 Requires at least: 5.2
-Tested up to: 6.4
-Requires PHP: 7.1
-Stable Tag: 5.7
+Tested up to: 6.7.1
+Requires PHP: 7.4
+Stable Tag: 5.8.6
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
-
 MlsImport is an MLS Wordpress plugin that lets you download and synchronize real estate data from various MLSs (Multiple Listing Services). It works by calling  MLSimport API/your MLS API, reading the data from your Multiple Listing Association, and transforming it into a WordPress-like format. You will need a valid access token from your MLS to use this plugin and an MLSImport account. Currently, the plugin only works for <a href="https://wpresidence.net/" target="_blank">WPResidence</a>, Houzes, Real Homes, and <a href="https://wpestate.org/" target="_blank">WpEstate Wordpress Themes</a>. 
 
 If you are the owner of a real estate theme and want to be integrated with MLSimport, feel free to contact us
@@ -85,6 +84,11 @@ Read the terms and conditions of using MLSimport APIs here : https://mlsimport.c
 
 
 == Changelog ==
+
+=  5.8.6 =
+* Fix on importing into Houzez theme
+* fix with keep true if mlsImportItemStatusDelete meta is empty
+* fixed caps vs non caps on custom post meta
 
 =  5.7 =
 * Release on Wordpress plugin directory

@@ -80,14 +80,14 @@ class ResidenceClass {
 		
 				
 				if( isset( $options['mls-fields-map-postmeta'][ $orignal_meta_name ]) && $options['mls-fields-map-postmeta'][ $orignal_meta_name ]!==''   ){
-					$new_post_meta_key=$options['mls-fields-map-postmeta'][ $meta_name ];
+					$new_post_meta_key=$options['mls-fields-map-postmeta'][ $orignal_meta_name ];
 					
 					if ( is_array( $meta_value ) ) {
 						$meta_value = implode( ',', $meta_value );
 					}
 
 					update_post_meta( $property_id, $new_post_meta_key, $meta_value );
-					$property_history[] = 'Updated CUSTOM post meta ' . $new_post_meta_key . ' original ' . $meta_name . ' and value ' . $meta_value;
+					$property_history[] = 'Updated CUSTOM post meta ' . $new_post_meta_key . ' original ' . $meta_name . ' new meta '.$new_post_meta_key.' and value ' . $meta_value;
 				} 
 				else if( isset( $options['mls-fields-map-taxonomy'][ $orignal_meta_name ]) && $options['mls-fields-map-taxonomy'][ $orignal_meta_name ]!==''   ){
 					$new_taxonomy=$options['mls-fields-map-taxonomy'][ $orignal_meta_name ];
