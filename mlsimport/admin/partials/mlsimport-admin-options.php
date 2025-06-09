@@ -19,11 +19,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 	$settings_list = array(
 
 		'mlsimport_username'                => array(
-			'name'    => esc_html__( 'MLSImport Username', 'mlsimport' ),
+			'name'    => esc_html__( 'MLSImport.com Username (not your email)', 'mlsimport' ),
 			'details' => 'to be added',
 		),
 		'mlsimport_password'                => array(
-			'name'    => esc_html__( 'MLSImport Password', 'mlsimport'),
+			'name'    => esc_html__( 'MLSImport.com Password', 'mlsimport'),
 			'details' => 'to be added',
 		),
 
@@ -78,6 +78,17 @@ if ( ! defined( 'ABSPATH' ) ) {
 			'name'    => esc_html__( 'MLSImport Paragon Client Secret', 'mlsimport' ),
 			'details' => 'to be added',
 		),
+		
+		'mlsimport_realtorca_client_id'       => array(
+			'name'    => esc_html__( 'MLSImport Realtor.ca Client id', 'mlsimport' ),
+			'details' => 'to be added',
+		),
+
+		'mlsimport_realtorca_client_secret'   => array(
+			'name'    => esc_html__( 'MLSImport Realtor.ca Client Secret', 'mlsimport' ),
+			'details' => 'to be added',
+		),
+
 		'mlsimport_theme_used'              => array(
 			'type'    => 'select',
 			'name'    => esc_html__( 'Your Wordpress Theme', 'mlsimport'),
@@ -128,7 +139,7 @@ if ( trim( $token ) === '' ) {
 
 if ( 'yes' ===  $is_mls_connected  ) { ?>
 	<div class="mlsimport_warning mlsimport_validated">
-		<?php  esc_html_e( 'The connection to your MLS was successful', 'mlsimport' );?>
+		<?php  esc_html_e( 'You are connected to your MLS.', 'mlsimport' );?>
 	</div>
 <?php
 } else { ?>
@@ -156,10 +167,10 @@ foreach ( $settings_list as $key => $setting ) {
 				?>
 
 				<div class="mls_explanations">
-					If your MLS is not on this list yet please <a href="https://mlsimport.com" target="_blank">contact us</a> in order to check it and enable it.
+					If your MLS is not on the list yet, requires manual activation, or if your credentials are not connecting, please <a href="https://mlsimport.com/contact-us/" target="_blank">contact us</a> for support.
 				</div>
 				
-				<input type="text" id="mlsimport_mls_name_front"   name="mlsimport_admin_options[mlsimport_mls_name_front]" placeholder="search your MLS" value="<?php 
+				<input type="text" class="mlsimport-input mlsimport-2025-input" id="mlsimport_mls_name_front"   name="mlsimport_admin_options[mlsimport_mls_name_front]" placeholder="search your MLS" value="<?php 
 					if ( ! empty( $options['mlsimport_mls_name_front'] ) ) {
 						echo esc_html($options['mlsimport_mls_name_front']);
 					} 
@@ -192,7 +203,7 @@ foreach ( $settings_list as $key => $setting ) {
 				}
 				?>
 					
-				class="mlsimport-input xxx" autocomplete="off" 
+				class="mlsimport-input mlsimport-2025-input " autocomplete="off" 
 				id="<?php echo esc_attr( $this->plugin_name . '_admin_options' ); ?>-<?php echo esc_attr( $key ); ?>" 
 				name="<?php echo esc_attr( $this->plugin_name . '_admin_options' ); ?>[<?php echo esc_attr( $key ); ?>]" 
 				value="<?php
@@ -211,7 +222,7 @@ foreach ( $settings_list as $key => $setting ) {
 	
 <?php
 $attributes = array( 'data-style' => 'mlsimport_but' );
-submit_button( __( 'Save Changes', 'mlsimport' ), 'mlsimport_button', 'submit', true, $attributes );
+submit_button( __( 'Save Changes', 'mlsimport' ), 'mlsimport_button save_data', 'submit', true, $attributes );
 ?>
 </form>
 
@@ -225,28 +236,6 @@ submit_button( __( 'Save Changes', 'mlsimport' ), 'mlsimport_button', 'submit', 
 
 
 
-
-
-/*
- *
- * create dropdown list
- *
- *
- */
-function mlsiport_mls_select_list( $key, $value, $data_array ) {
-	$select = '<select id="' . esc_attr( $key ) . '" name="mlsimport_admin_options[' . $key . ']">';
-	if ( is_array( $data_array ) ) :
-		foreach ( $data_array as $key => $mls_item ) {
-			$select .= '<option value="' .esc_attr( $key ). '"';
-			if ( intval( $value ) === intval( $key ) ) {
-				$select .= ' selected ';
-			}
-			$select .= '>' .esc_html( $mls_item ). '</option>';
-		}
-	endif;
-	$select .= '</select>';
-	return $select;
-}
 
 
 

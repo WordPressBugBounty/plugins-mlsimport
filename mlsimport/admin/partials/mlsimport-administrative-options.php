@@ -33,6 +33,9 @@ if (isset($_POST['mlsimport_tool_actions']) &&
 
 
 <?php
+
+
+
 $disable_logs = intval( get_option( 'mlsimport_disable_logs' ) );
 $selected_no  = $selected_yes = '';
 
@@ -55,7 +58,7 @@ if ( 0 ===  intval($disable_history)  ) {
 
 <div class="mlsimport_tool_field_item_wrapper">    
 	<h4 style="margin-bottom:0px;"> Disable System Logs (logs should only be enabled during debug process) </h4>  
-	<select name="mlsimport-disable-logs" id="mlsimport-disable-logs"> 
+	<select name="mlsimport-disable-logs" class="mlsimport-2025-select" id="mlsimport-disable-logs"> 
 		<option value="0" <?php echo esc_html( $selected_no ); ?> >logs disabled</option>
 		<option value="1" <?php echo esc_html( $selected_yes ); ?>>logs enabled</option>
 
@@ -65,7 +68,7 @@ if ( 0 ===  intval($disable_history)  ) {
 
 <div class="mlsimport_tool_field_item_wrapper">    
 	<h4 style="margin-bottom:0px;"> Disable Property History (can be seen by editing a property in WordPress admin) </h4>  
-	<select name="mlsimport-disable-history" id="mlsimport-disable-history"> 
+	<select name="mlsimport-disable-history" class="mlsimport-2025-select" id="mlsimport-disable-history"> 
 	 
 		<option value="1" <?php echo esc_html( $selected_history_yes ); ?>>history enabled</option>
 		<option value="0" <?php echo esc_html( $selected_history_no ); ?> >history disabled</option>
@@ -75,11 +78,16 @@ if ( 0 ===  intval($disable_history)  ) {
 
 
 		 
-<?php submit_button( __( 'Save Changes', 'mlsimport' ), 'mlsimport_button', 'submit', true ); ?>
+<?php submit_button( __( 'Save Changes', 'mlsimport' ), 'mlsimport_button button save_data', 'submit', true ); ?>
 
-<div class="mlsimport_tool_field_item_wrapper"  style="background-color: #eee;padding: 10px;border-radius: 5px;">    
-	<h3 style="margin-bottom:0px;"> Clear cached data </h3>
-	<input class="mlsimport_button"  type="button" id="mlsimport-clear-cache" value="Clear Plugin Cached Data" />
+<div class="mlsimport_tool_field_item_wrapper"  style="background-color: #eee;padding: 10px;border-radius: 5px;">
+        <h3 style="margin-bottom:20px;"> Clear cached data </h3>
+        <input class="button mlsimport_button "  type="button" id="mlsimport-clear-cache" value="Clear Plugin Cached Data" />
+</div>
+
+<div class="mlsimport_tool_field_item_wrapper"  style="background-color: #eee;padding: 10px;border-radius: 5px;">
+        <h3 style="margin-bottom:20px;"> Clear fields data </h3>
+        <input class="button mlsimport_button "  type="button" id="mlsimport-clear-fields-data" value="Clear Field Data" />
 </div>
 	 
 	 
@@ -103,21 +111,21 @@ if ( 0 ===  intval($disable_history)  ) {
 	<label class="mlsimport-label" for="<?php echo esc_attr($this->plugin_name) . '_administrative_options'; ?>-import" >
 		<?php echo esc_html__( 'Delete from Category', 'mlsimport' ); ?>
 	</label></br>
-	<input type="text" lass="mlsimport-input" id="mlsimport_delete_category"></br>
+	<input type="text" class="mlsimport-input mlsimport-2025-input" id="mlsimport_delete_category"></br>
 	</br>
 	<label class="mlsimport-label" for="<?php echo esc_attr($this->plugin_name) . '_administrative_options'; ?>-import" >
 		<?php echo esc_html__( 'Delete the term from category(use term slug)', 'mlsimport' ); ?>
 	</label></br>
-	<input type="text" lass="mlsimport-input" id="mlsimport_delete_category_term"></br>
+	<input type="text" class="mlsimport-input mlsimport-2025-input" id="mlsimport_delete_category_term"></br>
 	</br>
 	<label class="mlsimport-label" for="<?php echo esc_attr($this->plugin_name) . '_administrative_options'; ?>-import" >
 		<?php esc_html_e('Pause the script between property delete processes (1=1 sec . For slow hosting use a number between 1 and 5)','mlsimport'); ?> 
 	</label>
 	 
-	<input type="text" lass="mlsimport-input" id="mlsimport_delete_timeout" value="0">
+	<input type="text" class="mlsimport-input mlsimport-2025-input" id="mlsimport_delete_timeout" value="0">
 
 	</br>
-	<input class="button mlsimport_button"  type="button" id="mlsimport-delete-prop" value="Delete" />
+	<input class="button mlsimport_button error_action"  type="button" id="mlsimport-delete-prop" value="Delete" />
 </fieldset>
 <?php
 $ajax_nonce = wp_create_nonce( "mlsimport_tool_actions" );

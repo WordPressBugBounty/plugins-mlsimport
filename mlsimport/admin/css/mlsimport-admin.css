@@ -1,3 +1,26 @@
+
+/* Base styling */
+:root {
+    --primary-color: #4F46E5;
+    --primary-hover: #4338CA;
+    --success-color: #10B981;
+    --error-color: #EF4444;
+    --warning-color: #F59E0B;
+    --text-primary: #111827;
+    --text-secondary: #4B5563;
+    --text-light: #6B7280;
+    --border-color: #DCDFE4;
+    --background-light: #F9FAFB;
+    --background-white: #FFFFFF;
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --border-radius: 8px;
+    --transition-speed: 0.2s;
+}
+
+
+
+
 /*Real Homes admin adjusments*/
 
 .post-type-property  .column-property-thumbnail img{
@@ -9,82 +32,11 @@
 
 /*Plugin CSS*/
 
-.mlsimport-tab-wrapper{
-
-}
-
-.mlsimport-tab-wrapper .nav-tab {
-	font-size: .8125rem;
-	line-height: 1.46154;
-	font-weight: bold;
-	letter-spacing: -0.08px;
-	text-transform: uppercase;
-	color: #23202c;
-	padding: 15px 25px;
-	background: #f1f1f1;
-}
-
-.mlsimport-tab-wrapper .nav-tab.nav-tab-active{
-	background-color: #fff;
-	border-top: 2px solid #ff4270;
-}
-
-.content-nav-tab{
-	display:none;
-	padding: 30px 15px;
-	background: #fff;
-	border: 1px solid #ccc;
-	border-top: 0px;
-}
-
-.mlsimport-fieldset-wrapper input,
-input[type=checkbox].mlsimport_select_import_admin_all,
-input[type=checkbox].mlsimport_select_import_all {
-	border: 1px solid #ccc;
-	border-radius: 2px;
-	background-color: #fff!important;
-}
-
-
-.mlsimport_button{
-	position: relative;
-	/* display: inline-block; */
-	width: auto;
-	padding: 8px 24px!important;
-	text-align: center;
-
-	box-shadow: 0 4px 6px rgba(50,50,93,0.11), 0 1px 3px rgba(0,0,0,0.08);
-	text-transform: uppercase;
-	text-decoration: none!important;
-	letter-spacing: -0.08px;
-	font-weight: bold;
-	border-radius: 3px;
-	color: #fff !important;
-	white-space: nowrap;
-	-webkit-backface-visibility: hidden;
-	backface-visibility: hidden;
-	transition: all 200ms ease-out;
-	-webkit-transition: all 200ms ease-out;
-	font-size: .8125rem;
-	line-height: 1.53846;
-	border: none!important;
-	cursor:pointer;
-	margin-bottom: 30px;
-}
-.button.mlsimport_button:focus,
-.button.mlsimport_button{
-		background: #ff4270;
-}
-.button.mlsimport_button:active,
-.button.mlsimport_button:hover{
-	background-color:#cc3459;
-}
 
 
 
-.content-nav-tab-active{
-	display:block;
-}
+
+
 
 .mlsfield_import_title {
     margin: 0px 0px 10px 0px;
@@ -145,25 +97,13 @@ input.mlsimport_select_import_admin_all{
 
 
 .mlsimport_hidden_field_button{
-	cursor: pointer;
-	background-color: #068018;
-	padding: 5px 10px;
-	color: #fff;
-	width: auto;
-	border-radius: 3px;
+
 }
 
 .mlsimport-input-wrapper{
 	clear: both;
 }
 
-input[type=password].mlsimport-input,
-input[type=text].mlsimport-input,
-.mlsimport-input{
-	min-width: 450px;
-	border-color: #ccc;
-	padding: 5px 12px;
-}
 
 #mlsimport_mls_name_front{
 	border-color: #ccc;
@@ -172,16 +112,22 @@ input[type=text].mlsimport-input,
 }
 
 
-.mlsimport-fieldset select{
-	border-color: #ccc;
-	min-width: 450px;
-	padding: 5px 12px;
-}
+
 
 .wp-admin select.mlsimport-select{
-	min-width: 450px;
-	border-color: #ccc;
-	padding: 5px 12px 5px 12px;
+    max-width: 450px;
+    padding: 5px 12px;
+    width: 100%;
+    box-sizing: border-box;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-start;
+    isolation: isolate;
+    border: 1px solid #DCDFE4;
+    box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.08);
+    border-radius: 8px;
+    flex: none;
+    align-self: stretch;
 }
 .wp-admin select.mlsimport-select option{
 	padding: 3px 0px;
@@ -296,28 +242,17 @@ input[type=text].mlsimport-input,
 	margin-bottom: 10px;
 }
 
-
-#mlsimport-start_item,
-#mlsimport-start{
-	background: #068018!important;
-}
-
-#mlsimport-start_item:hover,
-#mlsimport-start:hover{
-	background: #056614!important;
-}
-
-
-#mlsimport-clear-cache{
-	background: #3d7028!important;
-	margin: 15px 0px;
-	display: block;
-}
-
 #mlsimport_stop_item,
-#mlsimport_stop{
-	margin-bottom: 30px;
-	margin-left: 15px;
+#mlsimport-start_item{
+    display: inline-block;
+    margin: 0px 10px 30px 0px;
+}
+
+.mlsimport_hidden_field_button {
+	max-width: 450px;
+}
+.mlsimport_param_wrapper input{
+	max-width: 450px;
 }
 
 .cron_job_explainin{
@@ -346,6 +281,7 @@ input[type=text].mlsimport-input,
 /*==WpResidence*/
 #property_uploaded_thumb_wrapepr img{
 	max-width: 200px;
+	max-height: 200px;
 }
 
 table.media .column-title .media-icon img {
@@ -358,18 +294,12 @@ table.media .column-title .media-icon img {
 	color: #fff;
 	padding: 10px;
 	margin-bottom: 10px;
-	max-width: 300px;
 	border-radius: 2px;
-	max-width: 430px;
-
 }
 
-.mlsimport_warning a{
-	color:#fff;
-}
 
 .mlsimport_populate_warning{
-	background: #ff4270;
+	background: #4f46e5;
 	color: #fff;
 	padding: 10px;
 	margin-bottom: 10px;
@@ -378,12 +308,23 @@ table.media .column-title .media-icon img {
 
 
 .mlsimport_validated{
-	background: #068018;
-	max-width: 750px;
+	padding: 0.75rem 1rem;
+    margin-bottom: 1rem;
+    border-radius: var(--border-radius);
+    background-color: rgba(245, 158, 11, 0.1);
+    border-left: 4px solid var(--warning-color);
+    color: var(--text-primary);
 }
+
 
 .mlsimport_notification{
 	background: #a5862b;
+}
+
+
+#mlsimport_item_metaboxes-sectionid .mlsimport_notification{
+	background: #a5862b;
+	max-width: 500px;
 }
 
 
@@ -393,7 +334,7 @@ table.media .column-title .media-icon img {
 	overflow-y: scroll;
 	padding: 10px;
 	border-radius: 5px;
-	margin-bottom: 30px;
+	margin-bottom: 15px;
 }
 
 
@@ -519,3 +460,313 @@ label.mlsimport_switch {
 }
 
 /*==RealHomes*/
+
+
+
+/*==2025*/
+
+.content-nav-tab{
+	display:none;
+	padding: 30px 15px;
+	background: #fff;
+	border: 1px solid #ccc;
+	border-top: 0px;
+}
+
+.content-nav-tab-active{
+	display: flex;
+}
+
+
+.content-nav-tab.mlsimport_2025_card{
+	width: auto;
+}
+
+.mlsimport_2025_card{
+	flex-direction: column;
+	align-items: center;
+	padding: 0px;
+
+	background: #FFFFFF;
+	box-shadow: 0px 0px 0px 1px rgba(0, 0, 0, 0.06), 0px 5px 22px rgba(0, 0, 0, 0.04);
+	border-radius: 10px;
+	flex: none;
+	order: 0;
+	flex-grow: 1;
+
+}
+
+.mlsimport_2025_card_left_oriented{
+	flex-direction: column;
+    align-content: flex-start;
+    align-items: flex-start;
+    justify-content: flex-start;
+    padding: 30px;
+}
+
+
+.nav-tab-wrapper.mlsimport-tab-wrapper{
+	border: none;
+	padding: 0px 15px;
+	margin-top: 50px;
+}
+
+
+.nav-tab-wrapper.mlsimport-tab-wrapper .nav-tab {
+
+    text-transform: uppercase;
+    color: #23202c;
+    padding: 15px 25px;
+    background: #f1f1f1;
+    border-top-right-radius:5px;
+    border-top-left-radius: 5px;
+
+    padding: 15px 30px;
+    background: #fff;
+    border: 1px solid #ccc;
+}
+
+.nav-tab-wrapper.mlsimport-tab-wrapper .nav-tab.nav-tab-active{
+    background-color: #635BFF;
+    color: #fff;
+}
+
+.content-nav-tab.mlsimport_2025_card form{
+	max-width: 500px;
+}
+
+.content-nav-tab.mlsimport_2025_card form.mlsimport-import-fields-form{
+	max-width: 100%;
+}
+
+
+
+
+/*==2025 Inputs*/
+
+input[type=password].mlsimport-input.mlsimport-2025-input,
+input[type=text].mlsimport-input.mlsimport-2025-input,
+.mlsimport-input.mlsimport-2025-input{
+	padding: 5px 12px;
+	box-sizing: border-box;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	isolation: isolate;
+	background: #FFFFFF;
+	border: 1px solid #DCDFE4;
+	box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.08);
+	border-radius: 8px;
+	flex: none;
+	order: 1;
+	align-self: stretch;
+	flex-grow: 0;
+	display: inline-flex;
+}
+.mlsimport-label {
+    display: block;
+    margin-bottom: 0px;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+select.mlsimport-2025-select{
+	    padding: 5px 24px 5px 12px;
+	width: 100%;
+	max-width: 100%;
+	box-sizing: border-box;
+	display: inline-flex;
+	flex-direction: column;
+	align-items: flex-start;
+	isolation: isolate;
+	border: 1px solid #DCDFE4;
+	box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.08);
+	border-radius: 8px;
+	flex: none;
+	align-self: stretch;
+	flex-grow: 0;
+}
+
+	
+
+
+.mlsimport-fieldset-wrapper input,
+input[type=checkbox].mlsimport_select_import_admin_all,
+input[type=checkbox].mlsimport_select_import_all {
+	border: 1px solid #ccc;
+	border-radius: 2px;
+	background-color: #fff!important;
+}
+
+
+.button.mlsimport_button{
+	font-size: 14px;
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	align-items: center;
+	padding: 7px 30px;
+	background: linear-gradient(180deg, #635BFF 0%, #4E36F5 100%);
+	border: 1px solid #15B79F;
+	border-radius: 8px;
+	color:#fff;
+	flex: none;
+	order: 1;
+	flex-grow: 0;
+	box-shadow: rgba(0, 0, 0, 0.08) 0px 1px 2px 0px, rgb(78, 54, 245) 0px 0px 0px 1px inset, rgba(255, 255, 255, 0.16) 0px 2px 0px 0px inset;
+}
+
+.button.mlsimport_button:hover {
+	background: linear-gradient(180deg, #635BFF 0%, #4E36F5 100%);
+	color:#fff;
+	border: 1px solid #15B79F;
+	box-shadow: 0px 3px 14px rgba(0, 0, 0, 0.08), inset 0px 0px 0px 1px #4e36f5,inset 0px 2px 0px 0px rgba(255, 255, 255, 0.16) , inset 0px 6px 10px 0px rgba(255, 255, 255, 0.10);
+}
+
+.button.save_data {
+    background: linear-gradient(180deg, var(--success-color) 0%, #0C8A61 100%);
+    border: 1px solid var(--success-color);
+    box-shadow: rgba(0, 0, 0, 0.08) 0px 1px 2px 0px, var(--success-color) 0px 0px 0px 1px inset, rgba(255, 255, 255, 0.16) 0px 2px 0px 0px inset;
+}
+
+.button.save_data:hover {
+    background: linear-gradient(180deg, var(--success-color) 0%, #0C8A61 100%);
+    border: 1px solid var(--success-color);
+    box-shadow: 0px 3px 14px rgba(0, 0, 0, 0.08), inset 0px 0px 0px 1px var(--success-color), inset 0px 2px 0px 0px rgba(255, 255, 255, 0.16), inset 0px 6px 10px 0px rgba(255, 255, 255, 0.10);
+}
+
+
+.button.secondary {
+	background: linear-gradient(180deg, #32383e 0%, #25292e 100%);
+	border: 1px solid #32383e;
+	color: #fff;
+	box-shadow: rgba(0, 0, 0, 0.08) 0px 1px 2px 0px, rgb(50, 56, 62) 0px 0px 0px 1px inset, rgba(255, 255, 255, 0.16) 0px 2px 0px 0px inset;
+ }
+ 
+ .button.secondary:hover {
+	background: linear-gradient(180deg, #32383e 0%, #25292e 100%);
+	border: 1px solid #32383e;
+	color: #fff;
+	box-shadow: 0px 3px 14px rgba(0, 0, 0, 0.08), inset 0px 0px 0px 1px #32383e, inset 0px 2px 0px 0px rgba(255, 255, 255, 0.16), inset 0px 6px 10px 0px rgba(255, 255, 255, 0.10);
+ }
+
+
+
+ .button.warning_action {
+	background: linear-gradient(180deg, #fb9c0c 0%, #d0810a 100%);
+	border: 1px solid #fb9c0c;
+	box-shadow: rgba(0, 0, 0, 0.08) 0px 1px 2px 0px, #fb9c0c 0px 0px 0px 1px inset, rgba(255, 255, 255, 0.16) 0px 2px 0px 0px inset;
+ }
+ 
+ .button.warning_action:hover {
+	background: linear-gradient(180deg, #fb9c0c 0%, #d0810a 100%);
+	border: 1px solid #fb9c0c;
+	box-shadow: 0px 3px 14px rgba(0, 0, 0, 0.08), inset 0px 0px 0px 1px #fb9c0c, inset 0px 2px 0px 0px rgba(255, 255, 255, 0.16), inset 0px 6px 10px 0px rgba(255, 255, 255, 0.10);
+ }
+
+
+ .button.error_action {
+	background: linear-gradient(180deg, #bb241a 0%, #9b1e16 100%);
+	border: 1px solid #bb241a;
+	box-shadow: rgba(0, 0, 0, 0.08) 0px 1px 2px 0px, #bb241a 0px 0px 0px 1px inset, rgba(255, 255, 255, 0.16) 0px 2px 0px 0px inset;
+ }
+ 
+ .button.error_action:hover {
+	background: linear-gradient(180deg, #bb241a 0%, #9b1e16 100%);
+	border: 1px solid #bb241a;
+	box-shadow: 0px 3px 14px rgba(0, 0, 0, 0.08), inset 0px 0px 0px 1px #bb241a, inset 0px 2px 0px 0px rgba(255, 255, 255, 0.16), inset 0px 6px 10px 0px rgba(255, 255, 255, 0.10);
+ }
+
+
+
+
+
+
+#mlsimport_item_how_many{
+	max-width: 450px;
+}
+
+
+
+
+
+
+ input[type=checkbox].mlsimport-import-checkbox,
+ input[type=checkbox].mlsimport-admin-checkbox {
+	 appearance: none;
+	 -webkit-appearance: none;
+	 background: transparent;
+	 border: none;
+	 box-shadow: none;
+	 width: 24px;
+	 height: 24px;
+	 position: relative;
+	 display: inline-block;
+	 vertical-align: middle;
+ }
+ 
+ input[type=checkbox].mlsimport-import-checkbox:before,
+ input[type=checkbox].mlsimport-admin-checkbox:before {
+	 content: "";
+	 position: absolute;
+	 top: 0;
+	 left: 0;
+	 width: 24px;
+	 height: 24px;
+	 background-image: url("data:image/svg+xml;utf8,<svg fill='none' height='24' viewBox='0 0 24 24' width='24' xmlns='http://www.w3.org/2000/svg'><path clip-rule='evenodd' d='M8 2C4.68629 2 2 4.68629 2 8V16C2 19.3137 4.68629 22 8 22H16C19.3137 22 22 19.3137 22 16V8C22 4.68629 19.3137 2 16 2H8ZM8 4C5.79086 4 4 5.79086 4 8V16C4 18.2091 5.79086 20 8 20H16C18.2091 20 20 18.2091 20 16V8C20 5.79086 18.2091 4 16 4H8Z' fill='%23DCDFE4' fill-rule='evenodd'></path></svg>");
+	 background-size: 24px 24px;
+	 background-position: center;
+	 background-repeat: no-repeat;
+	 margin: 0px;
+ }
+ 
+ input[type=checkbox].mlsimport-import-checkbox:checked:before,
+ input[type=checkbox].mlsimport-admin-checkbox:checked:before {
+	 background-image: url("data:image/svg+xml;utf8,<svg fill='none' height='24' viewBox='0 0 24 24' width='24' xmlns='http://www.w3.org/2000/svg'><rect fill='%23635bff' height='20' rx='6' width='20' x='2' y='2'></rect><path d='M7.55566 11.7222L10.5186 14.7778L16.4446 8.66669' stroke='white' stroke-linecap='round' stroke-linejoin='round' stroke-width='2'></path></svg>");
+ }
+
+
+
+/* Initial save progress overlay */
+.mlsimport-save-progress {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 9999;
+    background: #fff;
+    padding: 40px;
+    border-radius: 10px;
+    /* border: 1px solid #ddd; */
+    box-shadow: 0 7px 54px rgba(0, 0, 0, 0.15);
+    width: 500px;
+    min-height: 200px;
+    text-align: center;
+    font-size: 17px;
+    display: flex;
+    align-content: center;
+    justify-content: center;
+    align-items: center;
+    line-height: 1.8em;
+}
+
+.mlsimport-save-progress-text {
+        margin-bottom: 10px;
+}
+
+.mlsimport-save-progress-bar {
+        height: 10px;
+        background: #eee;
+        margin-top: 5px;
+        border-radius: 5px;
+        overflow: hidden;
+}
+
+.mlsimport-save-progress-bar .progress-fill {
+        width: 0%;
+        height: 100%;
+        background: #635BFF;
+        border-radius: 5px;
+        transition: width 0.3s;
+}

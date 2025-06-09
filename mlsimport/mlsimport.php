@@ -3,7 +3,8 @@
  * Plugin Name:       MlsImport
  * Plugin URI:        https://mlsimport.com/
  * Description:       "MLS Import - The MLSImport plugin facilitates the connection to your real estate MLS database, allowing you to download and synchronize real estate property data from the MLS.
- * Version:           5.8.6
+ * Version:           6.0.5
+ * Stable tag: 		  6.0.5
  * Requires at least: 5.2
  * Requires PHP:      7.2
  * License: GPLv3
@@ -20,13 +21,17 @@ if ( ! defined( 'WPINC' ) ) {
 }
 
 
-define( 'MLSIMPORT_VERSION', '5.8.6' );
+define( 'MLSIMPORT_VERSION', '6.0.5' );
 define( 'MLSIMPORT_CLUBLINK', 'mlsimport.com' );
 define( 'MLSIMPORT_CLUBLINKSSL', 'https' );
 define( 'MLSIMPORT_CRON_STEP', 20 );
 define( 'MLSIMPORT_PLUGIN_PATH', plugin_dir_path( __FILE__ ) );
 define( 'MLSIMPORT_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
-define( 'MLSIMPORT_API_URL', 'https://requests.mlsimport.com/' );
+//define( 'MLSIMPORT_API_URL', 'https://requests.mlsimport.com/' );
+define( 'MLSIMPORT_API_URL', 'https://pyjzsilw7b.execute-api.us-east-1.amazonaws.com/dev/' );
+if ( ! defined( 'MLSIMPORT_HIDE_SETUP_NOTICE' ) ) {
+    define( 'MLSIMPORT_HIDE_SETUP_NOTICE', false );
+}
 
 
 
@@ -78,59 +83,118 @@ require_once plugin_dir_path( __FILE__ ) . 'enviroment/BridgeResoClass.php';
 require_once plugin_dir_path( __FILE__ ) . 'enviroment/TresleResoClass.php';
 require_once plugin_dir_path( __FILE__ ) . 'enviroment/MlsgridResoClass.php';
 require_once plugin_dir_path( __FILE__ ) . 'enviroment/MlsgridResoClass.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/addons/agents_offices.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-onboarding.php';
 
-
+require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-field-selector-functions.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-progressive-save.php';
 
 if ( ! wp_next_scheduled( 'event_mls_import_auto' ) ) {
 	wp_schedule_event( time(), 'hourly', 'event_mls_import_auto' );
 }
 
 
-
-
-
-
-
-add_action( 'event_mls_import_auto', 'mlsimport_saas_event_mls_import_auto_function' );
+/**
+ * Scheduled event: Processes MLSimport items marked for cron processing, in memory-safe batches.
+ *
+ * This function is triggered by the 'event_mls_import_auto' action.
+ * It fetches mlsimport_item post IDs in small batches (not all at once!) to minimize memory usage.
+ * Only posts with meta 'mlsimport_item_stat_cron' = 1 are processed.
+ * For each item, calls mlsimport_saas_start_cron_links_per_item().
+ * 
+ * Optimizations:
+ * - Uses 'fields' => 'ids' so only post IDs are loaded (saves memory)
+ * - Batches with posts_per_page/paged, so memory does not spike for large data sets
+ * - Calls gc_collect_cycles() periodically to further reduce memory leaks
+ * - Skips processing if MLS is not connected or token is missing
+ * 
+ * @return void
+ */
+add_action('event_mls_import_auto', 'mlsimport_saas_event_mls_import_auto_function');
+/**
+ * Scheduled event handler for MLS Import Auto (runs via WP Cron).
+ * Processes mlsimport_item posts in batches and logs memory usage.
+ */
 function mlsimport_saas_event_mls_import_auto_function() {
-	global $mlsimport;
-	$token = $mlsimport->admin->mlsimport_saas_get_mls_api_token_from_transient();
-	if ( trim( $token ) === '' ) {
-		return;
-	}
+    global $mlsimport;
 
-	$is_mls_connected = get_option( 'mlsimport_connection_test', '' );
-	if ( 'yes' !== $is_mls_connected   ) {
-		return;
-	}
+    //error_log('[AutoCron] Start: ' . (memory_get_usage(true) / 1024 / 1024) . ' MB');
 
-	$logs ='';
-	mlsimport_debuglogs_per_plugin( $logs );
-	$args = array(
-		'post_type'      => 'mlsimport_item',
-		'post_status'    => 'any',
-		'posts_per_page' => -1,
-		'meta_query'     => array(
-			array(
-				'key'     => 'mlsimport_item_stat_cron',
-				'value'   => 1,
-				'compare' => '=',
-			),
+    // 1. Get the API token from transient - exit if not set
+    $token = $mlsimport->admin->mlsimport_saas_get_mls_api_token_from_transient();
+    //error_log('[AutoCron] After token fetch: ' . (memory_get_usage(true) / 1024 / 1024) . ' MB');
+    if (trim($token) === '') {
+        //error_log('[AutoCron] No token, exiting.');
+        return;
+    }
 
-		),
+    // 2. Check if MLS connection is valid - exit if not
+    $is_mls_connected = get_option('mlsimport_connection_test', '');
+    //error_log('[AutoCron] After connection check: ' . (memory_get_usage(true) / 1024 / 1024) . ' MB');
+    if ('yes' !== $is_mls_connected) {
+        //error_log('[AutoCron] No valid connection, exiting.');
+        return;
+    }
 
-	);
+    // 3. Set batch size for processing and initialize loop variables
+    $batch_size = 100;
+    $paged = 1;
+    $total_processed = 0;
 
-	$prop_selection = new WP_Query( $args );
-	if ( $prop_selection->have_posts() ) {
-		while ( $prop_selection->have_posts() ) :
-			$prop_selection->the_post();
-			$prop_id = get_the_ID();
-			$logs    = ' Loop custom post : ' . $prop_id . PHP_EOL;
-			mlsimport_debuglogs_per_plugin( $logs );
-			$mlsimport->admin->mlsimport_saas_start_cron_links_per_item( $prop_id );
-		endwhile;
-	}
+    // 4. Process in batches until no more items are found
+    do {
+        // Prepare query: only IDs, filter by meta key, batch, paged, no_found_rows speeds up query
+        $args = array(
+            'post_type'      => 'mlsimport_item',
+            'post_status'    => 'any',
+            'posts_per_page' => $batch_size,
+            'paged'          => $paged,
+            'fields'         => 'ids',
+            'meta_query'     => array(
+                array(
+                    'key'     => 'mlsimport_item_stat_cron',
+                    'value'   => 1,
+                    'compare' => '=',
+                ),
+            ),
+            'no_found_rows'  => true,
+        );
+
+        // Get post IDs for this batch
+        $post_ids = get_posts($args);
+        //error_log("[AutoCron] Batch {$paged} fetched " . count($post_ids) . " items, memory: " . (memory_get_usage(true) / 1024 / 1024) . ' MB');
+
+        // If nothing is returned, break the loop
+        if (empty($post_ids)) {
+            break;
+        }
+
+        // 5. Loop through each post ID in this batch
+        foreach ($post_ids as $prop_id) {
+            $logs = 'Loop custom post: ' . $prop_id . PHP_EOL;
+            mlsimport_debuglogs_per_plugin($logs);
+
+            // Call processing function for this item
+            $mlsimport->admin->mlsimport_saas_start_cron_links_per_item($prop_id);
+
+            $total_processed++;
+
+            // Free memory every 100 processed items
+            if ($total_processed % 100 === 0) {
+                gc_collect_cycles();
+                //error_log("[AutoCron] Processed {$total_processed} total, memory: " . (memory_get_usage(true) / 1024 / 1024) . ' MB');
+            }
+        }
+
+        // 6. Prepare next batch
+        $paged++;
+        unset($post_ids);   // Free memory
+        gc_collect_cycles(); // Trigger garbage collection
+        //error_log("[AutoCron] After batch {$paged}, memory: " . (memory_get_usage(true) / 1024 / 1024) . ' MB');
+
+    } while (true);
+
+    //error_log('[AutoCron] Done, total processed: ' . $total_processed . ', end memory: ' . (memory_get_usage(true) / 1024 / 1024) . ' MB');
 }
 
 
@@ -330,77 +394,11 @@ function mlsimport_show_signup() {
 	?>
 	<div class="mlsimport_signup">
 		<h3><?php  esc_html_e('Import MLS Listings into your Real Estate website', 'mlsimport'); ?></h3>
-		<p><?php   esc_html_e('Signup now and get 30-Days Free trial, no setup fee & cancel anytime at ', 'mlsimport'); ?><a href="<?php echo esc_url($affiliate_url); ?>" target="_blank">MlsImport.com</a></p>
-		<a href="<?php echo esc_url($affiliate_url); ?>" class="button mlsimport_button mlsimport_signup_button" target="_blank"><?php esc_html_e('Create My Account', 'mlsimport'); ?></a>
+		<p><?php   esc_html_e('Signup now and get 30-Days Free trial, no setup fee & cancel anytime at ', 'mlsimport'); ?><a href="https://mlsimport.com/mls-import-plugin-pricing/" target="_blank">MLSImport.com</a></p>
+		<a href="https://mlsimport.com/mls-import-plugin-pricing" class="button mlsimport_button mlsimport_signup_button" target="_blank"><?php esc_html_e('Create My Account', 'mlsimport'); ?></a>
 	</div>
 <?php
 }
-
-/*
-
-// Register the hook before calling the scheduling function
-add_action('mlsimport_delete_empty_terms_batch_event', 'mlsimport_delete_empty_terms_batch', 10, 3);
-
-// Call this function with your taxonomy to start the deletion process
-mlsimport_schedule_empty_terms_deletion('property_area');
-
-function mlsimport_schedule_empty_terms_deletion($taxonomy) {
-    // Clear any existing scheduled events
-    wp_clear_scheduled_hook('mlsimport_delete_empty_terms_batch_event');
-
-    // Schedule the first batch
-    if (!wp_next_scheduled('mlsimport_delete_empty_terms_batch_event', array($taxonomy, 100, 0))) {
-        wp_schedule_single_event(time() + 30, 'mlsimport_delete_empty_terms_batch_event', array($taxonomy, 100, 0));
-        echo 'Scheduled first batch event.<br>';
-    } else {
-        echo 'First batch event already scheduled.<br>';
-    }
-}
-
-function mlsimport_delete_empty_terms_batch($taxonomy, $batch_size = 100, $offset = 0) {
-    // Debugging output to confirm function execution
-    echo 'Processing batch starting from offset: ' . $offset . '<br>';
-
-    // Get terms in batches
-    $terms = get_terms(array(
-        'taxonomy'   => $taxonomy,
-        'hide_empty' => false, // Include empty terms
-        'orderby'    => 'count',
-        'order'      => 'ASC',
-        'number'     => $batch_size,
-        'offset'     => $offset,
-    ));
-
-    if (!is_wp_error($terms) && !empty($terms)) {
-        foreach ($terms as $term) {
-            // Check if term count is zero
-            if ($term->count == 0) {
-                // Delete the term if it has no posts associated
-                wp_delete_term($term->term_id, $taxonomy);
-                echo 'Deleted term ID: ' . $term->term_id . '<br>';
-            }
-        }
-
-        // Schedule the next batch if more terms are found
-        if (count($terms) == $batch_size) {
-            $next_offset = $offset + $batch_size;
-            wp_schedule_single_event(time() + 30, 'mlsimport_delete_empty_terms_batch_event', array($taxonomy, $batch_size, $next_offset));
-            echo 'Scheduled next batch event from offset: ' . $next_offset . '<br>';
-        } else {
-            echo 'No more terms to process.<br>';
-        }
-    } else {
-        // Debugging output for error or completion
-        if (is_wp_error($terms)) {
-            echo 'Error fetching terms: ' . $terms->get_error_message() . '<br>';
-        } else {
-            echo 'No more terms to process.<br>';
-        }
-    }
-}
-
-
-*/
 
 
 //add_action('admin_init', 'force_recount_all_terms');
@@ -433,3 +431,131 @@ function force_recount_all_terms() {
 
     echo "Term counts have been recalculated for all taxonomies.";
 }
+
+
+/*
+ *
+ * create dropdown list
+ *
+ *
+ */
+function mlsiport_mls_select_list( $key, $value, $data_array ) {
+	$select = '<select class="mlsimport-2025-select" id="' . esc_attr( $key ) . '" name="mlsimport_admin_options[' . $key . ']">';
+	if ( is_array( $data_array ) ) :
+		foreach ( $data_array as $key => $mls_item ) {
+			$select .= '<option value="' .esc_attr( $key ). '"';
+			if ( intval( $value ) === intval( $key ) ) {
+				$select .= ' selected ';
+			}
+			$select .= '>' .esc_html( $mls_item ). '</option>';
+		}
+	endif;
+	$select .= '</select>';
+	return $select;
+}
+
+
+
+add_action('wp_ajax_mlsimport_save_account', 'mlsimport_save_account_callback');
+function mlsimport_save_account_callback() {
+	check_ajax_referer('mlsimport_onboarding_nonce', 'security');
+
+	$options = get_option('mlsimport_admin_options', []);
+	if ( ! empty($_POST['mlsimport_username']) && ! empty($_POST['mlsimport_password']) ) {
+		$options['mlsimport_username'] = sanitize_text_field($_POST['mlsimport_username']);
+		$options['mlsimport_password'] = sanitize_text_field($_POST['mlsimport_password']);
+		update_option('mlsimport_admin_options', $options);
+	}
+
+	global $mlsimport;
+
+	// Refresh token
+	$token = $mlsimport->admin->mlsimport_saas_get_mls_api_token_from_transient();
+
+	if (trim($token) === '') {
+		ob_start();
+	
+		?>
+		<div class="mlsimport_warning">
+			<?php esc_html_e('You are not connected to MlsImport - Please check your Username and Password.', 'mlsimport'); ?>
+		</div>
+		<?php
+		$html = ob_get_clean();
+
+		wp_send_json_success([
+			'message' => __('You are not connected.', 'mlsimport'),
+			'html'    => $html,
+			'connected' => false
+		]);
+	} else {
+		ob_start();
+		?>
+		<div class="mlsimport_warning mlsimport_validated">
+			<?php esc_html_e('You are connected to your MlsImport account!', 'mlsimport'); ?>
+		</div>
+		<?php
+		$html = ob_get_clean();
+
+		wp_send_json_success([
+			'message' => __('Connected successfully!', 'mlsimport'),
+			'html'    => $html,
+			'connected' => true
+		]);
+	}
+}
+
+
+
+
+
+
+
+
+add_action('wp_ajax_mlsimport_save_mls_data', 'mlsimport_save_mls_data_callback');
+function mlsimport_save_mls_data_callback() {
+	check_ajax_referer('mlsimport_onboarding_nonce', 'security');
+
+	$options = get_option('mlsimport_admin_options', []);
+
+	foreach ($_POST as $key => $value) {
+		if (strpos($key, 'mlsimport_') === 0 && $key !== 'mlsimport_username' && $key !== 'mlsimport_password') {
+			$options[$key] = sanitize_text_field($value);
+		}
+	}
+
+	update_option('mlsimport_admin_options', $options);
+
+	// Run MLS connection check
+	global $mlsimport;
+	$is_mls_connected = get_option('mlsimport_connection_test', '');
+	$mlsimport->admin->mlsimport_saas_setting_up();
+
+	if ('yes' !== $is_mls_connected) {
+		$mlsimport->admin->mlsimport_saas_check_mls_connection();
+		$is_mls_connected = get_option('mlsimport_connection_test', '');
+	}
+
+	ob_start();
+	if ('yes' === $is_mls_connected) {
+		?>
+		<div class="mlsimport_warning mlsimport_validated">
+			<?php esc_html_e('You’re now connected to your MLS.', 'mlsimport'); ?>
+		</div>
+		<?php
+	} else {
+		?>
+		<div class="mlsimport_warning">
+			<?php esc_html_e('The connection to your MLS was NOT successful. Please check the authentication token is correct and check your MLS Data Access Application is approved.', 'mlsimport'); ?>
+		</div>
+		<?php
+	}
+	$html = ob_get_clean();
+
+	wp_send_json_success([
+		'message' => __('MLS data saved', 'mlsimport'),
+		'html'    => $html,
+		'connected' => $is_mls_connected === 'yes',
+	]);
+}
+
+

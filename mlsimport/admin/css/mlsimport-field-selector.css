@@ -1,0 +1,503 @@
+/**
+ * MLS Import Field Selector Styles
+ * 
+ * Styles for the MLS field selection interface with tabular layout,
+ * filtering controls, and interactive elements.
+ *
+ * @package    MLSImport
+ * @subpackage MLSImport/css
+ * @since      1.0.0
+ */
+
+/* Container for the entire field selector interface */
+.mlsimport-field-selector-container {
+    margin: 20px 0;
+    max-width: 100%;
+    background: #fff;
+    box-shadow: rgba(0, 0, 0, 0.04) 0px 5px 22px 0px, rgba(0, 0, 0, 0.06) 0px 0px 0px 1px;
+    border-radius: 10px;
+
+}
+
+/* Stats bar styles */
+.mlsimport-field-stats {
+    padding: 15px;
+    border-top-right-radius: 10px;
+    border-top-left-radius: 10px;
+    background: #f1f1f1;
+    border-bottom: 1px solid #dcdfe4;
+    display: flex;
+    align-content: center;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 10px;
+    justify-content: space-between;
+}
+
+.mlsimport-button-action-wrapper{
+    display: flex;
+    gap: 10px;
+    flex-direction: row;
+    flex-wrap: wrap;
+}
+
+
+.mlsimport-field-stats ul {
+    display: flex;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.mlsimport-field-stats li {
+    margin-right: 30px;
+    font-weight: 500;
+    font-size: 14px;
+}
+
+/* Filter bar styles */
+.mlsimport-field-filters {
+    display: flex;
+    align-items: center;
+    padding: 15px;
+    background: #f9f9f9;
+    border-bottom: 1px solid #ddd;
+    margin-bottom: 0px;
+}
+
+.mlsimport-field-filter {
+    margin-right: 15px;
+    max-width: 250px;
+}
+
+
+/* Alphabetical filter styles */
+.mlsimport-alpha-filters {
+    display: flex;
+    flex-wrap: wrap;
+    padding: 10px 15px;
+    background: #f9f9f9;
+    border-bottom: 1px solid #ddd;
+}
+
+.mlsimport-alpha-filter {
+    display: inline-block;
+    margin: 2px;
+    padding: 5px 8px;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    text-decoration: none;
+    color: #635BFF;
+    font-size: 13px;
+}
+
+.mlsimport-alpha-filter.active {
+    background: #635BFF;
+    border-color: #635BFF;
+    color: #fff;
+}
+
+.mlsimport-alpha-filter:hover {
+    background: #f1f1f1;
+    color: #635BFF;
+}
+
+.mlsimport-alpha-filter.active:hover {
+    background: #635BFF;
+    border-color: #006799;
+    color: #fff;
+}
+
+.mlsimport-reset-filter {
+    display: inline-block;
+    margin: 2px 0 2px 10px;
+    padding: 5px 8px;
+    background: #f7f7f7;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    text-decoration: none;
+    color: #555;
+    font-size: 13px;
+}
+
+.mlsimport-reset-filter:hover {
+    background: #fafafa;
+    border-color: #999;
+    color: #23282d;
+}
+
+/* Table styles */
+.mlsimport-fields-table {
+    width: 100%;
+    border-collapse: collapse;
+    border-spacing: 0;
+    table-layout: fixed;
+}
+
+.mlsimport-fields-table thead {
+    background: #f1f1f1;
+    position: sticky;
+    top: 32px; /* Account for WP admin bar */
+    z-index: 10;
+}
+
+
+
+.mlsimport-wizard-wrap .mlsimport-fields-table thead{
+    top:0px;
+}
+
+.mlsimport-fields-table th {
+    padding: 15px;
+    text-align: left;
+    color: #667085;
+    font-weight: 500;
+    font-size: 13px;
+}
+
+.mlsimport-fields-table td {
+    padding:  15px;
+    border-bottom: 1px solid #dcdfe4;
+    vertical-align: middle;
+    word-break: break-word;
+    overflow-wrap: break-word;
+}
+
+.mlsimport-fields-table tr:hover td {
+    background: #f9f9f9;
+}
+
+.mlsimport-row-actions .field-name{
+    display: inline-block;
+}
+
+
+.save-indicator{
+    width: 16px;
+    height: 16px;
+}
+
+/* Mandatory field styles */
+.mlsimport-mandatory-row {
+    background-color: #f7fcff;
+}
+
+.mlsimport-mandatory-row:hover td {
+    background-color: #eef7fc !important;
+}
+
+.mlsimport-mandatory-indicator {
+    color: #635BFF;
+    margin-right: 5px;
+    font-size: 14px;
+}
+
+/* Column widths */
+.mlsimport-field-name {
+    width: 30%;
+}
+
+.mlsimport-field-import,
+.mlsimport-field-admin {
+    width: 75px;
+    text-align: left;
+}
+
+.mlsimport-field-label,
+.mlsimport-field-postmeta {
+    width: 20%;
+}
+
+.mlsimport-field-taxonomy {
+    width: 20%;
+}
+
+.mlsimport-field-actions {
+    width: 140px;
+    text-align: center;
+}
+
+/* Form input styles */
+.mlsimport-fields-table input[type="text"] {
+    width: 90%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.mlsimport-fields-table select {
+    width: 90%;
+
+}
+
+/* Field name and explanation */
+.mlsimport-field-name {
+    position: relative;
+}
+.mlsimport-field-name .field-name{
+    display: inline-block;
+}
+
+.field-name {
+    display: block;
+    font-weight: 500;
+    margin-bottom: 5px;
+    font-size: 13px;
+}
+
+.field-explanation {
+    font-size: 12px;
+    color: #666;
+    line-height: 1.4;
+    margin-top: 5px;
+    padding: 5px 0;
+    border-top: 1px dotted #ddd;
+}
+
+/* Bulk action buttons */
+.mlsimport-bulk-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 15px;
+    background: #f9f9f9;
+    border-bottom: 1px solid #ddd;
+}
+
+.mlsimport-bulk-button {
+    padding: 8px 15px;
+    background: #635BFF;
+    border: none;
+    border-radius: 4px;
+    color: #fff;
+    cursor: pointer;
+    font-size: 13px;
+}
+
+.mlsimport-bulk-button.secondary {
+    background: #f7f7f7;
+    border: 1px solid #ccc;
+    color: #555;
+}
+
+.mlsimport-bulk-button:hover {
+    background: #006799;
+}
+
+.mlsimport-bulk-button.secondary:hover {
+    background: #fafafa;
+    border-color: #999;
+}
+
+/* Pagination styles */
+.mlsimport-pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 15px;
+    background: #f9f9f9;
+    border-top: 1px solid #ddd;
+}
+
+.mlsimport-page-link,
+.mlsimport-page-current,
+.mlsimport-page-disabled,
+.mlsimport-page-ellipsis {
+    margin: 0 3px;
+    padding: 5px 10px;
+    border-radius: 3px;
+    text-decoration: none;
+}
+
+.mlsimport-page-link {
+    background: #f1f1f1;
+    border: 1px solid #ddd;
+    color: #635BFF;
+}
+
+.mlsimport-page-link:hover {
+    background: #635BFF;
+    border-color: #635BFF;
+    color: #fff;
+}
+
+.mlsimport-page-current {
+    background: #635BFF;
+    border: 1px solid #635BFF;
+    color: #fff;
+}
+
+.mlsimport-page-disabled,
+.mlsimport-page-ellipsis {
+    background: #f7f7f7;
+    border: 1px solid #ddd;
+    color: #a0a5aa;
+    cursor: default;
+}
+
+/* No results message */
+.mlsimport-no-results td {
+    padding: 30px;
+    text-align: center;
+    color: #777;
+}
+
+/* Notification styles */
+.mlsimport-notification {
+    position: fixed;
+    top: 32px;
+    right: 20px;
+    padding: 15px 20px;
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    z-index: 100;
+    display: none;
+}
+
+.mlsimport-notification-success {
+    background: #46b450;
+    color: #fff;
+}
+
+.mlsimport-notification-error {
+    background: #dc3232;
+    color: #fff;
+}
+
+.mlsimport-notification-info {
+    background: #00a0d2;
+    color: #fff;
+}
+
+/* Tooltip for mandatory fields */
+.mlsimport-tooltip {
+    position: relative;
+    display: inline-block;
+}
+
+.mlsimport-tooltip .mlsimport-tooltip-text {
+    visibility: hidden;
+    width: 200px;
+    background-color: #333;
+    color: #fff;
+    text-align: center;
+    border-radius: 4px;
+    padding: 5px;
+    position: absolute;
+    z-index: 1;
+    bottom: 125%;
+    left: 50%;
+    margin-left: -100px;
+    opacity: 0;
+    transition: opacity 0.3s;
+    font-size: 12px;
+    font-weight: normal;
+}
+
+.mlsimport-tooltip .mlsimport-tooltip-text::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    margin-left: -5px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: #333 transparent transparent transparent;
+}
+
+.mlsimport-tooltip:hover .mlsimport-tooltip-text {
+    visibility: visible;
+    opacity: 1;
+}
+
+/* Drag and drop styles */
+.ui-sortable-helper {
+    background: #fff;
+    border: 1px solid #635BFF;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.ui-sortable-placeholder {
+    visibility: visible !important;
+    background: #f0f8ff;
+    border: 1px dashed #635BFF;
+    height: 50px;
+}
+
+/* Responsive styles */
+@media screen and (max-width: 782px) {
+    .mlsimport-field-stats ul {
+        flex-direction: column;
+    }
+    
+    .mlsimport-field-stats li {
+        margin-right: 0;
+        margin-bottom: 10px;
+    }
+    
+    .mlsimport-field-filters {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .mlsimport-field-filter {
+        margin-right: 0;
+        margin-bottom: 10px;
+        max-width: 100%;
+    }
+    
+    .mlsimport-fields-table {
+        display: block;
+        overflow-x: auto;
+    }
+}
+
+
+
+/* row oers */
+.mlsimport-row-actions {
+    text-align: center;
+    white-space: nowrap;
+    display: inline;
+    margin-right: 10px;
+}
+
+.mlsimport-move-btn {
+    display: inline-block;
+    width: 28px;
+    height: 28px;
+    margin: 0 2px;
+    padding: 0;
+    background: #f7f7f7;
+    border: 1px solid #dcdfe4;
+    border-radius: 3px;
+    color: #555;
+    text-align: center;
+
+    cursor: pointer;
+}
+
+.mlsimport-move-btn:hover {
+    background: #635BFF;
+    border-color: #635BFF;
+    color:#fff;
+}
+
+/* Tooltip styling for move buttons */
+.mlsimport-move-tooltip {
+    background: #222;
+    color: #fff;
+    padding: 6px 10px;
+    border-radius: 3px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+    font-size: 12px;
+    /* max-width: 200px; */
+    z-index: 10000;
+    width: auto;
+    max-width: none;
+    display: flex;
+    width: auto;
+    float: left;
+    transition: all 1s ease-out;
+}

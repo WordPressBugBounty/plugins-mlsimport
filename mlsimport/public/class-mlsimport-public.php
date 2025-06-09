@@ -59,10 +59,10 @@ class Mlsimport_Public {
 	public function enqueue_styles() {
 				global $mlsimport;
 				$theme_enviroment = $mlsimport->get_plugin_data( 'theme_enviroment' );
-		wp_enqueue_style( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'css/mlsimport-public.css', array(), $this->version, 'all' );
+		wp_enqueue_style( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'css/mlsimport-public.css', array(), MLSIMPORT_VERSION, 'all' );
 
 		if ( isset( $options['enviroment'] ) ) {
-			wp_enqueue_style( $this->plugin_name . strtolower( $theme_enviroment ), plugin_dir_url( __FILE__ ) . 'css/mlsimport-public-' . strtolower( $theme_enviroment ) . '.css', array(), $this->version, 'all' );
+			wp_enqueue_style( $this->plugin_name . strtolower( $theme_enviroment ), plugin_dir_url( __FILE__ ) . 'css/mlsimport-public-' . strtolower( $theme_enviroment ) . '.css', array(), MLSIMPORT_VERSION, 'all' );
 		}
 	}
 
@@ -76,16 +76,11 @@ class Mlsimport_Public {
 	}
 
 
-		/**
-		 * ReWrite Image url
-		 *
-		 * @since    1.0.0
-		 */
-		/**
-		 * ReWrite Image url
-		 *
-		 * @since    1.0.0
-		 */
+	/**
+	 * ReWrite Image url
+	 *
+	 * @since    1.0.0
+	 */
 	public function mlsimport_wp_get_attachment_url( $url, $post_id ) {
 
 
@@ -98,4 +93,6 @@ class Mlsimport_Public {
 
 		return $url;
 	}
+
+
 }

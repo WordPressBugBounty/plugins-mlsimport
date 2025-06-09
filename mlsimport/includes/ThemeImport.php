@@ -28,14 +28,14 @@ class ThemeImport {
 
 	public function globalApiRequestCurlSaas($method, $valuesArray, $type = 'GET') {
 		global $mlsimport;
-		$url = MLSIMPORT_API_URL . $method;
+	 	$url = MLSIMPORT_API_URL . $method;
 		$headers = ['Content-Type' => 'text/plain'];
 
 		if ($method !== 'token') {
 			$token = self::getApiToken();
 			$headers = [
 				'Content-Type' => 'application/json',
-				'authorizationToken' => $token,
+				'Authorization' => 'Bearer '.$token,
 			];
 		}
 	
@@ -49,16 +49,17 @@ class ThemeImport {
 			'blocking' => true,
 			'user-agent' => $_SERVER['HTTP_USER_AGENT'],
 		];
+	
 
 		$response = $type === 'GET' ? wp_remote_get($url, $args) : wp_remote_post($url, $args);
 
-	
 
 
 		if (is_wp_error($response)) {
         	return $response->get_error_message();
 		} else {
 			$body = wp_remote_retrieve_body($response);
+
 			$toReturn = json_decode($body, true);
 			if (json_last_error() !== JSON_ERROR_NONE) {
 				return 'JSON decode error: ' . json_last_error_msg();
@@ -96,7 +97,7 @@ class ThemeImport {
 			if ($method !== 'token' && $method !== 'mls') {
 				$token =  self::getApiToken();
 				$headers = [
-					'authorizationToken' => $token,
+					'Authorization' => 'Bearer '.$token,
 					'Content-Type' => 'application/json',
 				];
 			}
@@ -113,6 +114,8 @@ class ThemeImport {
 				'body' => !empty($valuesArray) ? wp_json_encode($valuesArray) : null,
 			];
 			$response = wp_remote_post($url, $args);
+
+//			print_r($response);
 
 
 			if (is_wp_error($response)) {
@@ -137,52 +140,197 @@ class ThemeImport {
 
 
 
+/**
+ * Parse Result Array with //error_log memory tracking and enhanced memory management
+ *
+ * @param array $readyToParseArray The array ready to be parsed.
+ * @param array $itemIdArray The item ID array.
+ * @param string $batchKey The batch key.
+ * @param array $mlsimportItemOptionData The item option data.
+ */
+public function mlsimportSaasParseSearchArrayPerItem($readyToParseArray, $itemIdArray, $batchKey, $mlsimportItemOptionData) {
+    // Start with aggressive memory cleanup
+    $this->cleanUpMemory(true);
+    
+    // Log initial memory usage
+    $initialMemory = memory_get_usage(true);
+    //error_log("MLS Import - START batch {$batchKey} - Memory: " . round($initialMemory / 1048576, 2) . " MB");
+    
+    $counterProp = 0;
+    $processedData = [];
+    
+    if (isset($readyToParseArray['data']) && is_array($readyToParseArray['data'])) {
+        // Log total items to process
+        $totalItems = count($readyToParseArray['data']);
+        //error_log("MLS Import - Processing {$totalItems} properties in batch {$batchKey}");
+        
+	
 
 
 
-	/**
-	 * Parse Result Array
-	 *
-	 * @param array $readyToParseArray The array ready to be parsed.
-	 * @param array $itemIdArray The item ID array.
-	 * @param string $batchKey The batch key.
-	 * @param array $mlsimportItemOptionData The item option data.
-	 */
-		
-	public function mlsimportSaasParseSearchArrayPerItem($readyToParseArray, $itemIdArray, $batchKey, $mlsimportItemOptionData) {
-		$logs = '';
+        // Only keep essential data in memory, discard the rest
+        foreach ($readyToParseArray['data'] as $key => $property) {
+         
 
-		wp_cache_flush();
-		gc_collect_cycles();
-		$counterProp = 0;
+			
+			// Save only what's needed from each property
+            if (isset($property['ListingKey'])) {
+                $processedData[$key] = $property;
+            }
+            // Remove from original array to free memory
+            unset($readyToParseArray['data'][$key]);
+        }
+        
+        // Complete unset of the original array
+        unset($readyToParseArray);
+        $this->cleanUpMemory();
 
-		if (isset($readyToParseArray['data'])) {
-			foreach ($readyToParseArray['data'] as $key => $property) {
-				++$counterProp;
 
-				$logs = $this->mlsimportMemUsage() . '=== In parse search array, listing no ' . $key . ' from batch ' . $batchKey . ' with ListingKey: ' . $property['ListingKey'] . PHP_EOL;
-				$this->writeImportLogs($logs, 'import');
+		$mlsimportItemId = intval($itemIdArray['item_id']);
 
-				wp_cache_delete('mlsimport_force_stop_' . $itemIdArray['item_id'], 'options');
+		$current_prop_value = (int) get_post_meta( $mlsimportItemId, 'mlsimport_progress_properties', true );
+		//error_log('for itemID '.$mlsimportItemId.' count1 -> before bathich '.$current_prop_value);
 
-				$status = get_option('mlsimport_force_stop_' . $itemIdArray['item_id']);
-				$logs = $this->mlsimportMemUsage() . ' / on Batch ' . $itemIdArray['batch_counter'] . ', Item ID: ' . $itemIdArray['item_id'] . '/' . $counterProp . ' check ListingKey ' . $property['ListingKey'] . ' - stop command issued ? ' . $status . PHP_EOL;
-				$this->writeImportLogs($logs, 'import');
+        
+        // Process each property
+        foreach ($processedData as $key => $property) {
+            ++$counterProp;
+            
+            // Memory usage before processing property
+            $memoryBefore = memory_get_usage(true);
+            $memoryBeforeMB = round($memoryBefore / 1048576, 2);
+            
+            $listingKey = isset($property['ListingKey']) ? $property['ListingKey'] : 'unknown';
+            //error_log("MLS Import - Before property {$counterProp}/{$totalItems} (ListingKey: {$listingKey}) - Memory: {$memoryBeforeMB} MB");
+            
+            // Clear out database caches that might be polluted
+            wp_cache_delete('mlsimport_force_stop_' . $itemIdArray['item_id'], 'options');
+            $GLOBALS['wpdb']->queries = array();
+            
+            $status = get_option('mlsimport_force_stop_' . $itemIdArray['item_id']);
+            
+            if ($status === 'no') {
 
-				if ($status === 'no') {
-					$logs = 'Will proceed to import - Memory Used ' . $this->mlsimportMemUsage() . PHP_EOL;
-					$this->writeImportLogs($logs, 'import');
-					$this->mlsimportSaasPrepareToImportPerItem($property, $itemIdArray, 'normal', $mlsimportItemOptionData);
-				} else {
-					update_post_meta($itemIdArray['item_id'], 'mlsimport_spawn_status', 'completed');
-				}
-				unset($logs);
-			}
-		}
+				   
+				$current_prop_value = $current_prop_value + 1;
+				update_post_meta( $mlsimportItemId, 'mlsimport_progress_properties', $current_prop_value );
+				//error_log(' count2 -> after updateing '.$current_prop_value);
 
-		unset($readyToParseArray);
-		unset($logs);
-	}
+
+
+                // Process property and track memory
+                $this->mlsimportSaasPrepareToImportPerItem($property, $itemIdArray, 'normal', $mlsimportItemOptionData);
+                
+                // Memory after processing property
+                $memoryAfter = memory_get_usage(true);
+                $memoryAfterMB = round($memoryAfter / 1048576, 2);
+                $memoryDiff = round(($memoryAfter - $memoryBefore) / 1048576, 2);
+                
+                //error_log("MLS Import - After property {$counterProp}/{$totalItems} - Memory: {$memoryAfterMB} MB, Diff: {$memoryDiff} MB");
+                
+                // Check for memory leak pattern
+                if ($memoryDiff > 10) {
+                    //error_log("MLS Import - WARNING: Significant memory increase of {$memoryDiff} MB after property {$counterProp}");
+                    // Force cleanup on large increases
+                    $this->cleanUpMemory(true);
+                }
+                
+                // Aggressively clean after each property
+                unset($property);
+                
+                // Periodic more intensive cleanup
+                if ($counterProp % 3 == 0) {
+                    $this->cleanUpMemory(true);
+                    
+                    // Free database query cache
+                    $GLOBALS['wpdb']->flush();
+                    
+                    // Clear autoloaded options cache, which can grow large
+                    wp_cache_delete('alloptions', 'options');
+                    
+                    // Log memory after cleanup
+                    $memoryAfterCleanup = memory_get_usage(true);
+                    $freedMemory = round(($memoryAfter - $memoryAfterCleanup) / 1048576, 2);
+                    //error_log("MLS Import - After cleanup: {$freedMemory} MB freed, Current: " . round($memoryAfterCleanup / 1048576, 2) . " MB");
+                }
+            } else {
+                //error_log("MLS Import - Import stopped by user command at property {$counterProp}");
+                update_post_meta($itemIdArray['item_id'], 'mlsimport_spawn_status', 'completed');
+                break;
+            }
+            
+            // Clear property from processed data to free memory
+            unset($processedData[$key]);
+        }
+    } else {
+        //error_log("MLS Import - No valid data in batch {$batchKey}");
+    }
+    
+    // Final cleanup
+    unset($processedData);
+    $this->cleanUpMemory(true);
+    
+    // Log final memory stats
+    $finalMemory = memory_get_usage(true);
+    $finalMemoryMB = round($finalMemory / 1048576, 2);
+    $totalMemoryDiff = round(($finalMemory - $initialMemory) / 1048576, 2);
+    $peakMemory = round(memory_get_peak_usage(true) / 1048576, 2);
+    
+    //error_log("MLS Import - END batch {$batchKey} - Processed {$counterProp} properties");
+    //error_log("MLS Import - Final Memory: {$finalMemoryMB} MB, Diff: {$totalMemoryDiff} MB, Peak: {$peakMemory} MB");
+}
+
+
+/**
+ * Comprehensive memory cleanup function
+ * 
+ * @param bool $intensive Whether to perform intensive cleanup
+ */
+private function cleanUpMemory($intensive = false) {
+    // Basic cleanup
+    wp_cache_flush();
+    gc_collect_cycles();
+    
+    if ($intensive) {
+        // Clear WordPress object cache
+        global $wp_object_cache;
+        if (is_object($wp_object_cache) && method_exists($wp_object_cache, 'flush')) {
+            $wp_object_cache->flush();
+        }
+        
+        // Clear WordPress post caches
+        clean_post_cache(0);
+        
+        // Safe term cache clearing - avoid SQL errors
+        wp_cache_delete('get_terms', 'terms');
+        wp_cache_delete('term_meta', 'terms');
+        delete_option('category_children');
+        
+        // Clear taxonomy-specific caches for common taxonomies
+        $taxonomies = array('category', 'post_tag', 'property_status', 'property_type', 'property_feature', 'property_label', 'property_area', 'property_city', 'property_state', 'property_neighborhood');
+        foreach ($taxonomies as $taxonomy) {
+            wp_cache_delete($taxonomy . '_relationships', 'terms');
+        }
+        
+        // Clear WordPress database cache
+        global $wpdb;
+        if (is_object($wpdb)) {
+            $wpdb->queries = array();
+            if (method_exists($wpdb, 'flush')) {
+                $wpdb->flush();
+            }
+        }
+        
+        // Multiple garbage collection passes can sometimes help
+        gc_collect_cycles();
+        gc_collect_cycles();
+    }
+}
+
+
+
+
+	
 
 
 	/**
@@ -210,28 +358,63 @@ class ThemeImport {
 
 	
 
-	/**
-	 * Parse Result Array in CRON
-	 *
-	 * @param array $readyToParseArray The array ready to be parsed.
-	 * @param array $itemIdArray The item ID array.
-	 * @param string $batchKey The batch key.
-	 */
-	public function mlsimportSaasCronParseSearchArrayPerItem($readyToParseArray, $itemIdArray, $batchKey) {
-		$mlsimportItemOptionData = [
-			'mlsimport_item_standardstatus' 		=> get_post_meta($itemIdArray['item_id'], 'mlsimport_item_standardstatus', true),
-			'mlsimport_item_standardstatusdelete'	=> get_post_meta($itemIdArray['item_id'], 'mlsimport_item_standardstatusdelete', true),
-			'mlsimport_item_property_user' 			=> get_post_meta($itemIdArray['item_id'], 'mlsimport_item_property_user', true),
-			'mlsimport_item_agent' 					=> get_post_meta($itemIdArray['item_id'], 'mlsimport_item_agent', true),
-			'mlsimport_item_property_status' 		=> get_post_meta($itemIdArray['item_id'], 'mlsimport_item_property_status', true),
-		];
 
-		foreach ($readyToParseArray['data'] as $key => $property) {
-			$logs = 'In CRON parse search array, listing no ' . $key . ' from batch ' . $batchKey . ' with ListingKey: ' . $property['ListingKey'] . PHP_EOL;
-			$this->writeImportLogs($logs, 'cron');
-			$this->mlsimportSaasPrepareToImportPerItem($property, $itemIdArray, 'cron', $mlsimportItemOptionData);
-		}
-	}
+    /**
+     * Parse and import property data for a single MLSimport item in CRON.
+     * Logs memory usage for each significant operation.
+     *
+     * @param array  $readyToParseArray The array with listing data (from API).
+     * @param array  $itemIdArray       The array with current MLSimport item info.
+     * @param string $batchKey          The batch identifier for logging.
+     */
+    public function mlsimportSaasCronParseSearchArrayPerItem($readyToParseArray, $itemIdArray, $batchKey) {
+        // Gather relevant meta for this MLSimport item
+        $mlsimportItemOptionData = [
+            'mlsimport_item_standardstatus'        => get_post_meta($itemIdArray['item_id'], 'mlsimport_item_standardstatus', true),
+            'mlsimport_item_standardstatusdelete'  => get_post_meta($itemIdArray['item_id'], 'mlsimport_item_standardstatusdelete', true),
+            'mlsimport_item_property_user'         => get_post_meta($itemIdArray['item_id'], 'mlsimport_item_property_user', true),
+            'mlsimport_item_agent'                 => get_post_meta($itemIdArray['item_id'], 'mlsimport_item_agent', true),
+            'mlsimport_item_property_status'       => get_post_meta($itemIdArray['item_id'], 'mlsimport_item_property_status', true),
+        ];
+
+        $count = isset($readyToParseArray['data']) && is_array($readyToParseArray['data']) ? count($readyToParseArray['data']) : 0;
+        $log = '[Memory] Start batch ' . $batchKey . ' with ' . $count . ' listings: ' . (memory_get_usage(true) / 1024 / 1024) . ' MB';
+        $this->writeImportLogs($log, 'cron');
+
+        if ($count === 0) {
+            $this->writeImportLogs('[Memory] No data to parse in batch ' . $batchKey, 'cron');
+            return;
+        }
+
+        foreach ($readyToParseArray['data'] as $key => $property) {
+            // Log at the start of each property (optional, comment out if too verbose)
+            //$log = '[Memory] Before import property #' . $key . ': ' . (memory_get_usage(true) / 1024 / 1024) . ' MB';
+            //$this->writeImportLogs($log, 'cron');
+
+            $logs = 'In CRON parse search array, listing no ' . $key . ' from batch ' . $batchKey . ' with ListingKey: ' . $property['ListingKey'] . PHP_EOL;
+            $this->writeImportLogs($logs, 'cron');
+
+            // Main per-property import function (handles mapping/import/update)
+            $this->mlsimportSaasPrepareToImportPerItem($property, $itemIdArray, 'cron', $mlsimportItemOptionData);
+
+            // Clean up per-iteration memory
+            unset($property);
+            if (($key + 1) % 20 === 0) {
+                gc_collect_cycles();
+                $log = '[Memory] After importing ' . ($key + 1) . ' listings in batch ' . $batchKey . ': ' . (memory_get_usage(true) / 1024 / 1024) . ' MB';
+                $this->writeImportLogs($log, 'cron');
+            }
+        }
+        // Final memory log for this batch
+        $this->writeImportLogs('[Memory] End batch ' . $batchKey . ': ' . (memory_get_usage(true) / 1024 / 1024) . ' MB', 'cron');
+
+        // Housekeeping
+        unset($readyToParseArray, $mlsimportItemOptionData);
+        gc_collect_cycles();
+    }
+
+
+
 
 
 
@@ -286,14 +469,14 @@ class ThemeImport {
 		if (is_array($taxonomies)) {
 			foreach ($taxonomies as $taxonomy => $term) {
 				if (is_wp_error($taxonomy)) {
-					error_log('Error with taxonomy: ' . $taxonomy->get_error_message());
+				
 					continue; // Skip this iteration
 				}
 				
 				if (taxonomy_exists($taxonomy)) {
 					wp_delete_object_term_relationships($propertyId, $taxonomy);
 				} else {
-					error_log("Taxonomy does not exist: {$taxonomy}");
+				//	//error_log("Taxonomy does not exist: {$taxonomy}");
 				}
 			}
 		}
@@ -523,19 +706,23 @@ class ThemeImport {
 	 * @param string $isInsert Whether the property is being inserted.
 	 * @return string The media history log.
 	 */
-	public function mlsimportSassAttachMediaToPost($propertyId, $media, $isInsert) {
+	public function mlsimportSassAttachMediaToPost($propertyId, $media, $isInsert,$media_attachments) {
+
 		$mediaHistory = [];
+		//error_log("MLSImport: Starting image processing for property ID: $propertyId");
+
 		if ($isInsert === 'no') {
 			$mediaHistory[] = 'Media - We have edit - images are not replaced';
-			return implode('</br>', $mediaHistory);
+			//error_log("MLSImport: Edit mode detected, images not replaced.");
+			return $media_attachments;
+			//return implode('</br>', $mediaHistory);
 		}
 
 		global $mlsimport;
 		include_once ABSPATH . 'wp-admin/includes/image.php';
 		$hasFeatured = false;
 
-		delete_post_meta($propertyId, 'fave_property_images');
-		delete_post_meta($propertyId, 'REAL_HOMES_property_images');
+
 
 		add_filter('intermediate_image_sizes_advanced', [$this, 'wpcUnsetImageSizes']);
 
@@ -543,46 +730,66 @@ class ThemeImport {
 		if (isset($media[0]['Order'])) {
 			$order = array_column($media, 'Order');
 			array_multisort($order, SORT_ASC, $media);
+			//error_log("MLSImport: Media sorted by 'Order'");
 		}
 
 		if (is_array($media)) {
 			foreach ($media as $image) {
-				if (isset($image['MediaCategory']) && $image['MediaCategory'] !== 'Photo') {
+				if (isset($image['MediaCategory']) && $image['MediaCategory'] !== 'Property Photo' && $image['MediaCategory'] !== 'Photo') {
+					//error_log("MLSImport: Skipping non-photo media category: " . $image['MediaCategory']);
 					continue;
 				}
 
-				$file = $image['MediaURL'];
+				if ( empty( $image['MediaURL'] ) ) {
+					//error_log('empty mediaURL');
+					continue;
+				}
+
+
 
 				if (isset($image['MediaURL'])) {
+					$file = $image['MediaURL'];
 					$attachment = [
-						'guid' => $image['MediaURL'],
+						'guid' => $file,
 						'post_status' => 'inherit',
 						'post_content' => '',
 						'post_parent' => $propertyId,
-						'post_mime_type' => $image['MimeType'] ?? 'image/jpg',
+						'post_mime_type' => $image['MimeType'] ?? 'image/jpeg',
 						'post_title' => $image['MediaKey'] ?? '',
 					];
-
+			
 					$attachId = wp_insert_attachment($attachment, $file);
+					if (is_wp_error($attachId)) {
+						//error_log("MLSImport: Failed to insert attachment for $file. Error: " . $attachId->get_error_message());
+					} else {
+						//error_log("MLSImport: Inserted attachment ID $attachId for file $file");
+						$mediaHistory[] = 'Media - Added ' . $file . ' as attachment ' . $attachId;
+						$media_attachments[]=$attachId;
 
-					$mediaHistory[] = 'Media - Added ' . $image['MediaURL'] . ' as attachment ' . $attachId;
-					$mlsimport->admin->env_data->enviroment_image_save($propertyId, $attachId);
 
-					update_post_meta($attachId, 'is_mlsimport', 1);
-					if (!$hasFeatured) {
-						set_post_thumbnail($propertyId, $attachId);
-						$hasFeatured = true;
+						$mlsimport->admin->env_data->enviroment_image_save($propertyId, $attachId);
+						update_post_meta($attachId, 'is_mlsimport', 1);
+						if (!$hasFeatured) {
+							set_post_thumbnail($propertyId, $attachId);
+							//error_log("MLSImport: Set attachment ID $attachId as featured image");
+							$hasFeatured = true;
+						}
 					}
+				} else {
+					//error_log("MLSImport: Media item missing 'MediaURL', skipping.");
 				}
 			}
 		} else {
 			$mediaHistory[] = 'Media data is blank - there are no images';
+			//error_log("MLSImport: Media array is not valid or empty.");
 		}
 
 		remove_filter('intermediate_image_sizes_advanced', [$this, 'wpcUnsetImageSizes']);
 
-		return implode('</br>', $mediaHistory);
+		return $media_attachments;
+		//return implode('</br>', $mediaHistory);
 	}
+
 
 	/**
 	 * Unset image sizes
@@ -770,143 +977,302 @@ class ThemeImport {
 	 * @param int $deleteId The ID of the property to delete.
 	 * @param string $ListingKey The listing key of the property.
 	 */
-	public function mlsimportSaasDeletePropertyViaMysql($deleteId, $ListingKey) {
-		$postType = get_post_type($deleteId);
+       public function mlsimportSaasDeletePropertyViaMysql($deleteId, $ListingKey) {
+               global $mlsimport;
 
-		if (in_array($postType, ['estate_property', 'property'])) {
-			$termObjList = get_the_terms($deleteId, 'property_status');
-			$deleteIdStatus = join(', ', wp_list_pluck($termObjList, 'name'));
+               $postType = get_post_type($deleteId);
+               $propertyPostType = '';
+               if (isset($mlsimport->admin->env_data) && method_exists($mlsimport->admin->env_data, 'get_property_post_type')) {
+                       $propertyPostType = $mlsimport->admin->env_data->get_property_post_type();
+               }
 
-			$ListingKey = get_post_meta($deleteId, 'ListingKey', true);
-			if ('' === $ListingKey) { // manually added listing
-				$logEntry = 'User added listing with id ' . $deleteId . ' (' . $postType . ') (status ' . $deleteIdStatus . ') and ' . $ListingKey . ' NOT DELETED' . PHP_EOL;
-				$this->writeImportLogs($logEntry, 'delete');
-				return;
-			}
+               if ($postType === $propertyPostType || in_array($postType, ['estate_property', 'property'])) {
+                       // Delete attachments using WordPress functions so the files are removed as well
+                       $attachments = get_posts([
+                               'numberposts' => -1,
+                               'post_type'   => 'attachment',
+                               'post_parent' => $deleteId,
+                               'post_status' => null,
+                               'fields'      => 'ids',
+                       ]);
 
-			global $wpdb;
-			$wpdb->query($wpdb->prepare("DELETE FROM $wpdb->postmeta WHERE `post_id` = %d", $deleteId));
-			$wpdb->query($wpdb->prepare("DELETE FROM $wpdb->posts WHERE `post_parent` = %d OR `ID` = %d", $deleteId, $deleteId));
+                       foreach ($attachments as $attachmentId) {
+                               wp_delete_attachment($attachmentId, true);
+                       }
 
-			$logEntry = 'MYSQL DELETE -> Property with id ' . $deleteId . ' (' . $postType . ') (status ' . $deleteIdStatus . ') and ' . $ListingKey . ' was deleted on ' . current_time('Y-m-d\TH:i') . PHP_EOL;
-			$this->writeImportLogs($logEntry, 'delete');
+                       $termObjList   = get_the_terms($deleteId, 'property_status');
+                       $deleteIdStatus = join(', ', wp_list_pluck($termObjList, 'name'));
+
+                       $ListingKey = get_post_meta($deleteId, 'ListingKey', true);
+                       if ('' === $ListingKey) { // manually added listing
+                               $logEntry = 'User added listing with id ' . $deleteId . ' (' . $postType . ') (status ' . $deleteIdStatus . ') and ' . $ListingKey . ' NOT DELETED' . PHP_EOL;
+                               $this->writeImportLogs($logEntry, 'delete');
+                               return;
+                       }
+
+                       global $wpdb;
+                       $wpdb->query($wpdb->prepare("DELETE FROM $wpdb->postmeta WHERE `post_id` = %d", $deleteId));
+                       $wpdb->query($wpdb->prepare("DELETE FROM $wpdb->posts WHERE `post_parent` = %d OR `ID` = %d", $deleteId, $deleteId));
+
+                       $logEntry = 'MYSQL DELETE -> Property with id ' . $deleteId . ' (' . $postType . ') (status ' . $deleteIdStatus . ') and ' . $ListingKey . ' was deleted on ' . current_time('Y-m-d\TH:i') . PHP_EOL;
+                       $this->writeImportLogs($logEntry, 'delete');
+               }
+       }
+
+
+
+
+
+
+
+
+
+/**
+ * Prepare to import per item
+ *
+ * @param array $property The property data.
+ * @param array $itemIdArray The item ID array.
+ * @param string $tipImport The import type.
+ * @param array $mlsimportItemOptionData The item option data.
+ */
+public function mlsimportSaasPrepareToImportPerItem($property, $itemIdArray, $tipImport, $mlsimportItemOptionData) {
+	// Pre-execution memory optimization
+	wp_cache_flush();
+	gc_collect_cycles();
+	
+	// Temporarily disable WordPress hooks that might add to memory usage
+	global $wp_filter;
+	$saved_filters = array();
+	if (isset($wp_filter['transition_post_status'])) {
+		$saved_filters['transition_post_status'] = $wp_filter['transition_post_status'];
+		unset($wp_filter['transition_post_status']);
+	}
+	if (isset($wp_filter['save_post'])) {
+		$saved_filters['save_post'] = $wp_filter['save_post'];
+		$wp_filter['save_post'] = new WP_Hook();
+	}
+	set_time_limit(0);
+	global $mlsimport;
+
+	// Log initial memory
+	$memStart = memory_get_usage(true);
+	$memStartMB = round($memStart / 1048576, 2);
+	//error_log("PROPERTY IMPORT START - ListingKey: " . ($property['ListingKey'] ?? 'unknown') . " - Memory: {$memStartMB} MB");
+
+	$mlsImportItemStatus 		= $mlsimportItemOptionData['mlsimport_item_standardstatus'];
+	$mlsImportItemStatusDelete 	= $mlsimportItemOptionData['mlsimport_item_standardstatusdelete'];
+	$newAuthor 					= $mlsimportItemOptionData['mlsimport_item_property_user'];
+	$newAgent 					= $mlsimportItemOptionData['mlsimport_item_agent'];
+	$propertyStatus 			= $mlsimportItemOptionData['mlsimport_item_property_status'];
+
+	if (is_array($mlsImportItemStatus)) {
+		$mlsImportItemStatus = array_map('strtolower', $mlsImportItemStatus);
+	}
+
+	if (!isset($property['ListingKey']) || empty($property['ListingKey'])) {
+		$this->writeImportLogs('ERROR: No Listing Key ' . PHP_EOL, $tipImport);
+		return;
+	}
+
+	ob_start();
+
+	$ListingKey 		= $property['ListingKey'];
+	$listingPostType 	= $mlsimport->admin->env_data->get_property_post_type();
+
+	// Memory before property ID lookup
+	$memBeforeRetrieve = memory_get_usage(true);
+	//error_log("PROPERTY IMPORT - Before property ID lookup - Memory: " . round($memBeforeRetrieve / 1048576, 2) . " MB");
+	
+	$propertyId 		= intval($this->mlsimportSaasRetrievePropertyById($ListingKey, $listingPostType));
+	
+	// Memory after property ID lookup
+	$memAfterRetrieve = memory_get_usage(true);
+	//error_log("PROPERTY IMPORT - After property ID lookup - Memory: " . round($memAfterRetrieve / 1048576, 2) . " MB, Diff: " . round(($memAfterRetrieve - $memBeforeRetrieve) / 1048576, 2) . " MB");
+	
+	$status 			= isset($property['StandardStatus']) ? strtolower($property['StandardStatus']) : strtolower($property['extra_meta']['MlsStatus']);
+	
+	$this->writeImportLogs('FIxing: on inserting ' .$status.'-->'.json_encode($mlsImportItemStatus). PHP_EOL, $tipImport);
+
+	$isInsert			= $this->shouldInsertProperty($propertyId, $status, $mlsImportItemStatus, $tipImport);
+
+	$log = $this->mlsimportMemUsage() . '==========' . wp_json_encode($mlsImportItemStatus) . '/' . $newAuthor . '/' . $newAgent . '/' . $propertyStatus . '/ We have property with $ListingKey=' . $ListingKey . ' id=' . $propertyId . ' with status ' . $status . ' is insert? ' . $isInsert . PHP_EOL;
+	$this->writeImportLogs($log, $tipImport);
+
+	$propertyHistory 	= [];
+	$content 			= $property['content'] ?? '';
+	$submitTitle 		= $ListingKey;
+
+	// Memory before insert/update
+	$memBeforeInsert = memory_get_usage(true);
+	//error_log("PROPERTY IMPORT - Before " . ($isInsert === 'yes' ? "insert" : "update/check") . " - Memory: " . round($memBeforeInsert / 1048576, 2) . " MB");
+
+	if ($isInsert === 'yes') {
+		$post = [
+			'post_title' 	=> $submitTitle,
+			'post_content' 	=> $content,
+			'post_status' 	=> $propertyStatus,
+			'post_type' 	=> $listingPostType,
+			'post_author' 	=> $newAuthor,
+		];
+
+		$propertyId = wp_insert_post($post);
+		if (is_wp_error($propertyId)) {
+			$this->writeImportLogs('ERROR: on inserting ' . PHP_EOL, $tipImport);
+			//error_log("PROPERTY IMPORT ERROR - Failed to insert property: " . $propertyId->get_error_message());
+		} else {
+			update_post_meta($propertyId, 'ListingKey', $ListingKey);
+			update_post_meta($propertyId, 'MLSimport_item_inserted', $itemIdArray['item_id'],);
+			update_post_meta($propertyId, 'mlsImportItemStatusDelete', $mlsImportItemStatusDelete);
+			
+			$propertyHistory[] = date('F j, Y, g:i a') . ': We Inserted the property with Default title :  ' . $submitTitle . ' and received id:' . $propertyId;
+		}
+
+		clean_post_cache($propertyId);
+
+	} elseif ($propertyId !== 0) {
+		// Memory before checking existing property
+		$memBeforeCheck = memory_get_usage(true);
+		//error_log("PROPERTY IMPORT - Before checking existing property - Memory: " . round($memBeforeCheck / 1048576, 2) . " MB");
+
+		$keep = $this->check_if_delete_when_status($propertyId,$mlsImportItemStatus,$mlsImportItemStatusDelete);
+
+
+		if(!$keep){
+			$log = 'Property with ID ' . $propertyId . ' and with name ' . get_the_title($propertyId) . ' has a status of <strong>' . $status . ' </strong> and will be deleted' . PHP_EOL;
+			
+			// Memory before delete
+			$memBeforeDelete = memory_get_usage(true);
+			//error_log("PROPERTY IMPORT - Before deleting property - Memory: " . round($memBeforeDelete / 1048576, 2) . " MB");
+			
+			$this->deleteProperty($propertyId, $ListingKey);
+			
+			// Memory after delete
+			$memAfterDelete = memory_get_usage(true);
+			//error_log("PROPERTY IMPORT - After deleting property - Memory: " . round($memAfterDelete / 1048576, 2) . " MB, Diff: " . round(($memAfterDelete - $memBeforeDelete) / 1048576, 2) . " MB");
+			
+			$this->writeImportLogs($log, $tipImport);
+		} else {	
+			update_post_meta($propertyId, 'mlsImportItemStatusDelete', $mlsImportItemStatusDelete);
+			
+			// Memory before updating
+			$memBeforeUpdate = memory_get_usage(true);
+			//error_log("PROPERTY IMPORT - Before updating existing property - Memory: " . round($memBeforeUpdate / 1048576, 2) . " MB");
+			
+			$propertyHistory = $this->updateExistingProperty($propertyId,$mlsImportItemStatusDelete, $content, $listingPostType, $newAuthor, $status, $mlsImportItemStatus, $propertyHistory, $tipImport, $ListingKey);
+			
+			// Memory after updating
+			$memAfterUpdate = memory_get_usage(true);
+			//error_log("PROPERTY IMPORT - After updating existing property - Memory: " . round($memAfterUpdate / 1048576, 2) . " MB, Diff: " . round(($memAfterUpdate - $memBeforeUpdate) / 1048576, 2) . " MB");
 		}
 	}
 
+	// Memory after insert/update
+	$memAfterInsert = memory_get_usage(true);
+	//error_log("PROPERTY IMPORT - After " . ($isInsert === 'yes' ? "insert" : "update/check") . " - Memory: " . round($memAfterInsert / 1048576, 2) . " MB, Diff: " . round(($memAfterInsert - $memBeforeInsert) / 1048576, 2) . " MB");
 
-
-
-
-
-
-
-	/**
-	 * Prepare to import per item
-	 *
-	 * @param array $property The property data.
-	 * @param array $itemIdArray The item ID array.
-	 * @param string $tipImport The import type.
-	 * @param array $mlsimportItemOptionData The item option data.
-	 */
-	public function mlsimportSaasPrepareToImportPerItem($property, $itemIdArray, $tipImport, $mlsimportItemOptionData) {
-		set_time_limit(0);
-		global $mlsimport;
-
-		$mlsImportItemStatus 		= $mlsimportItemOptionData['mlsimport_item_standardstatus'];
-		$mlsImportItemStatusDelete 	= $mlsimportItemOptionData['mlsimport_item_standardstatusdelete'];
-		$newAuthor 					= $mlsimportItemOptionData['mlsimport_item_property_user'];
-		$newAgent 					= $mlsimportItemOptionData['mlsimport_item_agent'];
-		$propertyStatus 			= $mlsimportItemOptionData['mlsimport_item_property_status'];
-
-		if (is_array($mlsImportItemStatus)) {
-			$mlsImportItemStatus = array_map('strtolower', $mlsImportItemStatus);
-		}
-
-		if (!isset($property['ListingKey']) || empty($property['ListingKey'])) {
-			$this->writeImportLogs('ERROR: No Listing Key ' . PHP_EOL, $tipImport);
-			return;
-		}
-
-		ob_start();
-
-		$ListingKey 		= $property['ListingKey'];
-		$listingPostType 	= $mlsimport->admin->env_data->get_property_post_type();
-		$propertyId 		= intval($this->mlsimportSaasRetrievePropertyById($ListingKey, $listingPostType));
-		$status 			= isset($property['StandardStatus']) ? strtolower($property['StandardStatus']) : strtolower($property['extra_meta']['MlsStatus']);
-		
-		
-		$this->writeImportLogs('FIxing: on inserting ' .$status.'-->'.json_encode($mlsImportItemStatus). PHP_EOL, $tipImport);
-
-
-		$isInsert			= $this->shouldInsertProperty($propertyId, $status, $mlsImportItemStatus, $tipImport);
-
-		$log = $this->mlsimportMemUsage() . '==========' . wp_json_encode($mlsImportItemStatus) . '/' . $newAuthor . '/' . $newAgent . '/' . $propertyStatus . '/ We have property with $ListingKey=' . $ListingKey . ' id=' . $propertyId . ' with status ' . $status . ' is insert? ' . $isInsert . PHP_EOL;
-		$this->writeImportLogs($log, $tipImport);
-
-		$propertyHistory 	= [];
-		$content 			= $property['content'] ?? '';
-		$submitTitle 		= $ListingKey;
-
-		if ($isInsert === 'yes') {
-			$post = [
-				'post_title' 	=> $submitTitle,
-				'post_content' 	=> $content,
-				'post_status' 	=> $propertyStatus,
-				'post_type' 	=> $listingPostType,
-				'post_author' 	=> $newAuthor,
-			];
- 
-			$propertyId = wp_insert_post($post);
-			if (is_wp_error($propertyId)) {
-				$this->writeImportLogs('ERROR: on inserting ' . PHP_EOL, $tipImport);
-			} else {
-				update_post_meta($propertyId, 'ListingKey', $ListingKey);
-				update_post_meta($propertyId, 'MLSimport_item_inserted', $itemIdArray['item_id'],);
-				update_post_meta($propertyId, 'mlsImportItemStatusDelete', $mlsImportItemStatusDelete);
-
-				
-				
-				$propertyHistory[] = date('F j, Y, g:i a') . ': We Inserted the property with Default title :  ' . $submitTitle . ' and received id:' . $propertyId.'. The delete statuses are '.$keep_on_delete;
-			}
-
-			clean_post_cache( $propertyId );
-
-		} elseif ($propertyId !== 0) {
-
-			$keep = $this->check_if_delete_when_status($property_id);
-
-			if(!$keep){
-				$log = 'Property with ID ' . $propertyId . ' and with name ' . get_the_title($propertyId) . ' has a status of <strong>' . $status . ' / '.$post_status.'</strong> and will be deleted' . PHP_EOL;
-				$this->deleteProperty($propertyId, $ListingKey);
-				$this->writeImportLogs($log, $tipImport);
-			}else{	
-				update_post_meta($propertyId, 'mlsImportItemStatusDelete', $mlsImportItemStatusDelete);
-				$propertyHistory = $this->updateExistingProperty($propertyId,$mlsImportItemStatusDelete, $content, $listingPostType, $newAuthor, $status, $mlsImportItemStatus, $propertyHistory, $tipImport, $ListingKey);
-			}
-		}
-
-
-
-
-
-
-		if ($propertyId === 0) {
-			$this->writeImportLogs('ERROR property id is 0' . PHP_EOL, $tipImport);
-			return;
-		}
-
-		$newTitle = $this->processPropertyDetails($property, $propertyId, $tipImport, $propertyHistory, $newAgent, $itemIdArray,$isInsert);
-
-		$log = PHP_EOL . 'Ending on Property ' . $propertyId . ', ListingKey: ' . $ListingKey . ' , is insert? ' . $isInsert . ' with new title: ' . $newTitle . '  ' . PHP_EOL;
-		$this->writeImportLogs($log, $tipImport);
-
-		clean_post_cache( $propertyId );
-
-		ob_end_clean();
+	if ($propertyId === 0) {
+		$this->writeImportLogs('ERROR property id is 0' . PHP_EOL, $tipImport);
+		return;
 	}
 
+	// Memory before processing details
+	$memBeforeDetails = memory_get_usage(true);
+	//error_log("PROPERTY IMPORT - Before processing property details - Memory: " . round($memBeforeDetails / 1048576, 2) . " MB");
+
+	$newTitle = $this->processPropertyDetails($property, $propertyId, $tipImport, $propertyHistory, $newAgent, $itemIdArray,$isInsert);
+
+	// Memory after processing details
+	$memAfterDetails = memory_get_usage(true);
+	//error_log("PROPERTY IMPORT - After processing property details - Memory: " . round($memAfterDetails / 1048576, 2) . " MB, Diff: " . round(($memAfterDetails - $memBeforeDetails) / 1048576, 2) . " MB");
+
+	$log = PHP_EOL . 'Ending on Property ' . $propertyId . ', ListingKey: ' . $ListingKey . ' , is insert? ' . $isInsert . ' with new title: ' . $newTitle . '  ' . PHP_EOL;
+	$this->writeImportLogs($log, $tipImport);
+
+	clean_post_cache($propertyId);
+
+	// More aggressive memory cleanup
+	// First clear specific large arrays in property data
+	if (isset($property['Media']) && is_array($property['Media'])) {
+		foreach ($property['Media'] as $key => $media) {
+			unset($property['Media'][$key]);
+		}
+	}
+	if (isset($property['extra_meta']) && is_array($property['extra_meta'])) {
+		foreach ($property['extra_meta'] as $key => $value) {
+			unset($property['extra_meta'][$key]);
+		}
+	}
+	if (isset($property['meta']) && is_array($property['meta'])) {
+		foreach ($property['meta'] as $key => $value) {
+			unset($property['meta'][$key]);
+		}
+	}
+	if (isset($property['taxonomies']) && is_array($property['taxonomies'])) {
+		foreach ($property['taxonomies'] as $key => $value) {
+			unset($property['taxonomies'][$key]);
+		}
+	}
+	
+	// Then unset the main arrays
+	unset($property['Media']);
+	unset($property['extra_meta']);
+	unset($property['meta']);
+	unset($property['taxonomies']);
+	unset($property);
+	
+	// Clear any post caches that might have been created
+	clean_post_cache($propertyId);
+	
+	// Clear other variables that hold large data
+	unset($log);
+	unset($propertyHistory);
+	$GLOBALS['wpdb']->queries = array();
+	
+	// Clear WordPress specific caches
+	wp_cache_delete('get_term_meta', 'terms');  
+	wp_cache_delete('terms', 'terms');
+	wp_cache_delete('term_meta', 'terms');
+	wp_cache_delete('get_terms', 'terms');
+	
+	// Clear post related caches
+	wp_cache_delete('post_meta_' . $propertyId, 'post_meta');
+	wp_cache_delete($propertyId, 'posts');
+	
+	// Force multiple garbage collection cycles
+	gc_collect_cycles();
+	gc_collect_cycles();
+	
+	// Close and discard any output buffer content
+	ob_end_clean();
+	
+	// Try to trigger PHP's internal memory cleanup
+	$dummy = str_repeat('x', 1024 * 1024);
+	unset($dummy);
+
+	// Final memory usage
+	$memEnd = memory_get_usage(true);
+	$memEndMB = round($memEnd / 1048576, 2);
+	$memDiff = round(($memEnd - $memStart) / 1048576, 2);
+	//error_log("PROPERTY IMPORT COMPLETE - ListingKey: {$ListingKey} - Final Memory: {$memEndMB} MB, Total Change: {$memDiff} MB");
+	
+	// If we see a significant memory increase, log a warning
+	if ($memDiff > 5) {
+		//error_log("WARNING: Significant memory increase of {$memDiff} MB after processing property {$ListingKey}");
+	}
+	
+	// Restore WordPress hooks
+	global $wp_filter;
+	if (!empty($saved_filters)) {
+		foreach ($saved_filters as $hook => $filter) {
+			$wp_filter[$hook] = $filter;
+		}
+	}
+}
 
 
+        
+        
+        
 
 	/**
 	 * Check if the property should be inserted
@@ -925,7 +1291,9 @@ class ThemeImport {
 		);
 
 		if ($propertyId !== 0 || !is_array($mlsImportItemStatus)) {
+			//error_log('mlsImportItemStatus 0 ');
 			return 'no';
+			
 		}
 
 		$activeStatuses = [
@@ -941,15 +1309,18 @@ class ThemeImport {
 		];
 		if(is_array($mlsImportItemStatus)){
 			if (!in_array(strtolower($status), $mlsImportItemStatus, true)) {
+				//error_log('mlsImportItemStatus 1 ');
 				return 'no';
 			}
 	
 			if ($tipImport === 'cron' && !in_array($status, $mlsImportItemStatus, true)) {
+				//error_log('mlsImportItemStatus 2');
 				return 'no';
 			}
 	
 		}else{
 			if(!in_array($status, $activeStatuses, true) ){
+				//error_log('mlsImportItemStatus 3 ');
 				return 'no';
 			}
 		}
@@ -958,122 +1329,110 @@ class ThemeImport {
 	}
 
 	
-	/**
-	 * Check for property status agains mls item delete status to see if we keep or delete the listing
-	 *
-	 * 
-	 */
-	public function check_if_delete_when_status($property_id){
-		$delete_status= get_post_meta( $property_id, 'mlsImportItemStatusDelete', true );
+/**
+ * Check for property status against MLS item delete status to see if we keep or delete the listing.
+ * @param int $property_id
+ * @param string|array $mlsImportItemStatus
+ * @param string|array $mlsImportItemStatusDelete
+ * @return bool True to keep, false to delete
+ */
+public function check_if_delete_when_status($property_id, $mlsImportItemStatus, $mlsImportItemStatusDelete) {
+    // Normalize status arrays/strings to lowercase
+    $mlsImportItemStatus = is_array($mlsImportItemStatus)
+        ? array_map('strtolower', $mlsImportItemStatus)
+        : strtolower($mlsImportItemStatus);
+
+    $mlsImportItemStatusDelete = is_array($mlsImportItemStatusDelete)
+        ? array_map('strtolower', $mlsImportItemStatusDelete)
+        : strtolower($mlsImportItemStatusDelete);
+
+    // Get post_status based on post type/taxonomy
+    $post_status = '';
+    if (post_type_exists('estate_property')) {
+        $terms = get_the_terms($property_id, 'property_status');
+        if (!empty($terms) && is_array($terms)) {
+            $post_status = strtolower($terms[0]->name);
+        }
+    } elseif (post_type_exists('property') && taxonomy_exists('property_label')) {
+        $terms = get_the_terms($property_id, 'property_label');
+        if (!empty($terms) && is_array($terms)) {
+            $post_status = strtolower($terms[0]->name);
+        }
+    } else {
+        $post_status = strtolower(get_post_meta($property_id, 'inspiry_property_label', true));
+    }
+
+    // //error_log for debugging (can comment out in production)
+    // //error_log("[MLSImport] post_status: {$post_status} | keep_status: " . json_encode($mlsImportItemStatus) . " | delete_status: " . json_encode($mlsImportItemStatusDelete));
+
+    // Keep if status matches "keep" status
+    if ((is_array($mlsImportItemStatus) && in_array($post_status, $mlsImportItemStatus, true)) ||
+        (!is_array($mlsImportItemStatus) && $post_status === $mlsImportItemStatus)) {
+        return true;
+    }
+
+    // Delete if status matches "delete" status
+    if (!empty($mlsImportItemStatusDelete)) {
+        if ((is_array($mlsImportItemStatusDelete) && in_array($post_status, $mlsImportItemStatusDelete, true)) ||
+            (!is_array($mlsImportItemStatusDelete) && $post_status === $mlsImportItemStatusDelete)) {
+            return false;
+        }
+    }
+
+    // Default: keep
+    return true;
+}
+
+
+
+
+
+
+
+
 	
-
-		if (post_type_exists('estate_property')) {
-			// wpresidence
-			$termObjList = get_the_terms($property_id, 'property_status');
-				
-				if(isset($termObjList) && is_array($termObjList)){
-						$post_status = $termObjList[0]->name;
-				}
-		
-				print 'from wpresidence : '.$post_status.' | ';
-                          
-		}else if(post_type_exists('property') && taxonomy_exists('property_label')){
-			// houzez
-			$termObjList = get_the_terms($property_id, 'property_label');
-                        
-				if(isset($termObjList) && is_array($termObjList)){
-						$post_status = $termObjList[0]->name;
-				}
-				print 'from houzez : '.$post_status.' | ';
-		} else {
-			//real homes
-			$post_status = get_post_meta( $property_id, 'inspiry_property_label', true );
-			print 'from real homes : '.$post_status.' | ';
-		}
-
-		$keep=true;
-		if(!empty($delete_status)){
-			
-			if(is_array($delete_status) && in_array($post_status, $delete_status)){
-				$keep=false;
-			
-			}else if($post_status==$delete_status){
-				$keep=false;
-			}
-
-		}
-
-		print  wp_kses_post('</br></br>' .$property_id. ' ------------------------- Check keep when not found: '.$property_id.' /'.$post_status.'<-</br>');
-		var_dump($delete_status);
-		print '</br>';
-
-		return $keep;
-	}
-
-
-
-
 	/**
-	 * Check for property status agains mls item standart status to see if we keep or delete the listing 
-	 * Function is used when we detect the property still exist in mls
-	 *
-	 * 
-	 */
+        * Check if we should keep or delete the listing when still in MLS.
+        */
+       public function check_if_delete_when_status_when_in_mls($property_id,$mlsimport_item_standardstatus) {
+           // Get the inserted item and its MLS standard status
 
-	 public function check_if_delete_when_status_when_in_mls($property_id){
-		   
-		$MLSimport_item_inserted = get_post_meta( $property_id, 'MLSimport_item_inserted', true );
-		$mlsimport_item_standardstatus= get_post_meta( $MLSimport_item_inserted, 'mlsimport_item_standardstatus', true );
-	 
-		if (post_type_exists('estate_property')) {
-			// wpresidence
-			$termObjList = get_the_terms($property_id, 'property_status');
-						
-			if(isset($termObjList) && is_array($termObjList)){
-				$post_status = $termObjList[0]->name;
-			}
-	
-			print 'from wpresidence : '.$post_status.' | ';
-						
-		}else if(post_type_exists('property') && taxonomy_exists('property_label')){
-			// houzez
-			$termObjList = get_the_terms($property_id, 'property_label');
-			
-			if(isset($termObjList) && is_array($termObjList)){
-					$post_status = $termObjList[0]->name;
-			}
-			print 'from houzez : '.$post_status.' | ';
-		} else {
-			//real homes
-			$post_status = get_post_meta( $property_id, 'inspiry_property_label', true );
-			print 'from real homes : '.$post_status.' | ';
-		}
+        
+
+           // Default to false
+           $post_status = '';
+
+           // Check for post status based on post type/taxonomy
+           if (post_type_exists('estate_property')) {
+               // WPResidence
+               $terms = get_the_terms($property_id, 'property_status');
+               if (!empty($terms) && is_array($terms)) {
+                   $post_status = $terms[0]->name;
+               }
+           } elseif (post_type_exists('property') && taxonomy_exists('property_label')) {
+               // Houzez
+               $terms = get_the_terms($property_id, 'property_label');
+               if (!empty($terms) && is_array($terms)) {
+                   $post_status = $terms[0]->name;
+               }
+           } else {
+               // RealHomes
+               $post_status = get_post_meta($property_id, 'inspiry_property_label', true);
+           }
+
+           // Early return if MLS status empty
+           if (empty($mlsimport_item_standardstatus)) {
+               return true; // default: keep if no status set
+           }
+
+           // If it's an array, check for post status in it; otherwise, compare string
+           if (is_array($mlsimport_item_standardstatus)) {
+               return in_array($post_status, $mlsimport_item_standardstatus, true);
+           }
+           return $post_status === $mlsimport_item_standardstatus;
+       }
 
 
-		var_dump($mlsimport_item_standardstatus); 
-		print '****';
-
-
-		$keep=true;
-		if(!empty($mlsimport_item_standardstatus)){
-			
-			if(is_array($mlsimport_item_standardstatus) && in_array($post_status, $mlsimport_item_standardstatus)){
-				$keep=true;
-			
-			}else if($post_status==$mlsimport_item_standardstatus){
-				$keep=true;
-			}else{
-				$keep=false;
-			}
-
-		}
-
-		print  wp_kses_post('</br></br>' .$property_id. ' Property Found in mls - check keep when found: '.$property_id.' /post_status: '.$post_status.'<-</br>');
-		var_dump($mlsimport_item_standardstatus);
-		print '</br>';
-
-		return $keep;
-		}
 
 
 
@@ -1118,75 +1477,321 @@ class ThemeImport {
 		return $propertyHistory;
 	}
 
-	/**
-	 * Process property details
-	 *
-	 * @param array $property The property data.
-	 * @param int $propertyId The property ID.
-	 * @param string $tipImport The import type.
-	 * @param array $propertyHistory The property history.
-	 * @param int $newAgent The new agent ID.
-	 * @param array $itemIdArray The item ID array.
-	 * @param string $isInsert If is a property insert
-	 */
-	private function processPropertyDetails($property, $propertyId, $tipImport, &$propertyHistory, $newAgent, $itemIdArray,	$isInsert) {
-		global $mlsimport;
-		$log = PHP_EOL . $this->mlsimportMemUsage() . '====before tax======' . PHP_EOL;
-		$this->writeImportLogs($log, $tipImport);
+/**
+ * Process property details with memory tracking and optimization
+ *
+ * @param array $property The property data.
+ * @param int $propertyId The property ID.
+ * @param string $tipImport The import type.
+ * @param array $propertyHistory The property history.
+ * @param int $newAgent The new agent ID.
+ * @param array $itemIdArray The item ID array.
+ * @param string $isInsert If is a property insert
+ */
+private function processPropertyDetails($property, $propertyId, $tipImport, &$propertyHistory, $newAgent, $itemIdArray, $isInsert) {
+    global $mlsimport, $wpdb;
+    
+	//error_log("Property Data: " . print_r($property, true));
 
-		if (isset($property['taxonomies']) && is_array($property['taxonomies'])) {
-			remove_filter('get_term_metadata', 'lazyload_term_meta', 10);
-			wp_cache_delete('get_ancestors', 'taxonomy');
+   	// Normalize timestamp fields in extra_meta to format like "May 17, 2025 at 06:26am"
+    if (isset($property['extra_meta']) && is_array($property['extra_meta'])) {
+        $timestampFields = [
+            'StatusChangeTimestamp',
+            'STELLAR_BOMDate',
+            'PriceChangeTimestamp',
+            'PhotosChangeTimestamp',
+            'BridgeModificationTimestamp',
+            'ModificationTimestamp',
+            'OriginalEntryTimestamp',
+            'MajorChangeTimestamp'
+        ];
 
-			$this->mlsimportSaasClearPropertyForTaxonomy($propertyId, $property['taxonomies']);
+        foreach ($timestampFields as $tsField) {
+            if (!empty($property['extra_meta'][$tsField])) {
+                $timestamp = strtotime($property['extra_meta'][$tsField]);
+                if ($timestamp !== false) {
+                    $property['extra_meta'][$tsField] = gmdate('F j, Y \a\t h:ia', $timestamp);
+                }
+            }
+        }
+    }
 
-			foreach ($property['taxonomies'] as $taxonomy => $term) {
-				wp_cache_delete("{$taxonomy}_term_counts", 'counts');
-				$this->mlsimportSaasUpdateTaxonomyForProperty($taxonomy, $propertyId, $term);
-				$propertyHistory[] = 'Updated Taxonomy ' . $taxonomy . ' with terms ' . wp_json_encode($term);
-			}
 
-			add_filter('get_term_metadata', 'lazyload_term_meta', 10, 2);
-			delete_option('category_children');
+
+    // 1. DISABLE AUTOCOMMIT FOR BATCH PROCESSING
+    // This reduces memory by preventing DB auto-commits between operations
+    if (method_exists($wpdb, 'query')) {
+        $wpdb->query('SET autocommit = 0');
+    }
+    
+    // 2. TEMPORARY DISABLE ACTIONS THAT CONSUME MEMORY
+    $suspended_actions = [];
+    foreach (['save_post', 'added_post_meta', 'updated_post_meta'] as $action) {
+        if (has_action($action)) {
+            $suspended_actions[$action] = true;
+            remove_all_actions($action);
+        }
+    }
+    
+    // Initial memory
+    $memStart = memory_get_usage(true);
+    //error_log("PROPERTY DETAILS START - Property ID: {$propertyId} - Initial Memory: " . round($memStart / 1048576, 2) . " MB");
+    
+    $log = PHP_EOL . $this->mlsimportMemUsage() . '====before tax======' . PHP_EOL;
+    $this->writeImportLogs($log, $tipImport);
+    
+    // 3. OPTIMIZE TAXONOMY PROCESSING
+    if (isset($property['taxonomies']) && is_array($property['taxonomies'])) {
+        $memBeforeTax = memory_get_usage(true);
+        //error_log("PROPERTY DETAILS - Before taxonomy processing - Memory: " . round($memBeforeTax / 1048576, 2) . " MB");
+
+        // Load taxonomy mapping options
+        $options = get_option('mlsimport_admin_fields_select');
+        $theme_schema = mlsimport_hardocde_theme_schema();
+        $taxonomy_overrides = array();
+        if (isset($options['mls-fields-map-taxonomy']) && is_array($options['mls-fields-map-taxonomy'])) {
+            foreach ($options['mls-fields-map-taxonomy'] as $field_key => $mapped_tax) {
+                if ($mapped_tax === '') {
+                    continue;
+                }
+                if (isset($theme_schema[$field_key]) && isset($theme_schema[$field_key]['type']) &&
+                    $theme_schema[$field_key]['type'] === 'taxonomy' && isset($theme_schema[$field_key]['name'])) {
+                    $default_tax = $theme_schema[$field_key]['name'];
+                    if ($default_tax !== $mapped_tax) {
+                        $taxonomy_overrides[$default_tax] = $mapped_tax;
+                    }
+                }
+            }
+        }
+        
+        // Disable term counting temporarily (major memory saver)
+        wp_defer_term_counting(true);
+        
+        remove_filter('get_term_metadata', 'lazyload_term_meta', 10);
+        wp_cache_delete('get_ancestors', 'taxonomy');
+        
+        // Clear existing taxonomies
+        $this->mlsimportSaasClearPropertyForTaxonomy($propertyId, $property['taxonomies']);
+        
+        // 4. PROCESS TAXONOMIES IN CHUNKS
+        $taxChunks = array_chunk($property['taxonomies'], 5, true);
+        foreach ($taxChunks as $taxChunk) {
+            foreach ($taxChunk as $taxonomy => $term) {
+                if (isset($taxonomy_overrides[$taxonomy])) {
+                    $taxonomy = $taxonomy_overrides[$taxonomy];
+                }
+                wp_cache_delete("{$taxonomy}_term_counts", 'counts');
+                $this->mlsimportSaasUpdateTaxonomyForProperty($taxonomy, $propertyId, $term);
+                $propertyHistory[] = 'Updated Taxonomy ' . $taxonomy . ' with terms ' . wp_json_encode($term);
+                
+                // Memory cleanup after each taxonomy
+                wp_cache_delete('term_meta', 'terms');
+                wp_cache_delete($taxonomy, 'terms');
+            }
+            
+            // 5. FORCE GC AFTER EACH CHUNK
+            gc_collect_cycles();
+        }
+        
+        // Restore term filter and clean up
+        add_filter('get_term_metadata', 'lazyload_term_meta', 10, 2);
+        delete_option('category_children');
+        
+        // Re-enable term counting
+        wp_defer_term_counting(false);
+        
+        $memAfterTax = memory_get_usage(true);
+        //error_log("PROPERTY DETAILS - After all taxonomy processing - Memory: " . round($memAfterTax / 1048576, 2) . 
+              //   " MB, Total Diff: " . round(($memAfterTax - $memBeforeTax) / 1048576, 2) . " MB");
+    }
+    
+    // 6. FLUSH SPECIFIC CACHES INSTEAD OF ALL
+    // More targeted than wp_cache_flush()
+    wp_cache_delete('terms', 'terms');
+    wp_cache_delete('term_meta', 'terms');
+    wp_cache_delete("post_meta_{$propertyId}", 'post_meta');
+    wp_cache_delete($propertyId, 'posts');
+    
+    // Prepare meta data
+    $property = $this->mlsimportSaasPrepareMetaForProperty($property);
+    
+    // 7. BATCH META UPDATES
+    if (isset($property['meta']) && is_array($property['meta'])) {
+        $memBeforeMeta = memory_get_usage(true);
+        $metaCount = count($property['meta']);
+        
+        // Use direct SQL for batch meta updates if many fields
+        if ($metaCount > 20 && method_exists($wpdb, 'prepare')) {
+            $meta_values = [];
+            foreach ($property['meta'] as $metaName => $metaValue) {
+                if (is_array($metaValue)) {
+                    $metaValue = implode(',', $metaValue);
+                }
+                
+                // Build history separately
+                $propertyHistory[] = 'Updated Meta ' . $metaName . ' with meta_value ' . $metaValue;
+                
+                // First delete existing
+                $wpdb->delete(
+                    $wpdb->postmeta,
+                    ['post_id' => $propertyId, 'meta_key' => $metaName],
+                    ['%d', '%s']
+                );
+                
+                // Collect for batch insert
+                $meta_values[] = $wpdb->prepare(
+                    "(%d, %s, %s)",
+                    $propertyId,
+                    $metaName,
+                    $metaValue
+                );
+            }
+            
+            // Batch insert all meta at once
+            if (!empty($meta_values)) {
+                $wpdb->query("INSERT INTO {$wpdb->postmeta} (post_id, meta_key, meta_value) VALUES " . 
+                             implode(", ", $meta_values));
+            }
+        } else {
+            // Standard approach for fewer meta fields
+            foreach ($property['meta'] as $metaName => $metaValue) {
+                if (is_array($metaValue)) {
+                    $metaValue = implode(',', $metaValue);
+                }
+                update_post_meta($propertyId, $metaName, $metaValue);
+                $propertyHistory[] = 'Updated Meta ' . $metaName . ' with meta_value ' . $metaValue;
+            }
+        }
+        
+        $memAfterMeta = memory_get_usage(true);
+        //error_log("PROPERTY DETAILS - After meta processing - Memory: " . round($memAfterMeta / 1048576, 2) . 
+            //     " MB, Diff: " . round(($memAfterMeta - $memBeforeMeta) / 1048576, 2) . " MB");
+    }
+    
+    // Extra meta processing
+    $extraMetaResult = $mlsimport->admin->env_data->mlsimportSaasSetExtraMeta($propertyId, $property);
+    if (isset($extraMetaResult['property_history'])) {
+        $propertyHistory = array_merge($propertyHistory, (array)$extraMetaResult['property_history']);
+    }
+    
+    // 8. PROCESS MEDIA IN CHUNKS
+    $memBeforeMedia = memory_get_usage(true);
+    
+
+    if (isset($property['Media']) && is_array($property['Media'])) {
+		$media_attachments=array();
+
+        $mediaCount = count($property['Media']);
+        //error_log("PROPERTY DETAILS - Processing {$mediaCount} media items");
+        
+        // Process in chunks of 5
+        $mediaChunks = array_chunk($property['Media'], 5);
+        $mediaHistoryParts = [];
+        
+        // Clear original array to free memory
+        $originalMedia = $property['Media'];
+        unset($property['Media']);
+
+		if ($isInsert !== 'no') {
+			delete_post_meta($propertyId, 'fave_property_images');
+			delete_post_meta($propertyId, 'REAL_HOMES_property_images');
+			delete_post_meta($propertyId, 'wpestate_property_gallery');
+			//error_log("MLSImport: Deleted existing image meta for property ID: $propertyId");
 		}
 
-		wp_cache_flush();
+        
+        foreach ($mediaChunks as $index => $mediaChunk) {
+            $media_attachments = $this->mlsimportSassAttachMediaToPost($propertyId, $mediaChunk, $isInsert,$media_attachments);
+           // $mediaHistoryParts[] = $chunkHistory;
+            
+            // Free memory
+            unset($mediaChunk);
+            //unset($chunkHistory);
+            gc_collect_cycles();
+            
+            // Incremental progress report
+            //error_log("PROPERTY DETAILS - Processed media chunk " . ($index + 1) . "/" . count($mediaChunks));
+        }
+        
 
-		$property = $this->mlsimportSaasPrepareMetaForProperty($property);
+		$mlsimport->admin->env_data->enviroment_image_save_gallery($propertyId, $media_attachments);
+	
+        // Combine all chunks
+       // $mediaHistory = implode('</br>', $mediaHistoryParts);
+       // $propertyHistory = array_merge($propertyHistory, (array)$mediaHistory);
+        
+        // Clean up
+        unset($mediaChunks);
+        unset($mediaHistoryParts);
+        unset($mediaHistory);
+        unset($originalMedia);
+    } else {
+        $mediaHistory = $this->mlsimportSassAttachMediaToPost($propertyId, $property['Media'] ?? [], $isInsert);
+        $propertyHistory = array_merge($propertyHistory, (array)$mediaHistory);
+    }
+    
 
-		if (isset($property['meta']) && is_array($property['meta'])) {
-			foreach ($property['meta'] as $metaName => $metaValue) {
-				if (is_array($metaValue)) {
-					$metaValue = implode(',', $metaValue);
-				}
-				update_post_meta($propertyId, $metaName, $metaValue);
-				$propertyHistory[] = 'Updated Meta ' . $metaName . ' with meta_value ' . $metaValue;
-			}
-		}
+    $memAfterMedia = memory_get_usage(true);
+    //error_log("PROPERTY DETAILS - After media processing - Memory: " . round($memAfterMedia / 1048576, 2) . 
+           //  " MB, Diff: " . round(($memAfterMedia - $memBeforeMedia) / 1048576, 2) . " MB");
+    
+    // Update title
+    $newTitle = $this->mlsimportSaasUpdatePropertyTitle($propertyId, $itemIdArray['item_id'], $property);
+    $propertyHistory[] = 'Updated title to  ' . $newTitle . '</br>';
+    
+    // Correlation update
+    $mlsimport->admin->env_data->correlationUpdateAfter($isInsert, $propertyId, [], $newAgent);
+    
+    // 9. COMMIT TRANSACTION
+    if (method_exists($wpdb, 'query')) {
+        $wpdb->query('COMMIT');
+        $wpdb->query('SET autocommit = 1');
+    }
+    
+    // Save property history - using direct SQL if history is large
+    if (!empty($propertyHistory)) {
+        if (intval(get_option('mlsimport-disable-history', 1)) === 1) {
+            $propertyHistory[] = '---------------------------------------------------------------</br>';
+            $propertyHistory = implode('</br>', $propertyHistory);
+            
+            // 10. USE DIRECT SQL FOR LARGE HISTORY
+            if (strlen($propertyHistory) > 10000 && method_exists($wpdb, 'update')) {
+                $wpdb->update(
+                    $wpdb->postmeta,
+                    ['meta_value' => $propertyHistory],
+                    ['post_id' => $propertyId, 'meta_key' => 'mlsimport_property_history'],
+                    ['%s'],
+                    ['%d', '%s']
+                );
+            } else {
+                update_post_meta($propertyId, 'mlsimport_property_history', $propertyHistory);
+            }
+        }
+    }
+    
+    // 11. RESTORE ACTIONS
+    if (!empty($suspended_actions)) {
+        foreach ($suspended_actions as $action => $true) {
+            add_action($action, '_wp_action_exists_' . $action);
+            remove_action($action, '_wp_action_exists_' . $action);
+        }
+    }
+    
+    // 12. FINAL CLEANUP
+    $property = null;
+    $propertyHistory = null;
+    wp_cache_flush();
+    gc_collect_cycles();
+    
+    // Final memory stats
+    $memEnd = memory_get_usage(true);
+    //error_log("PROPERTY DETAILS COMPLETE - Property ID: {$propertyId} - " . 
+       //      "Final Memory: " . round($memEnd / 1048576, 2) . " MB, " . 
+       //      "Total Change: " . round(($memEnd - $memStart) / 1048576, 2) . " MB");
+    
+    return $newTitle;
+}
 
-		$extraMetaResult = $mlsimport->admin->env_data->mlsimportSaasSetExtraMeta($propertyId, $property);
-		if (isset($extraMetaResult['property_history'])) {
-			$propertyHistory = array_merge($propertyHistory, (array)$extraMetaResult['property_history']);
-		}
-
-		$mediaHistory = $this->mlsimportSassAttachMediaToPost($propertyId, $property['Media'], $isInsert);
-		$propertyHistory = array_merge($propertyHistory, (array)$mediaHistory);
-
-		$newTitle = $this->mlsimportSaasUpdatePropertyTitle($propertyId, $itemIdArray['item_id'], $property);
-		$propertyHistory[] = 'Updated title to  ' . $newTitle . '</br>';
-
-		$mlsimport->admin->env_data->correlationUpdateAfter($isInsert, $propertyId, [], $newAgent);
-
-		if (!empty($propertyHistory)) {
-			if (intval(get_option('mlsimport-disable-history', 1)) === 1) {
-				$propertyHistory[] = '---------------------------------------------------------------</br>';
-				$propertyHistory = implode('</br>', $propertyHistory);
-				update_post_meta($propertyId, 'mlsimport_property_history', $propertyHistory);
-			}
-		}
-
-		return $newTitle;
-	}
 
 
 

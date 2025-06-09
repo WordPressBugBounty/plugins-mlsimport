@@ -132,7 +132,9 @@ class Mlsimport_Admin {
 	 * @since    1.0.0
 	 */
 	public function enqueue_styles() {
-		wp_enqueue_style( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'css/mlsimport-admin.css', array(), $this->version, 'all' );
+		wp_enqueue_style( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'css/mlsimport-admin.css', array(), MLSIMPORT_VERSION, 'all' );
+		wp_enqueue_style( 'mlsimport-onboarding', plugin_dir_url( __FILE__ ) . 'css/mlsimport-onboarding.css', array(), MLSIMPORT_VERSION, 'all' );
+		wp_enqueue_style( 'mlsimport-field-selector', plugin_dir_url( __FILE__ ) . 'css/mlsimport-field-selector.css', array(), MLSIMPORT_VERSION, 'all' );
 	}
 
 
@@ -158,6 +160,19 @@ class Mlsimport_Admin {
 			)
 		);
 	
+	 	wp_enqueue_script( 'mlsimport-field-selector', plugin_dir_url( ( __FILE__ ) ) . 'js/mlsimport-field-selector.js', array( 'jquery', 'jquery-ui-sortable', 'jquery-ui-tooltip' ), '1.0.0', true );
+        
+        // Pass AJAX parameters to script
+        wp_localize_script( 'mlsimport-field-selector', 'mlsimport_params', array(
+            'ajax_url' => admin_url( 'admin-ajax.php' ),
+            'nonce' => wp_create_nonce( 'mlsimport_field_selector_nonce' )
+        ));
+
+
+		wp_enqueue_script( 'mlsimport-progressive-save', plugin_dir_url( ( __FILE__ ) ) . 'js/progressive-save.js', array('mlsimport-field-selector' ), '1.0.0', true );
+        
+
+
 		if ('toplevel_page_mlsimport_plugin_options' === $hook_suffix && 
 			isset($_GET['page']) && $_GET['page'] === 'mlsimport_plugin_options' && 
 			isset($_GET['tab']) && $_GET['tab'] === 'field_options') {
@@ -168,13 +183,29 @@ class Mlsimport_Admin {
 			}
 		}
 
+		if (
+			'admin_page_mlsimport-onboarding' === $hook_suffix &&
+			isset($_GET['page']) && $_GET['page'] === 'mlsimport-onboarding'
+		) {
+			$mlsimport_mls_metadata_populated = get_option('mlsimport_mls_metadata_populated', '');
+			if ('yes' !== $mlsimport_mls_metadata_populated) {
+				$inline_script = 'jQuery(document).ready(function($){  mlsimport_saas_get_metadata(); });';
+				wp_add_inline_script('mlsimport-admin', $inline_script);
+			}
+		}
+
+		
+
+
 		if ('toplevel_page_mlsimport_plugin_options' === $hook_suffix && 
 			( isset($_GET['page']) && $_GET['page'] === 'mlsimport_plugin_options' && isset($_GET['tab']) && $_GET['tab'] === 'display_options') ||
 			(isset($_GET['page']) && $_GET['page'] === 'mlsimport_plugin_options'  && !isset($_GET['tab']) ) ) {
 			
 				$mls_import_list = mlsimport_saas_request_list();
-				$inline_script = 'jQuery(document).ready(function($){ var autofill='.wp_kses_post($mls_import_list).';mlsimport_autocomplte_mls_selection(autofill);  });';
-				wp_add_inline_script('mlsimport-admin', $inline_script);
+				if(!is_array($mls_import_list)){
+					$inline_script = 'jQuery(document).ready(function($){ var autofill='.wp_kses_post($mls_import_list).';mlsimport_autocomplte_mls_selection(autofill);  });';
+					wp_add_inline_script('mlsimport-admin', $inline_script);
+				}
 		}
 
 	}
@@ -288,11 +319,11 @@ class Mlsimport_Admin {
 				'details' => 'to be added',
 			),
 			'mlsimport_username'                => array(
-				'name'    => esc_html__( 'MLSImport Username', 'mlsimport' ),
+				'name'    => esc_html__( 'MLSImport.com Username (not your email)', 'mlsimport' ),
 				'details' => 'to be added',
 			),
 			'mlsimport_password'                => array(
-				'name'    => esc_html__( 'MLSImport Password', 'mlsimport' ),
+				'name'    => esc_html__( 'MLSImport.com Password', 'mlsimport' ),
 				'details' => 'to be added',
 			),
 			'mlsimport_mls_name'                => array(
@@ -341,6 +372,15 @@ class Mlsimport_Admin {
 
 			'mlsimport_paragon_client_secret'   => array(
 				'name'    => esc_html__( 'MLSImport Paragon Secret', 'mlsimport' ),
+				'details' => 'to be added',
+			),
+			'mlsimport_realtorca_client_id'       => array(
+				'name'    => esc_html__( 'MLSImport Realtor.ca Client id','mlsimport' ),
+				'details' => 'to be added',
+			),
+
+			'mlsimport_realtorca_client_secret'   => array(
+				'name'    => esc_html__( 'MLSImport Realtor.ca Secret', 'mlsimport' ),
 				'details' => 'to be added',
 			),
 
@@ -401,10 +441,10 @@ class Mlsimport_Admin {
 				$valid['mls-fields-label'][ $key ] = esc_attr( $input['mls-fields-label'][ $key ] );
 				$valid['mls-fields-map-postmeta'][ $key ] = esc_attr( $input['mls-fields-map-postmeta'][ $key ] );
 				$valid['mls-fields-map-taxonomy'][ $key ] = esc_attr( $input['mls-fields-map-taxonomy'][ $key ] );
-		
+				$valid['field_order'][ $key ] = esc_attr( $input['field_order'][ $key ] );
 			}
 		}
-		$valid['mls-fields-admin']['force_rand'] = esc_attr( $input['mls-fields-admin']['force_rand'] );
+		//$valid['mls-fields-admin']['force_rand'] = esc_attr( $input['mls-fields-admin']['force_rand'] );
 		return $valid;
 	}
 
@@ -617,7 +657,7 @@ class Mlsimport_Admin {
 	/**
 	 * delete cache
 	 */
-	function mlsimport_delete_cache() {
+        function mlsimport_delete_cache() {
 
 		check_ajax_referer( 'mlsimport_tool_actions', 'security' );
 
@@ -629,9 +669,23 @@ class Mlsimport_Admin {
 		delete_transient( 'mlsimport_ready_to_go_mlsimport_data' );
 		delete_transient( 'mlsimport_saas_token' );
 
-		delete_option( 'mlsimport_mls_metadata_populated' );
-		die( 'deleted' );
-	}
+                delete_option( 'mlsimport_mls_metadata_populated' );
+
+                die( 'deleted' );
+        }
+
+        /**
+         * clear fields data
+         */
+        function mlsimport_clear_fields_data() {
+
+                check_ajax_referer( 'mlsimport_tool_actions', 'security' );
+
+                delete_option( 'mlsimport_mls_metadata_populated' );
+                delete_option( 'mlsimport_admin_fields_select' );
+
+                die( 'deleted' );
+        }
 
 	/**
 	 *
@@ -701,6 +755,12 @@ class Mlsimport_Admin {
 					$mlsimport->admin->theme_importer->mlsimportSaasDeletePropertyViaMysql( $delete_get_id, ' delete from tools ' );
 				}
 
+
+		
+				
+
+
+
 				wp_update_term_count_now( array( $category->term_id ), $mlsimport_delete_category );
 
 				print wp_json_encode(
@@ -720,31 +780,41 @@ class Mlsimport_Admin {
 
 
 
+
+
+
+
 	/**
 	 *
 	 *
 	 *  Testing enviroment variables
 	 */
 	public function mlsimport_saas_setting_up() {
-		if (intval(WP_MEMORY_LIMIT) < 256): ?>
-			<div class="mlsimport_warning long_warning">
-				<strong>WordPress Memory Limit</strong> is set to <strong><?php echo esc_html(WP_MEMORY_LIMIT); ?></strong>. Allocated Memory should be at least <strong>256MB</strong>. Please refer to: <a href="https://wordpress.org/support/article/editing-wp-config-php/#increasing-memory-allocated-to-php" target="_blank">Increasing memory allocated to PHP</a>
-			</div>
-			<?php endif; ?>
+			// Do not output warnings during AJAX requests
+			if ( ( function_exists( 'wp_doing_ajax' ) && wp_doing_ajax() ) ||
+					( defined( 'DOING_AJAX' ) && DOING_AJAX ) ) {
+					return;
+			}
 			
-			<?php
-			$max_input_vars = ini_get('max_input_vars');
-			if ($max_input_vars < 2000):
-			?>
-			<div class="mlsimport_warning long_warning">Your <strong>max_input_vars</strong> setting in php is set to <strong><?php echo esc_html($max_input_vars); ?></strong>. When importing real estate listings from an MLS, we work with a lot of data that needs to be saved. Please increase this value to at least <strong>2000</strong> or higher in order to save all details. Please refer to <a href="https://themezly.com/docs/how-to-increase-the-max-input-vars-limit/" target="_blank">How to Increase the Max Input Vars Limit</a></div>
-			<?php endif; ?>
+			$is_onboarding = isset( $_GET['page'] ) && 'mlsimport-onboarding' === $_GET['page']; 
+			if ( ! $is_onboarding && intval( WP_MEMORY_LIMIT ) < 256 ) : 
+				if (intval(WP_MEMORY_LIMIT) < 256){ ?>
+						<div class="mlsimport_warning long_warning">
+								<strong>WordPress Memory Limit</strong> is set to <strong><?php echo esc_html(WP_MEMORY_LIMIT); ?></strong>. Allocated Memory should be at least <strong>256MB</strong>. Please refer to: <a href="https://wordpress.org/support/article/editing-wp-config-php/#increasing-memory-allocated-to-php" target="_blank">Increasing memory allocated to PHP</a>
+						</div>						
+				<?php 	
+				}
 			
-			<?php
 			$max_time = ini_get('max_execution_time');
-			if ($max_time < 600 && 0 !== $max_time):
+			if ($max_time < 600 && 0 !== $max_time){
 			?>
-			<div class="mlsimport_warning long_warning">Your <strong>max_execution_time</strong> setting in php is set to <strong><?php echo esc_html($max_time); ?></strong>. Importing hundreds of listings requires extra time. Please set max_execution_time to <strong>0 (unlimited)</strong>. If that is not possible, set it to a minimum of <strong>600 (10 minutes)</strong>.</div>
-			<?php endif; 
+				<div class="mlsimport_warning long_warning">Your <strong>max_execution_time</strong> setting in php is set to <strong><?php echo esc_html($max_time); ?></strong>. Importing hundreds of listings requires extra time. Please set max_execution_time to <strong>0 (unlimited)</strong>. If that is not possible, set it to a minimum of <strong>600 (10 minutes)</strong>.</div>
+			
+			<?php
+			}
+
+
+			endif; // emd pn boardingin check
 			
 	}
 
@@ -809,6 +879,22 @@ class Mlsimport_Admin {
 			$mlsimport_paragon_client_secret = sanitize_text_field( trim( $options['mlsimport_paragon_client_secret'] ) );
 		}
 
+		// realtor.ca data
+		$mlsimport_realtorca_client_id = '';
+		if ( isset( $options['mlsimport_realtorca_client_id'] ) ) {
+			$mlsimport_realtorca_client_id = sanitize_text_field( trim( $options['mlsimport_realtorca_client_id'] ) );
+		}
+		$mlsimport_realtorca_client_secret = '';
+		if ( isset( $options['mlsimport_realtorca_client_secret'] ) ) {
+			$mlsimport_realtorca_client_secret = sanitize_text_field( trim( $options['mlsimport_realtorca_client_secret'] ) );
+		}
+
+
+
+
+
+
+
 		if ( trim( $mls_token ) === '' ) {
 			if ( intval( $mls_id ) > 900 && intval( $mls_id ) < 3000 ) {
 				if ( trim( $mlsimport_tresle_client_id ) === '' || trim( $mlsimport_tresle_client_secret ) === '' ) {
@@ -823,10 +909,17 @@ class Mlsimport_Admin {
 				) {
 					return;
 				}
-			} elseif ( intval( $mls_id ) >= 6000 ) {
+			} elseif ( intval( $mls_id ) >= 6000 && intval( $mls_id ) < 7000 ) {
 				if (
 					trim( $mlsimport_paragon_client_id ) === '' ||
 					trim( $mlsimport_paragon_client_secret ) === ''
+				) {
+					return;
+				}
+			} elseif ( intval( $mls_id ) >= 7000 ) {
+				if (
+					trim( $mlsimport_realtorca_client_id ) === '' ||
+					trim( $mlsimport_realtorca_client_secret ) === ''
 				) {
 					return;
 				}
@@ -846,12 +939,22 @@ class Mlsimport_Admin {
 		$values['mlsimport_paragon_client_id']     = $mlsimport_paragon_client_id;
 		$values['mlsimport_paragon_client_secret'] = $mlsimport_paragon_client_secret;
 
+		
+		$values['mlsimport_realtorca_client_id']     = $mlsimport_realtorca_client_id;
+		$values['mlsimport_realtorca_client_secret'] = $mlsimport_realtorca_client_secret;
+
+
+
+
+
+  
+
 		$answer = $this->theme_importer->globalApiRequestSaas( 'clients', $values, 'PATCH' );
 
 
 
 
-		if ( isset( $answer['succes'] ) && true ===  $answer['succes']  ) {
+		if ( isset( $answer['success'] ) && true ===  $answer['success']  ) {
 			if ( isset( $answer['tested'] ) &&  true === $answer['tested'] ) {
 				update_option( 'mlsimport_connection_test', 'yes' );
 			} else {
@@ -883,12 +986,11 @@ class Mlsimport_Admin {
 
 		if ( false === $token || '' ===  $token  ) {
 			$token_json_answer = $this->mlsimport_saas_get_mls_api_token();
-		
 
-			if ( isset( $token_json_answer['succes'] ) && true ===  $token_json_answer['succes']  ) {
+			if ( isset( $token_json_answer['success'] ) && true ===  $token_json_answer['success']  ) {
 				$token = $token_json_answer['token'];
 
-				set_transient( 'mlsimport_saas_token', $token, 6 * 60 * 60 );
+				set_transient( 'mlsimport_saas_token', $token, 3500 );
 			}
 		}
 
@@ -905,6 +1007,10 @@ class Mlsimport_Admin {
 	protected function mlsimport_saas_get_mls_api_token() {
 		$values  = array();
 		$options = get_option( $this->plugin_name . '_admin_options' );
+ 	
+		// Check if the MLS provider has changed since the last run
+		$prev_mls = get_option( 'mlsimport_prev_mls_name', '' );
+
 
 		$username = '';
 		if ( isset( $options['mlsimport_username'] ) ) {
@@ -924,6 +1030,25 @@ class Mlsimport_Admin {
 		if ( isset( $options['mlsimport_mls_token'] ) ) {
 			$mls_token = sanitize_text_field( trim( $options['mlsimport_mls_token'] ) );
 		}
+
+		if ( $prev_mls !== '' && $prev_mls !== $mls_name ) {
+			delete_transient( 'mlsimport_token_request' );
+			delete_transient( 'mlsimport_metadata_api_call_data_service_property' );
+			delete_transient( 'mls_import_meta_enums' );
+			delete_transient( 'mls_import_meta' );
+			delete_transient( 'mlsimport_plugin_data_schema' );
+			delete_transient( 'mlsimport_ready_to_go_mlsimport_data' );
+			delete_transient( 'mlsimport_saas_token' );
+
+			delete_option( 'mlsimport_mls_metadata_populated' );
+			//error_log('deleting '.$prev_mls.' - '.$mls_name);
+
+			delete_option( 'mlsimport_admin_fields_select' );
+		}
+
+		update_option( 'mlsimport_prev_mls_name', $mls_name );
+
+
 
 		$values['username'] = $username;
 		$values['password'] = $password;
@@ -1001,19 +1126,21 @@ class Mlsimport_Admin {
 			'mlsimport_item_internetentirelistingdisplayyn',
 			'mlsimport_item_internetaddressdisplayyn',
 			'mlsimport_item_stat_cron',
-			'mlsimport_item_listagentkey',
-			'mlsimport_item_listagentmlsid',
-			'mlsimport_item_listofficekey',
-			'mlsimport_item_postalcode',
-			'mlsimport_item_listofficemlsid',
-			'mlsimport_item_listingid',
-			'mlsimport_item_extracity',
-			'mlsimport_item_extracounty',
-			'mlsimport_item_exclude_listofficemlsid',
-			'mlsimport_item_exclude_listofficekey',
-			'mlsimport_item_exclude_listagentmlsid',
-			'mlsimport_item_exclude_listagentkey',
-		);
+                       'mlsimport_item_listagentkey',
+                       'mlsimport_item_listagentmlsid',
+                       'mlsimport_item_listofficekey',
+                       'mlsimport_item_postalcode',
+                       'mlsimport_item_listofficemlsid',
+                       'mlsimport_item_listingid',
+                       'mlsimport_item_extracity',
+                       'mlsimport_item_extracounty',
+                       'mlsimport_item_exclude_listofficemlsid',
+                       'mlsimport_item_exclude_listofficekey',
+                       'mlsimport_item_exclude_listagentmlsid',
+                       'mlsimport_item_exclude_listagentkey',
+                       'mlsimport_item_mlsareamajor',
+                       'mlsimport_item_subdivisionname',
+               );
 	
 
 
@@ -1031,9 +1158,11 @@ class Mlsimport_Admin {
 			'mlsimport_item_city',
 			'mlsimport_item_countyorparish',
 			'mlsimport_item_propertysubtype',
-			'mlsimport_item_propertytype',
-			'mlsimport_item_standardstatus',
-			'mlsimport_item_listingid',
+                        'mlsimport_item_propertytype',
+                        'mlsimport_item_standardstatus',
+                        'mlsimport_item_listingid',
+                        'mlsimport_item_mlsareamajor',
+                        'mlsimport_item_subdivisionname',
 
 		);
 
@@ -1057,7 +1186,7 @@ class Mlsimport_Admin {
 		global $mlsimport;
 		
 		$postId = $post->ID;
-		$token = $mlsimport->admin->mlsimport_saas_get_mls_api_token_from_transient();
+	 	$token = $mlsimport->admin->mlsimport_saas_get_mls_api_token_from_transient();
 		
 		$mlsimportItemHowMany 	= esc_html(get_post_meta($postId, 'mlsimport_item_how_many', true));
 		$mlsimportItemStatCron 	= esc_html(get_post_meta($postId, 'mlsimport_item_stat_cron', true));
@@ -1070,8 +1199,8 @@ class Mlsimport_Admin {
 									: 0;
 		
 		$mlsRequest = $this->mlsimport_make_listing_requests($postId);
-		//print_r($mlsRequest	);
-	
+//print_r($mlsRequest);
+
 		if (isset($mlsRequest['success']) && !$mlsRequest['success']) {
 			echo '<div class="mlsimport_warning">' . esc_html($mlsRequest['message']) . '</div>';
 		}
@@ -1128,24 +1257,28 @@ class Mlsimport_Admin {
 			<label class="mlsimport-label" for="mlsimport_item_how_many">
 				<?php esc_html_e('How Many to import. Use 0 if you want to import all listings found.', 'mlsimport'); ?>
 			</label>
-			<input type="text" id="mlsimport_item_how_many" name="mlsimport_item_how_many" value="<?php echo esc_attr($mlsimportItemHowMany); ?>"/>
+			<input type="text" id="mlsimport_item_how_many" name="mlsimport_item_how_many" 
+				class="mlsimport-input mlsimport-2025-input " value="<?php echo esc_attr($mlsimportItemHowMany); ?>"/>
 		</fieldset>
 
 		<fieldset class="mlsimport-fieldset mlsimport_auto_switch">
 			<?php esc_html_e('Enable Auto Update every hour?', 'mlsimport'); ?>
 			<label class="mlsimport_switch">
 				<input type="hidden" value="0" name="mlsimport_item_stat_cron">
-				<input type="checkbox" value="1" name="mlsimport_item_stat_cron"<?php if (intval($mlsimportItemStatCron) !== 0) echo esc_html(' checked'); ?>>
+				<input type="checkbox" class="mlsimport-import-checkbox" value="1" name="mlsimport_item_stat_cron"<?php if (intval($mlsimportItemStatCron) !== 0) echo esc_html(' checked'); ?>>
 				<span class="slider round"></span>
 			</label>
 		</fieldset>
 
 		<?php if ($mlsimportItemStatCron !== ''): ?>
-			<div id="mlsimport_item_status"></div>
-			<input class="button mlsimport_button" type="button" id="mlsimport-start_item"
+                        <div id="mlsimport_item_status"></div>
+                        <div id="mlsimport_item_progress" class="mlsimport-progress-bar">
+                                <div class="mlsimport-progress-bar-inner" style="width:0%;"></div>
+                        </div>
+			<input class="button mlsimport_button  save_data " type="button" id="mlsimport-start_item"
 				data-post-number="<?php echo intval($foundItems); ?>"
 				data-post_id="<?php echo intval($postId); ?>" value="Start Import">
-			<input class="button mlsimport_button" type="button" id="mlsimport_stop_item"
+			<input class="button mlsimport_button error_action" type="button" id="mlsimport_stop_item"
 				data-post-number="<?php echo intval($foundItems); ?>"
 				data-post_id="<?php echo intval($postId); ?>" value="Stop Import">
 		<?php endif; ?>
@@ -1163,7 +1296,9 @@ class Mlsimport_Admin {
 				</label>
 
 				<p class="mlsimport-exp"><?php esc_html_e('You can use {Address}, {City}, {CountyOrParish}, {StateOrProvince}, {PostalCode}, {PropertyType}, {Bedrooms}, {Bathrooms}, {ListingKey}, {ListingId},{StreetNumberNumeric} or {StreetName}', 'mlsimport'); ?></p>
-				<input type="text" id="mlsimport_item_title_format" name="mlsimport_item_title_format" value="<?php echo '' !== $mlsimportItemTitleFormat ? trim(esc_html($mlsimportItemTitleFormat)) : esc_html('{Address},{City},{CountyOrParish},{PropertyType}'); ?>"/>
+				<input type="text" id="mlsimport_item_title_format" name="mlsimport_item_title_format" 
+					class="mlsimport-input mlsimport-2025-input"
+					value="<?php echo '' !== $mlsimportItemTitleFormat ? trim(esc_html($mlsimportItemTitleFormat)) : esc_html('{Address},{City},{CountyOrParish},{PropertyType}'); ?>"/>
 			</fieldset>
 
 			<?php
@@ -1174,7 +1309,7 @@ class Mlsimport_Admin {
 				<label class="mlsimport-label" for="mlsimport_item_agent">
 					<?php esc_html_e('Select Agent', 'mlsimport'); ?>
 				</label>
-				<select class="mlsimport-select" name="mlsimport_item_agent" id="mlsimport_item_agent">
+				<select class="mlsimport-select mlsimport-2025-select" name="mlsimport_item_agent" id="mlsimport_item_agent">
 					<?php
 					$permitedTags = mlsimport_allowed_html_tags_content();
 					$selectAgent =$this->theme_importer->mlsimportSaasThemeImportSelectAgent($mlsimportItemAgent);
@@ -1194,7 +1329,7 @@ class Mlsimport_Admin {
 				<label class="mlsimport-label" for="mlsimport_item_property_status">
 					<?php esc_html_e('Select Property Status on import', 'mlsimport'); ?>
 				</label>
-				<select class="mlsimport-select" name="mlsimport_item_property_status" id="mlsimport_item_property_status">
+				<select class="mlsimport-select mlsimport-2025-select" name="mlsimport_item_property_status" id="mlsimport_item_property_status">
 					<?php foreach ($statusArray as $value): ?>
 						<option value="<?php echo esc_attr($value); ?>" <?php if ($value === $mlsimportItemPropertyStatus) echo esc_html('selected'); ?>>
 							<?php echo esc_html($value); ?>
@@ -1210,7 +1345,7 @@ class Mlsimport_Admin {
 				<label class="mlsimport-label" for="mlsimport_item_property_user">
 					<?php esc_html_e('User', 'mlsimport'); ?>
 				</label>
-				<select class="mlsimport-select" id="mlsimport_item_property_user" name="mlsimport_item_property_user">
+				<select class="mlsimport-select mlsimport-2025-select" id="mlsimport_item_property_user" name="mlsimport_item_property_user">
 					<?php
 					$selectUser = $this->theme_importer->mlsimportSaasThemeImportSelectUser($mlsimportItemPropertyUser);
 					print wp_kses($selectUser, $permitedTags);
@@ -1229,8 +1364,8 @@ class Mlsimport_Admin {
 				<label class="mlsimport-label">
 					<?php esc_html_e('Price Between', 'mlsimport'); ?>
 				</label>
-				<input type="text" class="mlsimport-select" id="mlsimport_item_min_price" name="mlsimport_item_min_price" value="<?php echo esc_attr($mlsimportItemMinPrice); ?>"> and
-				<input type="text" class="mlsimport-select" id="mlsimport_item_max_price" name="mlsimport_item_max_price" value="<?php echo esc_attr($mlsimportItemMaxPrice); ?>">
+				<input type="text" class="mlsimport-select mlsimport-input mlsimport-2025-input  " id="mlsimport_item_min_price" name="mlsimport_item_min_price" value="<?php echo esc_attr($mlsimportItemMinPrice); ?>"> and
+				<input type="text" class="mlsimport-select mlsimport-input mlsimport-2025-input " id="mlsimport_item_max_price" name="mlsimport_item_max_price" value="<?php echo esc_attr($mlsimportItemMaxPrice); ?>">
 			</fieldset>
 
 			<?php
@@ -1245,6 +1380,12 @@ class Mlsimport_Admin {
 				$fieldImport['PropertyType']['multiple'] = 'no';
 			}
 
+			
+			if ($mlsId >= 7000) {
+				// there is no such thing for realtor.ca
+				unset($fieldImport['PropertyType']);
+			}
+
 			foreach ($fieldImport as $key => $field):
 				$nameCheck = strtolower('mlsimport_item_' . $key . '_check');
 				$name = strtolower('mlsimport_item_' . $key);
@@ -1253,7 +1394,7 @@ class Mlsimport_Admin {
 				$valueCheck = get_post_meta($postId, $nameCheck, true);
 				$extraClass = '';
 				if ('extraCity' === $key || 'extraCounty' === $key) {
-					$extraClass = ' mlsimport_hidden_field_button';
+					$extraClass = ' mlsimport_hidden_field_button button mlsimport_button';
 				}
 				?>
 				<fieldset class="mlsimport-fieldset">
@@ -1270,24 +1411,26 @@ class Mlsimport_Admin {
 								$isCheckboxAdmin = 1;
 							}
 
-							$selectAllNone = [
-								'InternetAddressDisplayYN',
-								'InternetEntireListingDisplayYN',
-								'PostalCode',
-								'ListAgentKey',
-								'ListAgentMlsId',
-								'ListOfficeKey',
-								'ListOfficeMlsId',
-								'StandardStatus',
-								'StandardStatusDelete',
-								'ListingId',
-								'extraCity',
-								'extraCounty',
-								'Exclude_ListOfficeKey',
-								'Exclude_ListOfficeMlsId',
-								'Exclude_ListAgentKey',
-								'Exclude_ListAgentMlsId',
-							];
+                                                        $selectAllNone = [
+                                                                'InternetAddressDisplayYN',
+                                                                'InternetEntireListingDisplayYN',
+                                                                'PostalCode',
+                                                                'ListAgentKey',
+                                                                'ListAgentMlsId',
+																'ListOfficeKey',
+																'ListOfficeMlsId',
+																'StandardStatus',
+																'StandardStatusDelete',
+																'ListingId',
+																'extraCity',
+																'extraCounty',
+																'Exclude_ListOfficeKey',
+                                                                'Exclude_ListOfficeMlsId',
+                                                                'Exclude_ListAgentKey',
+                                                                'Exclude_ListAgentMlsId',
+                                                                'MLSAreaMajor',
+                                                                'SubdivisionName',
+                                                        ];
 
 							if ($mlsId > 5000) {
 								$selectAllNone[] = 'PropertyType';
@@ -1299,7 +1442,7 @@ class Mlsimport_Admin {
 							
 								?>
 								<input type="hidden" name="<?php echo esc_attr($nameCheck); ?>" value="0"/>
-								<input type="checkbox" name="<?php echo esc_attr($nameCheck); ?>" value="1" <?php print esc_attr(checked($isCheckboxAdmin, 1, 0)); ?>/>
+								<input type="checkbox" class="mlsimport-import-checkbox" name="<?php echo esc_attr($nameCheck); ?>" value="1" <?php print esc_attr(checked($isCheckboxAdmin, 1, 0)); ?>/>
 							<?php endif; ?>
 						</p>
 
@@ -1322,7 +1465,7 @@ class Mlsimport_Admin {
 
 							// Additional conditions can be placed here.
 							?>
-							<select class="mlsimport-select" id="<?php echo esc_attr($name); ?>" name="<?php echo esc_attr($name); ?>" <?php echo esc_attr($multiple); ?>>
+							<select class="mlsimport-select mlsimport-2025-select" id="<?php echo esc_attr($name); ?>" name="<?php echo esc_attr($name); ?>" <?php echo esc_attr($multiple); ?>>
 								<?php foreach ($field['values'] as $selectKey): ?>
 
 									<?php if ('' !== $selectKey): ?>
@@ -1342,7 +1485,7 @@ class Mlsimport_Admin {
 							</select>
 
 						<?php elseif ($field['type'] === 'input'): ?>
-							<input type="text" class="mlsimport-select" id="<?php echo esc_attr($name); ?>" name="<?php echo esc_attr($name); ?>" value="<?php echo esc_attr($value); ?>">
+							<input type="text" class="mlsimport-select mlsimport-input mlsimport-2025-input" id="<?php echo esc_attr($name); ?>" name="<?php echo esc_attr($name); ?>" value="<?php echo esc_attr($value); ?>">
 						<?php endif; ?>
 						<?php if ('extraCity' === $key || 'extraCounty' === $key): ?>
 					</div>
@@ -1413,120 +1556,227 @@ class Mlsimport_Admin {
 
 
 
+
+
 	/**
-	 *
-	 *
-	 * Check if there are modified items in the last 2h
-	 */
-	public function mlsimport_saas_start_cron_links_per_item( $item_id ) {
+        * Check and process MLSimport item for modified listings in the last 2 hours.
+        * Optimized for memory: logs memory, unsets large arrays, and triggers garbage collection.
+        *
+        * @param int $item_id
+        * @return void
+        */
+       public function mlsimport_saas_start_cron_links_per_item( $item_id ) {
+           // Log memory before start
+           //error_log("[MLSimport] Start $item_id, memory: " . (memory_get_usage(true) / 1024 / 1024) . " MB");
 
-		$last_date = $this->mlsimport_saas_get_last_date( $item_id );
-		print 'MLSitem id: '.$item_id.' - ';
-		esc_html_e('date to consider: ','mlsimport'); 
-		print esc_html($last_date ). '. ';
+           $last_date = $this->mlsimport_saas_get_last_date( $item_id );
+           print 'MLSitem id: ' . $item_id . ' - ';
+           esc_html_e('date to consider: ','mlsimport'); 
+           print esc_html($last_date) . '. ';
 
-		$mlsrequest  = $this->mlsimport_make_listing_requests( $item_id, $last_date );
-	
-		$found_items = 0;
-		if ( isset( $mlsrequest['results'] ) ) {
-			$found_items = intval( $mlsrequest['results'] );
-		} else {
-			delete_transient( 'mlsimport_saas_token' );
-		}
+           // Make request to MLS API
+           $mlsrequest = $this->mlsimport_make_listing_requests( $item_id, $last_date );
+           //error_log("[MLSimport] After mlsimport_make_listing_requests, memory: " . (memory_get_usage(true) / 1024 / 1024) . " MB");
 
-		print esc_html__('We found ','mlsimport') .esc_html( $found_items ). ' listings.</br>' . PHP_EOL;
+           $found_items = 0;
+           if ( isset( $mlsrequest['results'] ) ) {
+               $found_items = intval( $mlsrequest['results'] );
+           } else {
+               delete_transient( 'mlsimport_saas_token' );
+           }
+           print esc_html__('We found ','mlsimport') . esc_html( $found_items ) . ' listings.</br>' . PHP_EOL;
 
-		$attachments_to_move = array();
-
-		if ( $found_items > 0 ) {
-			$item_id_array = array(
-				'item_id'       => $item_id,
-				'how_many'      => 0,
-				'max_number'    => $found_items,
-				'batch_counter' => 1,
-			);
-
-			$attachments_to_move = (array) $this->mlsimport_saas_generate_import_requests_per_item( $item_id_array, $last_date );
-
-			update_post_meta( $item_id, 'mlsimport_spawn_status_cron_job', 'started' );
-			update_post_meta( $item_id, 'mlsimport_cron_attach_to_move_' . $item_id, $attachments_to_move );
-
-			// save last date for next run
-			$this->mlsimport_saas_update_last_date( $item_id );
-
-			$attachments_to_send = array(
-				'args' => array(
-					'attachments_to_move' => $item_id,
-					'item_id_array'       => $item_id_array,
-				),
-			);
-
-			$this->mlsimport_background_process_per_item_cron_function( $attachments_to_send['args'] );
+           // Only process if items found
+           if ( $found_items > 0 ) {
 			
-		}
-	}
+               $item_id_array = array(
+                   'item_id'       => $item_id,
+                   'how_many'      => 0,
+                   'max_number'    => $found_items,
+                   'batch_counter' => 1,
+               );
+
+               // Potentially large array, log memory before/after
+               $attachments_to_move = (array) $this->mlsimport_saas_generate_import_requests_per_item( $item_id_array, $last_date );
+               //error_log("[MLSimport] After generate_import_requests_per_item, memory: " . (memory_get_usage(true) / 1024 / 1024) . " MB");
+
+               // Store in post meta (beware if array is huge)
+               update_post_meta( $item_id, 'mlsimport_spawn_status_cron_job', 'started' );
+               update_post_meta( $item_id, 'mlsimport_cron_attach_to_move_' . $item_id, $attachments_to_move );
+
+               // Save last date for next run
+               $this->mlsimport_saas_update_last_date( $item_id );
+
+               // Prepare and pass only necessary arguments to background process
+               $attachments_to_send = array(
+                   'args' => array(
+                       'attachments_to_move' => $item_id,
+                       'item_id_array'       => $item_id_array,
+                   ),
+               );
+
+               $this->mlsimport_background_process_per_item_cron_function( $attachments_to_send['args'] );
+
+               // Unset large arrays/objects after use
+               unset($attachments_to_move, $attachments_to_send, $mlsrequest, $item_id_array);
+               gc_collect_cycles();
+               //error_log("[MLSimport] End processing $item_id, memory: " . (memory_get_usage(true) / 1024 / 1024) . " MB");
+           }
+       }
 
 
 
 
-	/**
-	 *
-	 *
-	 * Reconciliation log
-	 */
-	public function mlsimport_saas_start_doing_reconciliation() {
-		global $mlsimport;
-		print 'start';
-		$listingKey_in_Local = $this->mlsimport_saas_get_all_meta_values( 'ListingKey' );
-
-		if ( empty( $listingKey_in_Local ) ) {
-			return;
-		}
-
-		$mls_data          = $this->mlsimport_saas_get_mls_reconciliation_data();
-		$listingKey_in_MLS = $mls_data['all_data'];
-                if ( empty( $listingKey_in_MLS ) ) {
-			return;
-		}
-
-		$to_delete = 0;
-		$counter   = 0;
-		foreach ( $listingKey_in_Local as $key => $item ) {
-				$listingkey  = $item->meta_value;
-				$property_id = $item->iD;
-				++$counter;
-
-				print '</br>'.$counter. ' **************************';
-                       
-				if ( in_array( $listingkey, $listingKey_in_MLS )  ) {
-									$keep_when_in_mls = $mlsimport->admin->theme_importer->check_if_delete_when_status_when_in_mls($property_id);
-									if(!$keep_when_in_mls){
-						++$to_delete;
-						print  wp_kses_post('</br>WE DELETE -------' .$listingkey. ' -------------------------  FOUND but item option says delete: '.$property_id.' <-');
-						$mlsimport->admin->theme_importer->mlsimportSaasDeletePropertyViaMysql( $property_id, $listingkey );
-					}else{	
-						print  wp_kses_post('</br> WE KEEP ->>>>>> '.$listingkey .  ' IS FOUND with '.$property_id);
-					}	
-				} else {
-					
-				
-									$keep = $mlsimport->admin->theme_importer->check_if_delete_when_status($property_id);
-					if(!$keep){
-						++$to_delete;
-						print  wp_kses_post('</br>WE DELETE -------' .$listingkey. ' ------------------------- NOT FOUND delete: '.$property_id.' /'.$post_status.'<-');
-						$mlsimport->admin->theme_importer->mlsimportSaasDeletePropertyViaMysql( $property_id, $listingkey );
-					}else{	
-						print  wp_kses_post('</br>WE KEEP ->>>>>>' .$listingkey. ' ------------------------- NOT FOUND BUT MARKED AS KEEP: '.$property_id.' /'.$post_status.'<-');
-					}
-
-				}
 
 
-		}
+/**
+ * Reconciliation log (optimized, batched, memory logged)
+ */
+public function mlsimport_saas_start_doing_reconciliation() {
+    global $mlsimport, $wpdb;
 
-		print  esc_html(' to delete:' .$to_delete);
-		return;
-	}
+    
+    // Get all MLS keys in memory (we assume this is necessary for lookup)
+    $mls_data = $this->mlsimport_saas_get_mls_reconciliation_data();
+    $listingKey_in_MLS = $mls_data['all_data'] ?? [];
+    
+	unset($mls_data);
+    gc_collect_cycles();
+    
+	if (empty($listingKey_in_MLS)) {
+        return;
+    }
+    // Flip for fast lookup
+    $listingKey_in_MLS = array_flip($listingKey_in_MLS);
+    
+    // Batch fetch local listings
+    $batch = 1000;
+    $offset = 0;
+    $to_delete = 0;
+    $counter = 0;
+
+    $mlsimport_preload_all_mls_item_status_meta = $this->mlsimport_preload_all_mls_item_status_meta();
+    //print_r($mlsimport_preload_all_mls_item_status_meta);
+ 
+    do {
+        $local = $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT 
+                    p.ID,
+                    listingkey_meta.meta_value AS listingkey,
+                    inserted_meta.meta_value AS mlsimport_item_inserted
+                FROM {$wpdb->posts} p
+                INNER JOIN {$wpdb->postmeta} listingkey_meta
+                    ON p.ID = listingkey_meta.post_id
+                    AND listingkey_meta.meta_key = %s
+                LEFT JOIN {$wpdb->postmeta} inserted_meta
+                    ON p.ID = inserted_meta.post_id
+                    AND inserted_meta.meta_key = %s
+                WHERE p.post_status NOT IN ('draft', 'trash')
+                LIMIT %d OFFSET %d",
+                'ListingKey',
+                'MLSimport_item_inserted',
+                $batch,
+                $offset
+            ),
+            ARRAY_A
+        );
+
+        $count = count($local);
+
+        
+        foreach ($local as $item) {
+            $listingkey  = $item['listingkey']; // not 'meta_value' anymore
+            $property_id = $item['ID'];
+            $mlsimportItemId = $item['mlsimport_item_inserted'];
+            ++$counter;
+            // IN MLS
+            if (isset($listingKey_in_MLS[$listingkey])) {
+               
+                if (!empty($mlsimportItemId) && isset($mlsimport_preload_all_mls_item_status_meta[$mlsimportItemId])) {
+                    $mlsimport_item_standardstatus = $mlsimport_preload_all_mls_item_status_meta[$mlsimportItemId]['mlsimport_item_standardstatus'] ?? null;
+                } else {
+                    $mlsimport_item_standardstatus = null;
+                }
+                
+                $keep_when_in_mls = $mlsimport->admin->theme_importer->check_if_delete_when_status_when_in_mls($property_id,$mlsimport_item_standardstatus);
+                if (!$keep_when_in_mls) {
+                    ++$to_delete;
+                  	$mlsimport->admin->theme_importer->mlsimportSaasDeletePropertyViaMysql($property_id, $listingkey);
+                }
+            } else {
+                // NOT IN MLS
+
+                if (!empty($mlsimportItemId) && isset($mlsimport_preload_all_mls_item_status_meta[$mlsimportItemId])) {
+                    $mlsimport_item_standardstatus = $mlsimport_preload_all_mls_item_status_meta[$mlsimportItemId]['mlsimport_item_standardstatus'] ?? null;
+                    $mlsimport_item_standardstatusdelete = $mlsimport_preload_all_mls_item_status_meta[$mlsimportItemId]['mlsimport_item_standardstatusdelete'] ?? null;
+                } else {
+                    $mlsimport_item_standardstatus = null;
+                    $mlsimport_item_standardstatusdelete = null;
+                }  
+                $keep = $mlsimport->admin->theme_importer->check_if_delete_when_status($property_id, $mlsimport_item_standardstatus, $mlsimport_item_standardstatusdelete);
+                if (!$keep) {
+                    ++$to_delete;
+   					$mlsimport->admin->theme_importer->mlsimportSaasDeletePropertyViaMysql($property_id, $listingkey);
+                }
+            }
+
+            // Memory housekeeping
+            unset($listingkey, $property_id, $mlsimportItemId, $mlsImportItemStatus, $mlsImportItemStatusDelete, $keep_when_in_mls, $keep);
+            if ($counter % 250 == 0) {
+                gc_collect_cycles();
+            }
+        }
+
+        unset($local);
+        gc_collect_cycles();
+
+        $offset += $batch;
+    } while ($count === $batch);
+
+   
+    print esc_html(' to delete:' . $to_delete);
+
+    // Final cleanup
+    unset($listingKey_in_MLS);
+    gc_collect_cycles();
+
+   
+    return;
+}
+
+
+
+/**
+ * Preload all status meta for ALL mlsimport_item posts in ONE QUERY.
+ * Returns: [mlsimport_item_id => ['mlsimport_item_standardstatus' => ..., 'mlsimport_item_standardstatusdelete' => ...], ...]
+ */
+function mlsimport_preload_all_mls_item_status_meta() {
+    global $wpdb;
+
+    // Only 1 query: join posts and postmeta, grab both metas
+    $sql = "
+        SELECT p.ID as post_id, pm.meta_key, pm.meta_value
+        FROM {$wpdb->posts} p
+        LEFT JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
+        WHERE p.post_type = 'mlsimport_item'
+        AND pm.meta_key IN ('mlsimport_item_standardstatus', 'mlsimport_item_standardstatusdelete')
+    ";
+
+    $rows = $wpdb->get_results($sql);
+
+    $meta = [];
+    foreach ($rows as $row) {
+        if (!isset($meta[$row->post_id])) {
+            $meta[$row->post_id] = [
+                'mlsimport_item_standardstatus' => null,
+                'mlsimport_item_standardstatusdelete' => null
+            ];
+        }
+        $meta[$row->post_id][$row->meta_key] = maybe_unserialize($row->meta_value);
+    }
+    return $meta;
+}
 
 
 
@@ -1547,24 +1797,23 @@ class Mlsimport_Admin {
 	 *
 	 * Reconciliation get local data
 	 */
-	public function mlsimport_saas_get_all_meta_values( $key ) {
-		global $wpdb;
-
-		$result = $wpdb->get_results(
-			$wpdb->prepare(
-				"
-                        SELECT DISTINCT pm.meta_value,p.iD FROM {$wpdb->postmeta} pm
-                        LEFT JOIN {$wpdb->posts} p ON p.ID = pm.post_id
-                        WHERE pm.meta_key = %s 
-                        AND p.post_status = 'publish'",
-				$key
-			)
-		);
-
-		return $result;
-	}
-
-
+	public function mlsimport_saas_get_all_meta_values($key) {
+	global $wpdb;
+	$result = $wpdb->get_results(
+		$wpdb->prepare(
+			"
+			SELECT pm.meta_value, p.ID
+			FROM {$wpdb->postmeta} pm
+			INNER JOIN {$wpdb->posts} p ON p.ID = pm.post_id
+			WHERE pm.meta_key = %s
+			AND p.post_status = 'publish'
+			",
+			$key
+		),
+		ARRAY_A // Lighter than OBJECT, unless you need objects
+	);
+	return $result;
+        }
 
 
 
@@ -1607,7 +1856,9 @@ class Mlsimport_Admin {
 				'message'         => esc_html__( 'You have too many parameters selected. Split the import beween multiple MLS Import items: For ex : Import per County instead of selecting 10 cities or import listing between certain price range.', 'mlsimport' ),
 			);
 		}
-
+	
+		//print_r($arguments);	
+		//print '----------------------------'.PHP_EOL;
 		$answer                    = $this->theme_importer->globalApiRequestCurlSaas( 'listings', $arguments, 'POST' );
 		$answer['potential_leght'] = $potential_leght;
 		return ( $answer );
@@ -1665,6 +1916,12 @@ class Mlsimport_Admin {
 		// add county
 		$values = $this->mls_import_return_multiple_param_value( 'countyorparish', $item_id, 'county_or_parish', $values );
 
+		// add MLSAreaMajor
+		$values = $this->mls_import_saas_add_to_parms_input( 'MLSAreaMajor', $item_id, 'mls_area_major', $values );
+
+		// add SubdivisionName
+		$values = $this->mls_import_saas_add_to_parms_input( 'SubdivisionName', $item_id, 'subdivision_name', $values );
+
 		// add postal code
 		$values = $this->mls_import_saas_add_to_parms_input( 'PostalCode', $item_id, 'postal_code', $values );
 
@@ -1681,7 +1938,9 @@ class Mlsimport_Admin {
 		$values = $this->mls_import_return_multiple_param_value( 'PropertyType', $item_id, 'property_type', $values );
 
 		// rapattoni exception
-		if ( $mls_id > 5000 ) {
+		if ( $mls_id > 5000 && 
+			( isset($values['property_type']) && $values['property_type'] !='' ) ) {
+
 			$values                    = $this->mls_import_saas_add_to_parms_input( 'PropertyType', $item_id, 'property_type', $values );
 			$temp                      = $values['property_type'];
 			$temp                      = str_replace( ' ', '', $temp );
@@ -1719,7 +1978,13 @@ class Mlsimport_Admin {
 		// add Exclude_ListAgentMlsId
 		$values = $this->mls_import_saas_add_to_parms_input( 'Exclude_ListAgentMlsId', $item_id, 'exclude_list_agentmlsid', $values );
 
-		
+
+		// if we have realtorca
+		if ($mls_id >= 7000 && $last_date!=='') {
+			$dateTime_realtorca = new DateTime($last_date, new DateTimeZone('UTC'));
+			// Format with seconds and UTC timezone marker
+			$last_date = $dateTime_realtorca->format('Y-m-d\TH:i:s.000\Z');
+		}
 
 		if ( '' !==  $last_date  ) {
 			$values['modification_time'] = $last_date;
@@ -1863,10 +2128,11 @@ class Mlsimport_Admin {
 			$propertysubtype_array = array_keys( $metadata_api_call['PropertyEnums']['PropertySubType'] );
 		}
 
-		$propertytype_array = array();
-		if ( isset( $metadata_api_call['PropertyEnums']['PropertyType'] ) && is_array( $metadata_api_call['PropertyEnums']['PropertyType'] ) ) {
-			$propertytype_array = array_keys( $metadata_api_call['PropertyEnums']['PropertyType'] );
-		}
+                $propertytype_array = array();
+                if ( isset( $metadata_api_call['PropertyEnums']['PropertyType'] ) && is_array( $metadata_api_call['PropertyEnums']['PropertyType'] ) ) {
+                        $propertytype_array = array_keys( $metadata_api_call['PropertyEnums']['PropertyType'] );
+                }
+
 
 		$standardstatus_array = array();
 		$standardstatus_delete_array=array();
@@ -1923,13 +2189,27 @@ class Mlsimport_Admin {
 				'show_extra_field' => true,
 			),
 
-			'extraCounty'                    => array(
-				'label'       => esc_html__( 'Add extra Counties', 'mlsimport' ),
-				'description' => esc_html__( 'Add extra counties, separated by comma. They need to be written exactly like they are stored in MLS (for example all caps)', 'mlsimport' ),
-				'type'        => 'input',
-				'multiple'    => 'no',
-				'values'      => $extracounty_values,
-			),
+                        'extraCounty'                    => array(
+                                'label'       => esc_html__( 'Add extra Counties', 'mlsimport' ),
+                                'description' => esc_html__( 'Add extra counties, separated by comma. They need to be written exactly like they are stored in MLS (for example all caps)', 'mlsimport' ),
+                                'type'        => 'input',
+                                'multiple'    => 'no',
+                                'values'      => $extracounty_values,
+                        ),
+
+                       'MLSAreaMajor'                  => array(
+                               'label'       => esc_html__( 'MLS Area Major', 'mlsimport' ),
+                               'description' => esc_html__( 'Filter listings by MLSAreaMajor.', 'mlsimport' ),
+                               'type'        => 'input',
+                               'multiple'    => 'no',
+                       ),
+
+                       'SubdivisionName'               => array(
+                               'label'       => esc_html__( 'Subdivision Name', 'mlsimport' ),
+                               'description' => esc_html__( 'Filter listings by SubDivisionName.', 'mlsimport' ),
+                               'type'        => 'input',
+                               'multiple'    => 'no',
+                       ),
 
 			'PostalCode'                     => array(
 				'label'       => esc_html__( 'Select Postal Code', 'mlsimport' ),
@@ -2074,6 +2354,10 @@ class Mlsimport_Admin {
 		if(isset(  $_POST['post_number']  )){
 			$max_number = intval( $_POST['post_number'] );
 		}
+
+
+		$is_onboard=intval($_POST['is_onboard']);
+
 		
 		update_option( 'mlsimport_force_stop_' . $post_id, 'no', false );
 
@@ -2084,15 +2368,27 @@ class Mlsimport_Admin {
 			'batch_counter' => 1,
 		);
 
+		//error_log(json_encode($item_id_array));
+		//error_log("starting post id ".$post_id);
+
 		update_post_meta( $post_id, 'mlsimport_attach_to_move_' . $post_id, '' );
+		
 		$attachments_to_move = (array) $this->mlsimport_saas_generate_import_requests_per_item( $item_id_array );
 
 		update_post_meta( $post_id, 'mlsimport_attach_to_move_' . $post_id, $attachments_to_move );
+
+		// net stat data
+		update_post_meta( $post_id, 'mlsimport_progress_properties', 0 );
+		update_post_meta( $post_id, 'mlsimport_progress_batches', 0 );
+		update_post_meta( $post_id, 'mlsimport_progress_memory', 0 );
+	
+
 
 		$attachments_to_send = array(
 			'args' => array(
 				'attachments_to_move' => $post_id,
 				'item_id_array'       => $item_id_array,
+				'is_onboard'			=>$is_onboard,
 			),
 		);
 
@@ -2100,46 +2396,86 @@ class Mlsimport_Admin {
 		mlsimport_debuglogs_per_plugin( 'Preparing the import. Please hold on.' . PHP_EOL );
 
 		update_post_meta( $post_id, 'mlsimport_spawn_status', 'started' );
+		
+		// old
 		as_enqueue_async_action( 'mlsimport_background_process_per_item', $attachments_to_send );
+
+		// Remove any pending async jobs for this item and enqueue a unique one
+		//bad ideea 
+		// as_unschedule_all_actions( 'mlsimport_background_process_per_item', $attachments_to_send );
+		//as_enqueue_async_action( 'mlsimport_background_process_per_item', $attachments_to_send, '', true );
+
+
 		spawn_cron();
 
-		unset( $attachments_to_send );
+		unset( $attachments_to_send ); print'before die';
 		die();
 	}
 
 	/**
-	 *
-	 *
-	 * Processing Cron
-	 */
-	public function mlsimport_background_process_per_item_cron_function( $input_arg ) {
-		$log = 'In cron processing function   ->' . wp_json_encode( $input_arg['item_id_array'] ) . PHP_EOL;
-		mlsimport_saas_single_write_import_custom_logs( $log, 'cron' );
-		global $mlsimport;
+        * Process MLS Import attachments via background cron.
+        * Memory-optimized with detailed memory usage logging.
+        *
+        * @param array $input_arg
+        * @return void
+        */
+       public function mlsimport_background_process_per_item_cron_function( $input_arg ) {
+           global $mlsimport;
 
-		// Get from MLS Import it the big argument arrat
-		$attachments_to_move = get_post_meta( $input_arg['item_id_array']['item_id'], 'mlsimport_cron_attach_to_move_' . $input_arg['item_id_array']['item_id'], true );
+           $log = 'In cron processing function ->' . wp_json_encode( $input_arg['item_id_array'] ) . PHP_EOL;
+           mlsimport_saas_single_write_import_custom_logs( $log, 'cron' );
+           mlsimport_saas_single_write_import_custom_logs( '[Memory] Start: ' . (memory_get_usage(true) / 1024 / 1024) . ' MB', 'cron' );
 
-		$log = 'In processing function  mlsimport_cron_attach_to_move_ ->' . wp_json_encode( $attachments_to_move ) . PHP_EOL;
-		mlsimport_saas_single_write_import_custom_logs( $log );
+           // Load attachments to move from post meta
+           $attachments_to_move = get_post_meta(
+               $input_arg['item_id_array']['item_id'],
+               'mlsimport_cron_attach_to_move_' . $input_arg['item_id_array']['item_id'],
+               true
+           );
+           $log = '[Memory] After loading attachments: ' . (memory_get_usage(true) / 1024 / 1024) . ' MB' . PHP_EOL;
+           mlsimport_saas_single_write_import_custom_logs( $log, 'cron' );
+
+           if (!empty($attachments_to_move) && is_array($attachments_to_move)) {
+               foreach ($attachments_to_move as $key => $import_arguments) {
+                   // Optionally clear any cache for this batch
+                   if ( isset($GLOBALS['wp_object_cache']) ) {
+                       $GLOBALS['wp_object_cache']->delete('mlsimport_force_stop_' . $input_arg['item_id_array']['item_id'], 'options');
+                   }
+
+                   $log = '[Memory] Before API batch ' . $key . ': ' . (memory_get_usage(true) / 1024 / 1024) . ' MB' . PHP_EOL;
+                   mlsimport_saas_single_write_import_custom_logs( $log, 'cron' );
+
+                   // API call
+                   $api_call_array = $this->theme_importer->globalApiRequestCurlSaas('listings', $import_arguments, 'POST');
+
+                   $log = '[Memory] After API batch ' . $key . ': ' . (memory_get_usage(true) / 1024 / 1024) . ' MB' . PHP_EOL;
+                   mlsimport_saas_single_write_import_custom_logs( $log, 'cron' );
+
+                   // Parse/process response
+                   $mlsimport->admin->theme_importer->mlsimportSaasCronParseSearchArrayPerItem(
+                       $api_call_array, $input_arg['item_id_array'], $key
+                   );
+
+                   // Free per-iteration memory
+                   unset($api_call_array, $import_arguments);
+                   gc_collect_cycles();
+
+                   $log = '[Memory] After cleanup batch ' . $key . ': ' . (memory_get_usage(true) / 1024 / 1024) . ' MB' . PHP_EOL;
+                   mlsimport_saas_single_write_import_custom_logs( $log, 'cron' );
+               }
+           }
+
+           mlsimport_saas_single_write_import_custom_logs('[Memory] End: ' . (memory_get_usage(true) / 1024 / 1024) . ' MB', 'cron' );
+           mlsimport_saas_single_write_import_custom_logs('CRON JOB Import Completed ' . PHP_EOL, 'cron');
+           mlsimport_debuglogs_per_plugin('CRON JOB Import Completed ' . PHP_EOL);
+           update_post_meta($input_arg['item_id_array']['item_id'], 'mlsimport_spawn_status', 'completed');
+
+           unset($attachments_to_move, $input_arg, $log);
+           gc_collect_cycles();
+       }
 
 
-		// foreach($input_arg['attachments_to_move'] as $key=>$import_link){
-		foreach ( $attachments_to_move as $key => $import_arguments ) {
-			$GLOBALS['wp_object_cache']->delete( 'mlsimport_force_stop_' . $input_arg['item_id_array']['item_id'], 'options' );
 
-				$log = PHP_EOL . ' Cron Parsing importing batch  : ' . $key . ' = ' . wp_json_encode( $import_arguments ) . PHP_EOL;
-				mlsimport_saas_single_write_import_custom_logs( $log, 'cron' );
-
-				$api_call_array = $this->theme_importer->globalApiRequestCurlSaas( 'listings', $import_arguments, 'POST' );
-
-				$mlsimport->admin->theme_importer->mlsimportSaasCronParseSearchArrayPerItem( $api_call_array, $input_arg['item_id_array'], $key );
-		}
-
-		mlsimport_saas_single_write_import_custom_logs( 'CRON JOB Import Completed ' . PHP_EOL );
-		mlsimport_debuglogs_per_plugin( 'CRON JOB Import Completed ' . PHP_EOL );
-		update_post_meta( $input_arg['item_id_array']['item_id'], 'mlsimport_spawn_status', 'completed' );
-	}
 
 	/**
 	 *
@@ -2166,18 +2502,36 @@ class Mlsimport_Admin {
 		if ( $how_many > 10000 ) {
 			$how_many = 10000;
 		}
+		//error_log('updating  for '.$prop_id.' with'. $how_many);
+		update_post_meta($prop_id,'mlsimport_task_to_import', intval($how_many) );
 
 		if ( $how_many < $import_step ) {
 			$import_step = $how_many;
 		}
 
 		while ( $skip < $how_many ) {
-			$search_url_step = $this->mlsimport_saas_make_listing_requests_arguments( $prop_id, $last_date, $skip, $import_step );
-			$skip            = $skip + $import_step;
-			$urls_array[]    = $search_url_step;
+
+			//$batch_step = min( $import_step, $how_many - $skip );
+			
+			//$search_url_step = $this->mlsimport_saas_make_listing_requests_arguments( $prop_id, $last_date, $skip, $import_step );
+			//$skip            = $skip + $import_step;
+			//$urls_array[]    = $search_url_step;
+
+			// Determine how many items to request for this batch.
+			$batch_step = min( $import_step, $how_many - $skip );
+
+			// Build the request arguments using the remaining count.
+			$search_url_step = $this->mlsimport_saas_make_listing_requests_arguments( $prop_id, $last_date, $skip, $batch_step );
+
+			$skip       += $batch_step;
+			$urls_array[] = $search_url_step;
+
+
 		}
 		return $urls_array;
 	}
+
+
 
 
 
@@ -2192,9 +2546,7 @@ class Mlsimport_Admin {
 		$log_prefix      = 'In processing function - Item ID: ' . $mlsimportItemId . ' -> ';
 		mlsimport_saas_single_write_import_custom_logs( $log_prefix . wp_json_encode( $input_arg['item_id_array'] ) . PHP_EOL );
 
-		//ini_set('memory_limit', '256M');
-		//ini_set('max_execution_time', 0); // Unlimited execution time
-
+	
 		// Get from MLS Import the big argument array only once
 		$attachments_to_move = get_post_meta( $mlsimportItemId, 'mlsimport_attach_to_move_' . $mlsimportItemId, true );
 
@@ -2208,29 +2560,40 @@ class Mlsimport_Admin {
 		);
 
 		$total_batches = count( $attachments_to_move );
+                
+		//error_log('$total_batches '. json_encode($total_batches) );
+                
+                
 
 		// removed because $this
 		global $mlsimport;
 
 		$log = 'In processing function  $attachments_to_move ->' . wp_json_encode( $attachments_to_move ) . PHP_EOL;
 		mlsimport_saas_single_write_import_custom_logs( $log );
-		// mlsimport_debuglogs_per_plugin($log);
-		print esc_html($log);
 
+	 	
 		foreach ( $attachments_to_move as $key => $import_arguments ) {
 			// reconsider use
 			// $GLOBALS['wp_object_cache']->delete('mlsimport_force_stop_' . $input_arg['item_id_array']['item_id'], 'options');
 			$status = get_option( 'mlsimport_force_stop_' . $mlsimportItemId );
 			if ( 'no' ===  $status  ) {
-				// reconsider use
+				// Clear memory before processing each batch
+				wp_cache_flush();
+				gc_collect_cycles();
+                                
 				// wp_cache_flush();
 				$mem_usage      = memory_get_usage( true );
 				$mem_usage_show = round( $mem_usage / 1048576, 2 );
 
-				
+			 	update_post_meta( $mlsimportItemId, 'mlsimport_progress_batches', $key + 1 );
+				update_post_meta( $mlsimportItemId, 'mlsimport_progress_memory', $mem_usage_show );
+
+
 
 				mlsimport_saas_single_write_import_custom_logs( $log );
 				$log = 'Parsing import batch: ' . ( $key + 1 ) . ' of ' . $total_batches . '. Memory used: ' . $mem_usage_show . ' MB.' . PHP_EOL;
+                                //error_log($log);
+				
 
 				// Combine logs and reduce function calls
 				mlsimport_saas_single_write_import_custom_logs( $log );
@@ -2240,13 +2603,40 @@ class Mlsimport_Admin {
 				$api_call_array = $this->theme_importer->globalApiRequestCurlSaas( 'listings', $import_arguments, 'POST' );
 
 				$mlsimport->admin->theme_importer->mlsimportSaasParseSearchArrayPerItem( $api_call_array, $input_arg['item_id_array'], $key, $mlsimport_item_option_data );
-			} else {
-				update_post_meta( $mlsimportItemId, 'mlsimport_spawn_status', 'completed' );
-				delete_post_meta( $mlsimportItemId, 'mlsimport_attach_to_move_' . $mlsimportItemId );
-				mlsimport_saas_single_write_import_custom_logs( PHP_EOL . 'Parsing importing link  FORCE STOP : ' );
-				mlsimport_debuglogs_per_plugin( 'Parsing importing link  FORCE STOP : ' );
-				break; // Exit the loop if forced to stop
-			}
+			
+                                
+                                
+				// Explicitly unset large variables after each batch
+				unset($api_call_array);
+
+				// Force garbage collection again after processing
+				wp_cache_flush();
+				gc_collect_cycles();
+
+				
+				//  Add a small delay to allow memory to be freed
+				if (($key + 1) < $total_batches) {
+					usleep(100000); // 100ms pause between batches
+				}
+                                
+				} else {
+
+					$final_mem_usage      = memory_get_usage( true );
+                	$final_mem_usage_show = round( $final_mem_usage / 1048576, 2 );
+
+
+					update_post_meta( $mlsimportItemId, 'mlsimport_spawn_status', 'completed' );
+					delete_post_meta( $mlsimportItemId, 'mlsimport_attach_to_move_' . $mlsimportItemId );
+
+					//new stats
+					update_post_meta( $mlsimportItemId, 'mlsimport_progress_batches', $total_batches );
+                	update_post_meta( $mlsimportItemId, 'mlsimport_progress_memory', $final_mem_usage_show );
+                
+
+					mlsimport_saas_single_write_import_custom_logs( PHP_EOL . 'Parsing importing link  FORCE STOP : ' );
+					mlsimport_debuglogs_per_plugin( 'Parsing importing link  FORCE STOP : ' );
+					break; // Exit the loop if forced to stop
+				}
 		}
 
 		mlsimport_saas_single_write_import_custom_logs( 'Import Completed ' . PHP_EOL );
@@ -2255,12 +2645,20 @@ class Mlsimport_Admin {
 		update_post_meta( $mlsimportItemId, 'mlsimport_spawn_status', 'completed' );
 		delete_post_meta( $mlsimportItemId, 'mlsimport_attach_to_move_' . $mlsimportItemId );
 
-		unset( $attachments_to_move );
-		unset( $api_call_array );
-		unset( $input_arg );
-		unset( $log );
-		unset( $log2 );
+                // Final cleanup
+                unset($attachments_to_move);
+                unset($mlsimport_item_option_data);
+                unset($input_arg);
+                unset($log);
+
+                // One final garbage collection
+                wp_cache_flush();
+                gc_collect_cycles();
 	}
+
+
+
+
 
 
 
@@ -2273,7 +2671,7 @@ class Mlsimport_Admin {
 	 * update log function
 	 */
 	public function mlsimport_logger_per_item() {
-		check_ajax_referer( 'mlsimport_item_actions', 'security' );
+		//check_ajax_referer( 'mlsimport_item_actions', 'security' );
 		$post_id=0;
 		if(isset($_POST['post_id'] )){
 			$post_id = intval( $_POST['post_id'] );
@@ -2282,6 +2680,14 @@ class Mlsimport_Admin {
 		$status  = get_post_meta( $post_id, 'mlsimport_spawn_status', true );
 		$path    = WP_PLUGIN_DIR . '/mlsimport/logs/status_logs.log';
 		$logs    = file_get_contents( $path );
+
+		//get neww status data
+		$current = intval( get_post_meta( $post_id, 'mlsimport_progress_properties', true ) );
+		$total   = intval( get_post_meta( $post_id, 'mlsimport_progress_batches', true ) );
+		$memory  = get_post_meta( $post_id, 'mlsimport_progress_memory', true );
+        $mlsimport_task_to_import = intval( get_post_meta($post_id,	'mlsimport_task_to_import',true));
+
+
 
 		$force_status = intval( get_post_meta( $post_id, 'mlsimport_force_stop', true ) );
 		$force_status = get_option( 'mlsimport_force_stop_' . $post_id );
@@ -2309,9 +2715,15 @@ class Mlsimport_Admin {
 			// return from log
 			echo wp_json_encode(
 				array(
-					'is_done' => 'wip',
-					'status'  => $status,
-					'logs'    => $logs,
+					'is_done' 	=> 'wip',
+					'status'  	=> 	$status,
+					'logs'    	=> 	$logs,
+					'mlsimport_progress_properties'	=>	$current,
+					'mlsimport_progress_batches'		=>	$total,
+					'memory'	=>	$memory,
+					'mlsimport_task_to_import'=>$mlsimport_task_to_import,
+					'post_id'=>$post_id
+
 				)
 			);
 		}
@@ -2331,16 +2743,21 @@ class Mlsimport_Admin {
 	 * Force Stop Import
 	 */
 	public function mlsimport_stop_import_per_item() {
+	
+
 		check_ajax_referer( 'mlsimport_item_actions', 'security' );
 		$post_id=0;
 		if(isset($_POST['post_id'] )){
-			$post_id = intval( $_POST['post_id'] );
+				$post_id = intval( $_POST['post_id'] );
 		}
 		update_option( 'mlsimport_force_stop_' . $post_id, 'yes', false );
-		mlsimport_saas_single_write_import_custom_logs( 'Stopeed for ' . $post_id . PHP_EOL );
-		mlsimport_debuglogs_per_plugin( 'Stopeed for ' . $post_id . PHP_EOL );
-
-		die();
+		// ensure caches are cleared so running processes see the update immediately
+		if ( function_exists( 'wp_cache_delete' ) ) {
+				wp_cache_delete( 'mlsimport_force_stop_' . $post_id, 'options' );
+		}
+		mlsimport_saas_single_write_import_custom_logs( 'Stopped  for ' . $post_id . PHP_EOL );
+		mlsimport_debuglogs_per_plugin( 'Stopped  for ' . $post_id . PHP_EOL );
+		wp_send_json_success();
 	}
 
 

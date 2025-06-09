@@ -220,14 +220,16 @@ class EstateClass {
 					++$custom_field_no;
 					$temp_array    = array();
 					$temp_array[0] = $key;
-					$temp_array[1] = $options['mls-fields-label'][ $key ];
+                                        $label = isset( $options['mls-fields-label'][ $key ] ) && '' !== $options['mls-fields-label'][ $key ] ? $options['mls-fields-label'][ $key ] : $key;
+                                        $temp_array[1] = $label;
 
 					$temp_array[2]   = 'short text';
 					$temp_array[3]   = $custom_field_no;
 					$custom_fields[] = $temp_array;
 				} else {
 					$to_replace_key                        = array_search( $key, array_column( $custom_fields, 0 ) );
-					$custom_fields[ $to_replace_key ]['1'] = $options['mls-fields-label'][ $key ];
+                                        $label = isset( $options['mls-fields-label'][ $key ] ) && '' !== $options['mls-fields-label'][ $key ] ? $options['mls-fields-label'][ $key ] : $key;
+                                        $custom_fields[ $to_replace_key ]['1'] = $label;
 				}
 			} else {
 				// remove item from custom fields

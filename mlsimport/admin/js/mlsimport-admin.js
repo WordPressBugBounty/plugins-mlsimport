@@ -38,25 +38,35 @@ jQuery( document ).ready(
 				var selected_value = jQuery( '#mlsimport_mls_name' ).val();
 				selected_value     = parseInt( selected_value );
 
+		
 			
-
-				if (selected_value >= 6000) {
+				if (selected_value >= 7000) {
+				
+					jQuery( '.fieldset_mlsimport_mls_token' ).hide();
+					jQuery( '.fieldset_mlsimport_tresle_client_id, .fieldset_mlsimport_tresle_client_secret' ).hide();
+					jQuery( '.fieldset_mlsimport_rapattoni_client_id,.fieldset_mlsimport_rapattoni_client_secret,.fieldset_mlsimport_rapattoni_username,.fieldset_mlsimport_rapattoni_password ' ).hide();
+					jQuery( '.fieldset_mlsimport_paragon_client_id, .fieldset_mlsimport_paragon_client_secret' ).hide();
+					jQuery( '.fieldset_mlsimport_realtorca_client_id, .fieldset_mlsimport_realtorca_client_secret' ).show();
+				}else if (selected_value >= 6000) {
 				
 					jQuery( '.fieldset_mlsimport_mls_token' ).hide();
 					jQuery( '.fieldset_mlsimport_tresle_client_id, .fieldset_mlsimport_tresle_client_secret' ).hide();
 					jQuery( '.fieldset_mlsimport_rapattoni_client_id,.fieldset_mlsimport_rapattoni_client_secret,.fieldset_mlsimport_rapattoni_username,.fieldset_mlsimport_rapattoni_password ' ).hide();
 					jQuery( '.fieldset_mlsimport_paragon_client_id, .fieldset_mlsimport_paragon_client_secret' ).show();
+					jQuery( '.fieldset_mlsimport_realtorca_client_id, .fieldset_mlsimport_realtorca_client_secret' ).hide();
 				} else if ( selected_value > 5000) {
 		
 					jQuery( '.fieldset_mlsimport_mls_token' ).hide();
 					jQuery( '.fieldset_mlsimport_tresle_client_id,.fieldset_mlsimport_tresle_client_secret' ).hide();
 					jQuery( '.fieldset_mlsimport_rapattoni_client_id,.fieldset_mlsimport_rapattoni_client_secret,.fieldset_mlsimport_rapattoni_username,.fieldset_mlsimport_rapattoni_password ' ).show();
 					jQuery( '.fieldset_mlsimport_paragon_client_id, .fieldset_mlsimport_paragon_client_secret' ).hide();
+					jQuery( '.fieldset_mlsimport_realtorca_client_id, .fieldset_mlsimport_realtorca_client_secret' ).hide();
 				} else if ( selected_value > 900 && selected_value < 3000) {
 		
 					jQuery( '.fieldset_mlsimport_mls_token' ).hide();
 					jQuery( '.fieldset_mlsimport_rapattoni_client_id,.fieldset_mlsimport_rapattoni_client_secret,.fieldset_mlsimport_rapattoni_username,.fieldset_mlsimport_rapattoni_password ' ).hide();
 					jQuery( '.fieldset_mlsimport_paragon_client_id, .fieldset_mlsimport_paragon_client_secret' ).hide();
+					jQuery( '.fieldset_mlsimport_realtorca_client_id, .fieldset_mlsimport_realtorca_client_secret' ).hide();
 
 					jQuery( '.fieldset_mlsimport_tresle_client_id' ).show();
 					jQuery( '.fieldset_mlsimport_tresle_client_secret' ).show();
@@ -65,6 +75,7 @@ jQuery( document ).ready(
 					jQuery( '.fieldset_mlsimport_mls_token' ).show();
 					jQuery( '.fieldset_mlsimport_rapattoni_client_id,.fieldset_mlsimport_rapattoni_client_secret,.fieldset_mlsimport_rapattoni_username,.fieldset_mlsimport_rapattoni_password ' ).hide();
 					jQuery( '.fieldset_mlsimport_paragon_client_id, .fieldset_mlsimport_paragon_client_secret' ).hide();
+					jQuery( '.fieldset_mlsimport_realtorca_client_id, .fieldset_mlsimport_realtorca_client_secret' ).hide();
 
 					jQuery( '.fieldset_mlsimport_tresle_client_id' ).hide();
 					jQuery( '.fieldset_mlsimport_tresle_client_secret' ).hide();
@@ -83,6 +94,10 @@ jQuery( document ).ready(
 				console.log( 'mlsimport-stop' );
 				var post_id = jQuery( this ).attr( 'data-post_id' );
 				var nonce = jQuery('#mlsimport_item_actions').val();
+				// stop refreshing logs immediately on the client side
+				if (typeof log_refresh_interval_per_item !== 'undefined') {
+						clearInterval( log_refresh_interval_per_item );
+				}
 				jQuery.ajax(
 					{
 						type: 'POST',
@@ -95,6 +110,7 @@ jQuery( document ).ready(
 						},
 						success: function (data) {
 							console.log( data );
+							jQuery( '#mlsimport_item_status' ).empty().append( 'Stopping import...' );
 						},
 						error: function (errorThrown) {
 							console.log( errorThrown );
@@ -108,22 +124,49 @@ jQuery( document ).ready(
 		* Start Import per item
 		*/
 
-		jQuery( '#mlsimport-start_item' ).on(
+		jQuery( '#mlsimport-start_item,#mlsimport-run-test' ).on(
 			'click',
-			function () {
+			function (event) {
 				console.log( 'mlsimport-start' );
 				var ajaxurl     = mlsimport_vars.ajax_url;
 				var post_id     = jQuery( this ).attr( 'data-post_id' );
 				var post_number = jQuery( this ).attr( 'data-post-number' );
 				var how_many    = jQuery( '#mlsimport_item_how_many' ).val();
+				var is_onboard  = 0;
 				var nonce 		= jQuery('#mlsimport_item_actions').val();
 				jQuery( '#mlsimport_item_status' ).empty();
 				jQuery( '#mlsimport_item_status' ).append( "Starting the import. Please stand by!" );
 
+
+				if (event.target.id === 'mlsimport-run-test') {
+					// Do something only when #mlsimport-run-test is clicked
+		
+
+							
+					jQuery(this).prop('disabled', true);
+					jQuery('#mlsimport-test-spinner').show();
+					jQuery('.mlsimport-status-message')
+						.removeClass('pending')
+						.addClass('progress')
+						.html('<p><?php _e("Starting import... Please wait.", "mlsimport"); ?></p>' +
+						'<div class="mlsimport-progress-bar"><div class="mlsimport-progress-bar-inner" style="width: 20%"></div></div>');
+
+					how_many=5;	
+					is_onboard=1;
+
+
+				} else {
+					// Handle #mlsimport-start_item click
+					console.log('Start item clicked');
+				}
+
+			
+
+
 				clearInterval( log_refresh_interval_per_item );
 				log_refresh_interval_per_item = setInterval( mlsimport_log_interval_per_item, timer_per_item );
 
-				console.log( 'mlsimport_move_files_per_item' );
+			
 				jQuery.ajax(
 					{
 						type: 'POST',
@@ -133,6 +176,7 @@ jQuery( document ).ready(
 							'post_id'           :   post_id,
 							'how_many'          :   how_many,
 							'post_number'       :   post_number,
+							'is_onboard'		:	is_onboard,
 							'security'			:	nonce,
 						},
 						success: function (data) {
@@ -152,11 +196,11 @@ jQuery( document ).ready(
 		* delete cache
 		*/
 
-		jQuery( '#mlsimport-clear-cache' ).on(
-			'click',
-			function () {
-				var ajaxurl = mlsimport_vars.ajax_url;
-				var nonce  = jQuery('#mlsimport_tool_actions').val();
+                jQuery( '#mlsimport-clear-cache' ).on(
+                        'click',
+                        function () {
+                                var ajaxurl = mlsimport_vars.ajax_url;
+                                var nonce  = jQuery('#mlsimport_tool_actions').val();
 
 				jQuery( '#mlsimport-clear-cache' ).val( 'Deleting...' );
 				
@@ -177,9 +221,38 @@ jQuery( document ).ready(
 							console.log( errorThrown );
 						}
 					}
-				);// end ajax
-			}
-		);
+                                );// end ajax
+                        }
+                );
+
+                jQuery( '#mlsimport-clear-fields-data' ).on(
+                        'click',
+                        function () {
+                                var ajaxurl = mlsimport_vars.ajax_url;
+                                var nonce  = jQuery('#mlsimport_tool_actions').val();
+
+                                jQuery( '#mlsimport-clear-fields-data' ).val( 'Deleting...' );
+
+                                jQuery.ajax(
+                                        {
+                                                type: 'POST',
+                                                url: ajaxurl,
+                                                data: {
+                                                        'action'            :   'mlsimport_clear_fields_data',
+                                                        'security'             :   nonce
+                                                },
+                                                success: function (data) {
+                                                        console.log( data );
+                                                        jQuery( '#mlsimport-clear-fields-data' ).val( 'Deleted!' );
+
+                                                },
+                                                error: function (errorThrown) {
+                                                        console.log( errorThrown );
+                                                }
+                                        }
+                                );// end ajax
+                        }
+                );
 
 		/**
 		* delete properties
@@ -360,15 +433,35 @@ jQuery( document ).ready(
 							'post_id'           :   item_id,
 							'security'			:	nonce
 						},
-						success: function (data) {
-							console.log( data );
-							if (data.is_done === 'done' || data.logs === '' ) {
-								console.log( 'kill interval' );
+                                                success: function (data) {
+                                                        console.log( data );
+                                                        var progress = parseInt( data.mlsimport_progress_properties );
+                                                        var total    = parseInt( data.mlsimport_task_to_import );
+                                                        if ( ! isNaN( progress ) && ! isNaN( total ) && total > 0 ) {
+                                                                var width = progress * 100 / total;
+                                                                jQuery( '#mlsimport_item_progress .mlsimport-progress-bar-inner' ).css( 'width', width + '%' );
+                                                        }
+                                                        if (data.is_done === 'done' || data.logs === '' ) {
+                                                                console.log( 'kill interval' );
 
-								clearInterval( log_refresh_interval_per_item );
-								jQuery( '#mlsimport_item_status' ).append( "Import stopped or completed!" );
+                                                                clearInterval( log_refresh_interval_per_item );
+                                                                jQuery( '#mlsimport_item_status' ).empty().append( "Import stopped or completed!" );
+                                                                jQuery( '#mlsimport_item_progress .mlsimport-progress-bar-inner' ).css( 'width', '100%' );
+
+                                                        }else if(data.is_done==='wip'){
+                                                                console.log('we do wip');
+                                                                jQuery( '#mlsimport_item_status' ).empty().append( 'Importing property: '+data.mlsimport_progress_properties+' of '+data.mlsimport_task_to_import+'. Memory used: '+data.memory+' MB.' );
+
 							} else if (data.logs !== '') {
+								console.log('we do logs');
 								jQuery( '#mlsimport_item_status' ).empty().append( data.logs );
+
+								
+								jQuery('.mlsimport-import-summary').append(
+									'<p><strong><?php _e("Status:", "mlsimport"); ?></strong> ' +
+									'<span class="mlsimport-status-success">'+data.logs+'/span></p>'
+								);
+
 							}
 						},
 						error: function (errorThrown) {
@@ -414,10 +507,10 @@ jQuery( document ).ready(
 				console.log( 'trigger type ' + trigger_type );
 
 				if (trigger_type === 'import_select') {
-					console.log( 'fac asll' );
+	
 					jQuery( '.mlsimport_select_import_all' ).prop( 'checked', true );
 				} else if (trigger_type === 'import_select_none') {
-					console.log( 'fac uncheck ' );
+	
 					jQuery( '.mlsimport_select_import_all' ).prop( 'checked', false );
 				} else if (trigger_type === 'import_admin') {
 					jQuery( '.mlsimport_select_import_admin_all' ).prop( 'checked', true );
@@ -452,6 +545,7 @@ function mlsimport_saas_get_metadata()
 
 	console.log( 'mlsimport_saas_get_metadata' );
 	var nonce = jQuery('#mlsimport_saas_get_metadata').val();
+	var ajaxurl = mlsimport_vars.ajax_url;
 	jQuery.ajax(
 		{
 			type: 'POST',
@@ -479,15 +573,22 @@ function mlsimport_token_on_load()
 	var selected_value = jQuery( '#mlsimport_mls_name' ).val();
 	selected_value     = parseInt( selected_value );
 
-
-
-	if (selected_value > 6000) {
+	console.log("on load "+selected_value);
+	if (selected_value >= 7000) {
+				
+		jQuery( '.fieldset_mlsimport_mls_token' ).hide();
+		jQuery( '.fieldset_mlsimport_tresle_client_id, .fieldset_mlsimport_tresle_client_secret' ).hide();
+		jQuery( '.fieldset_mlsimport_rapattoni_client_id,.fieldset_mlsimport_rapattoni_client_secret,.fieldset_mlsimport_rapattoni_username,.fieldset_mlsimport_rapattoni_password ' ).hide();
+		jQuery( '.fieldset_mlsimport_paragon_client_id, .fieldset_mlsimport_paragon_client_secret' ).hide();
+		jQuery( '.fieldset_mlsimport_realtorca_client_id, .fieldset_mlsimport_realtorca_client_secret' ).show();
+	}else if (selected_value > 6000) {
 
 		jQuery( '.fieldset_mlsimport_paragon_client_id, .fieldset_mlsimport_paragon_client_secret' ).show();
 		jQuery( '.fieldset_mlsimport_rapattoni_client_id,.fieldset_mlsimport_rapattoni_client_secret,.fieldset_mlsimport_rapattoni_username,.fieldset_mlsimport_rapattoni_password ' ).hide();
 		jQuery( '.fieldset_mlsimport_mls_token' ).hide();
 		jQuery( '.fieldset_mlsimport_tresle_client_id' ).hide();
 		jQuery( '.fieldset_mlsimport_tresle_client_secret' ).hide();
+		jQuery( '.fieldset_mlsimport_realtorca_client_id, .fieldset_mlsimport_realtorca_client_secret' ).hide();
 	} else if ( selected_value > 5000 && selected_value < 6000) {
 
 		jQuery( '.fieldset_mlsimport_rapattoni_client_id,.fieldset_mlsimport_rapattoni_client_secret,.fieldset_mlsimport_rapattoni_username,.fieldset_mlsimport_rapattoni_password ' ).show();
@@ -495,6 +596,7 @@ function mlsimport_token_on_load()
 		jQuery( '.fieldset_mlsimport_tresle_client_id' ).hide();
 		jQuery( '.fieldset_mlsimport_tresle_client_secret' ).hide();
 		jQuery( '.fieldset_mlsimport_paragon_client_id, .fieldset_mlsimport_paragon_client_secret' ).hide();
+		jQuery( '.fieldset_mlsimport_realtorca_client_id, .fieldset_mlsimport_realtorca_client_secret' ).hide();
 	} else if ( selected_value > 900 && selected_value < 3000) {
 	
 		jQuery( '.fieldset_mlsimport_mls_token' ).hide();
@@ -502,6 +604,7 @@ function mlsimport_token_on_load()
 		jQuery( '.fieldset_mlsimport_tresle_client_secret' ).show();
 		jQuery( '.fieldset_mlsimport_rapattoni_client_id,.fieldset_mlsimport_rapattoni_client_secret,.fieldset_mlsimport_rapattoni_username,.fieldset_mlsimport_rapattoni_password ' ).hide();
 		jQuery( '.fieldset_mlsimport_paragon_client_id, .fieldset_mlsimport_paragon_client_secret' ).hide();
+		jQuery( '.fieldset_mlsimport_realtorca_client_id, .fieldset_mlsimport_realtorca_client_secret' ).hide();
 	} else {
 	
 		jQuery( '.fieldset_mlsimport_mls_token' ).show();
@@ -509,6 +612,7 @@ function mlsimport_token_on_load()
 		jQuery( '.fieldset_mlsimport_tresle_client_secret' ).hide();
 		jQuery( '.fieldset_mlsimport_rapattoni_client_id,.fieldset_mlsimport_rapattoni_client_secret,.fieldset_mlsimport_rapattoni_username,.fieldset_mlsimport_rapattoni_password ' ).hide();
 		jQuery( '.fieldset_mlsimport_paragon_client_id, .fieldset_mlsimport_paragon_client_secret' ).hide();
+		jQuery( '.fieldset_mlsimport_realtorca_client_id, .fieldset_mlsimport_realtorca_client_secret' ).hide();
 		
 	}
 }
@@ -516,9 +620,18 @@ function mlsimport_token_on_load()
 
 
 function mlsimport_autocomplte_mls_selection(autofill){
+
+	console.log('mlsimport_autocomplte_mls_selection');
+	console.log(typeof jQuery.ui.autocomplete); // should be "function"
+	console.log(autofill);
+
+
 	jQuery( "#mlsimport_mls_name_front" ).autocomplete({
 		source: autofill,
 		minLength: 3,
+		open: function(event, ui) {
+			jQuery(this).autocomplete("widget").addClass("mlsimport-autocomplete-menu");
+		},
 		change( event, ui ){
 			console.log(ui);
 			jQuery("#mlsimport_mls_name_front").val(ui.item.label);

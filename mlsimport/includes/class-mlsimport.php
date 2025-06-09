@@ -162,7 +162,9 @@ class Mlsimport {
 
 		$plugin_i18n = new Mlsimport_i18n();
 
-		$this->loader->add_action( 'plugins_loaded', $plugin_i18n, 'load_plugin_textdomain' );
+                // Load translations at `init` to ensure the locale is fully set.
+                // Loading earlier can trigger WordPress notices starting WP 6.7.
+                $this->loader->add_action( 'init', $plugin_i18n, 'load_plugin_textdomain' );
 	}
 
 	/**
@@ -214,10 +216,11 @@ class Mlsimport {
 		$this->loader->add_action( 'wp_ajax_mlsimport_logger_per_item', $this->admin, 'mlsimport_logger_per_item' );
 		$this->loader->add_action( 'wp_ajax_mlsimport_move_files', $this->admin, 'mlsimport_move_files' );
 		$this->loader->add_action( 'wp_ajax_mlsimport_move_files_to_aws_logger', $this->admin, 'mlsimport_move_files_to_aws_logger' );
-		$this->loader->add_action( 'wp_ajax_mlsimport_stop_moving_files', $this->admin, 'mlsimport_stop_moving_files' );
-		$this->loader->add_action( 'wp_ajax_mlsimport_delete_cache', $this->admin, 'mlsimport_delete_cache' );
-		$this->loader->add_action( 'wp_ajax_mlsimport_delete_properties', $this->admin, 'mlsimport_delete_properties' );
-	}
+                $this->loader->add_action( 'wp_ajax_mlsimport_stop_moving_files', $this->admin, 'mlsimport_stop_moving_files' );
+                $this->loader->add_action( 'wp_ajax_mlsimport_delete_cache', $this->admin, 'mlsimport_delete_cache' );
+                $this->loader->add_action( 'wp_ajax_mlsimport_clear_fields_data', $this->admin, 'mlsimport_clear_fields_data' );
+                $this->loader->add_action( 'wp_ajax_mlsimport_delete_properties', $this->admin, 'mlsimport_delete_properties' );
+        }
 
 	/**
 	 * Register all of the hooks related to the public-facing functionality
@@ -233,6 +236,8 @@ class Mlsimport {
 		$this->loader->add_action( 'wp_enqueue_scripts', $plugin_public, 'enqueue_styles' );
 		$this->loader->add_action( 'wp_enqueue_scripts', $plugin_public, 'enqueue_scripts' );
 		$this->loader->add_filter( 'wp_get_attachment_url', $plugin_public, 'mlsimport_wp_get_attachment_url', 99, 2 );
+
+
 	}
 
 	/**

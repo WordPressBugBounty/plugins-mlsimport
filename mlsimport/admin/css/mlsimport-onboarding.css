@@ -1,0 +1,1156 @@
+/**
+ * MLSImport Onboarding Wizard Styles - Modern Design
+ */
+
+/* Import Inter font */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+.admin_page_mlsimport-onboarding {
+    overflow: hidden;
+}
+
+
+/* Main Wrapper */
+.mlsimport-wizard-wrap {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    height: 100vh;
+    margin: 0;
+    background: var(--background-white);
+    z-index: 999999;
+    overflow-y: auto;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: var(--text-primary);
+    line-height: 1.5;
+}
+
+
+.mlsimport-wizard-header-bar{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0px 30px;
+    background: #F9FAFB;
+}
+
+
+.mlsimport-wizard-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    color: var(--text-secondary);
+    text-decoration: none;
+    transition: all var(--transition-speed) ease;
+    border-radius: 50%;
+}
+
+.mlsimport-wizard-close:hover {
+    background-color: var(--background-light);
+    color: var(--error-color);
+}
+
+
+
+
+
+/* Hide WordPress notices when wizard is active */
+body.mlsimport-wizard-active .notice,
+body.mlsimport-wizard-active .update-nag,
+body.mlsimport-wizard-active #message,
+body.mlsimport-wizard-active .updated,
+body.mlsimport-wizard-active .error,
+body.mlsimport-wizard-active .is-dismissible {
+    display: inline-block;
+    font-weight: 500;
+    margin-right: 0.5rem;
+}
+
+/* Import config styling */
+.mlsimport-filter-group {
+    background-color: var(--background-light);
+    border-radius: var(--border-radius);
+    padding: 1.25rem;
+    margin-bottom: 1.25rem;
+}
+
+
+.mlsimport-config-intro,
+.mlsimport-test-intro {
+    font-size: 0.938rem;
+    margin-bottom: 1.5rem;
+}
+
+.mlsimport-import-summary {
+    background-color: var(--background-light);
+    border-radius: var(--border-radius);
+    padding: 1rem;
+    margin-bottom: 1.25rem;
+}
+
+.mlsimport-import-summary p {
+    margin: 0.375rem 0;
+}
+
+.mlsimport-config-note {
+    background-color: rgba(79, 70, 229, 0.05);
+    border-left: 4px solid var(--primary-color);
+    padding: 1rem;
+    margin-top: 1.25rem;
+    border-radius: 0.25rem;
+}
+
+.mlsimport-config-note p {
+    margin: 0;
+    color: var(--text-secondary);
+}
+
+/* Status indicators */
+.mlsimport-status-success {
+    color: var(--success-color);
+    font-weight: 600;
+}
+
+.mlsimport-status-progress {
+    color: var(--warning-color);
+    font-weight: 600;
+}
+
+.mlsimport-status-pending {
+    color: var(--text-light);
+    font-weight: 600;
+}
+
+/* Success page specific */
+.mlsimport-summary-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.25rem;
+    margin-top: 1rem;
+}
+
+.mlsimport-summary-item {
+    flex: 1;
+    min-width: 150px;
+    text-align: center;
+    background-color: var(--background-white);
+    border-radius: var(--border-radius);
+    padding: 1rem;
+    box-shadow: var(--shadow-sm);
+}
+
+.mlsimport-summary-value {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: var(--primary-color);
+}
+
+.mlsimport-summary-label {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}
+
+.mlsimport-next-steps {
+    margin: 2rem 0;
+}
+
+.mlsimport-steps-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.mlsimport-next-step {
+    display: flex;
+    align-items: flex-start;
+    padding: 1rem;
+    background-color: var(--background-white);
+    border-radius: var(--border-radius);
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-sm);
+}
+
+.mlsimport-step-number {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    background-color: var(--primary-color);
+    color: white;
+    border-radius: 50%;
+    font-weight: 600;
+    margin-right: 1rem;
+    flex-shrink: 0;
+}
+
+.mlsimport-step-title {
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+    color: var(--text-primary);
+}
+
+.mlsimport-step-description {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.mlsimport-finish-actions {
+    text-align: center;
+    margin-top: 2rem;
+}
+
+.mlsimport-finish-button {
+    background-color: var(--primary-color) !important;
+    color: white !important;
+    border: none !important;
+    padding: 0.75rem 1.5rem !important;
+    border-radius: 0.375rem !important;
+    font-size: 1rem !important;
+    font-weight: 500 !important;
+    transition: all var(--transition-speed) ease !important;
+}
+
+.mlsimport-finish-button:hover {
+    background-color: var(--primary-hover) !important;
+}
+
+/* Error handling */
+.mlsimport-error-notice {
+    background-color: rgba(239, 68, 68, 0.1);
+    border-left: 4px solid var(--error-color);
+    padding: 1rem;
+    margin-bottom: 1.25rem;
+    border-radius: 0.25rem;
+}
+
+.mlsimport-error-notice p {
+    margin: 0;
+    color: var(--error-color);
+}
+
+.mlsimport-field-error {
+    border-color: var(--error-color) !important;
+    box-shadow: 0 0 0 1px var(--error-color) !important;
+}
+
+/* Responsive adjustments */
+@media (max-width: 782px) {
+    .mlsimport-wizard-step-title {
+        display: none;
+    }
+    
+    .mlsimport-wizard-content {
+        padding: 1rem;
+    }
+    
+    .mlsimport-content-body .form-table th {
+        padding-bottom: 0;
+    }
+
+    .mlsimport-links-grid,
+    .mlsimport-resources-grid,
+    .mlsimport-summary-grid {
+        flex-direction: column;
+        grid-template-columns: 1fr;
+    }
+    
+
+    .mlsimport-quick-link,
+    .mlsimport-resource-link,
+    .mlsimport-summary-item {
+        min-width: auto;
+    }
+    
+    .mlsimport-price-fields {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .mlsimport-wizard-actions {
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .mlsimport-wizard-back,
+    .mlsimport-wizard-next,
+    .mlsimport-wizard-submit {
+        width: 100%;
+        text-align: center;
+    }
+} none !important;
+
+
+/* Header bar styling */
+.mlsimport-wizard-header-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border-color);
+    padding: 0 1.5rem;
+    background-color: var(--background-white);
+    box-shadow: var(--shadow-sm);
+}
+
+
+
+/* Progress bar and step indicators */
+.mlsimport-wizard-header {
+    padding: 15px 30px;
+    background-color: var(--background-white);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.mlsimport-wizard-progress-bar {
+    height: 6px;
+    background-color: var(--background-light);
+    margin-bottom: 24px;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.mlsimport-wizard-progress-bar-inner {
+    height: 100%;
+    background-color: var(--primary-color);
+    transition: width 0.3s ease;
+}
+
+.mlsimport-wizard-steps {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    position: relative;
+}
+
+/* Step indicators with connecting lines */
+.mlsimport-wizard-steps::before {
+    content: "";
+    position: absolute;
+    top: 15px;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background-color: var(--border-color);
+    z-index: 1;
+}
+
+.mlsimport-wizard-step {
+    text-align: center;
+    position: relative;
+    flex: 1;
+    cursor: pointer;
+    transition: all var(--transition-speed) ease;
+    z-index: 2;
+}
+
+.mlsimport-wizard-step-number {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    line-height: 30px;
+    text-align: center;
+    margin: 0 auto 8px;
+    border-radius: 50%;
+    background: var(--background-light);
+    color: var(--text-light);
+    font-weight: 600;
+    position: relative;
+    z-index: 2;
+    border: 2px solid var(--border-color);
+    transition: all var(--transition-speed) ease;
+}
+
+.mlsimport-wizard-step.active .mlsimport-wizard-step-number {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 4px rgb(79 70 229 / 13%);
+}
+
+.mlsimport-wizard-step.completed .mlsimport-wizard-step-number {
+    background: var(--success-color);
+    color: white;
+    border-color: var(--success-color);
+}
+
+/* Create checkmark for completed steps */
+.mlsimport-wizard-step.completed .mlsimport-wizard-step-number::before {
+    content: "✓";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 14px;
+}
+
+.mlsimport-wizard-step.completed .mlsimport-wizard-step-number {
+    font-size: 0;
+}
+
+.mlsimport-wizard-step-title {
+    font-size: 0.75rem;
+    color: var(--text-light);
+    max-width: 170px;
+    margin: 0 auto;
+    overflow: hidden;
+    text-overflow: ellipsis; 
+    white-space: nowrap;
+    transition: all var(--transition-speed) ease;
+}
+
+.mlsimport-wizard-step.active .mlsimport-wizard-step-title {
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
+.mlsimport-wizard-step.completed .mlsimport-wizard-step-title {
+    color: var(--success-color);
+}
+
+.mlsimport-wizard-step:hover .mlsimport-wizard-step-number {
+    transform: scale(1.1);
+}
+
+/* Content Area */
+.mlsimport-wizard-content {
+    padding: 2rem;
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.mlsimport-wizard-content-30margin{
+    box-sizing: border-box;
+    margin: 30px auto;
+}
+
+.mlsimport-wizard-content-field-mapping{
+    width: 100%;
+    max-width: unset;
+    margin: 30px 0px;
+}
+
+.mlsimport-wizard-content-header {
+    margin-bottom: 1.5rem;
+    text-align: center;
+}
+
+.mlsimport-wizard-content-header h2 {
+    margin-top: 0;
+    margin-bottom: 0.5rem;
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.mlsimport-wizard-description {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    margin-top: 0;
+}
+
+/* Form Styling */
+.mlsimport-wizard-title{
+    font-size: 25px;
+}
+.mlsimport-wizard-content-body .form-table {
+    margin-top: 0;
+}
+
+.mlsimport-wizard-content-body .form-table th {
+    width: 30%;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.mlsimport-wizard-content-body input[type="text"],
+.mlsimport-wizard-content-body input[type="password"],
+.mlsimport-wizard-content-body select {
+    width: 90%;
+    max-width: 100%;
+    padding: 0.5rem 0.75rem!important;
+    border: 1px solid var(--border-color);
+    border-radius: 0.375rem;
+    background-color: var(--background-white);
+    color: var(--text-primary);
+    transition: all var(--transition-speed) ease;
+}
+
+.mlsimport-wizard-content-body input[type="text"]:focus,
+.mlsimport-wizard-content-body input[type="password"]:focus,
+.mlsimport-wizard-content-body select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
+}
+
+.mlsimport-wizard-field-group {
+    margin-bottom: 1.25rem;
+}
+
+.mlsimport-wizard-field-label {
+    font-weight: 500;
+    margin-bottom: 0.375rem;
+    display: block;
+    color: var(--text-primary);
+}
+
+.mlsimport-wizard-field-help {
+    color: var(--text-light);
+    font-size: 0.813rem;
+    margin-top: 0.375rem;
+}
+
+/* Action Buttons */
+.mlsimport-wizard-actions {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 1.875rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.mlsimport-wizard-back {
+    padding: 0.5rem 1rem;
+    background-color: var(--background-light);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 0.375rem;
+    font-weight: 500;
+    transition: all var(--transition-speed) ease;
+}
+
+.mlsimport-wizard-back:hover {
+    background-color: #E5E7EB;
+}
+
+.mlsimport-wizard-next,
+.mlsimport-wizard-submit {
+    padding: 0.5rem 1.25rem;
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 0.375rem;
+    font-weight: 500;
+    transition: all var(--transition-speed) ease;
+}
+
+.mlsimport-wizard-next:hover,
+.mlsimport-wizard-submit:hover {
+    background-color: var(--primary-hover);
+}
+
+/* Footer */
+.mlsimport-wizard-footer {
+    padding: 1rem 1.5rem;
+    background-color: var(--background-light);
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: var(--text-light);
+    font-size: 0.813rem;
+}
+
+.mlsimport-wizard-restart {
+    color: var(--error-color);
+    font-size: 0.75rem;
+}
+
+.mlsimport-restart-link {
+    color: var(--error-color);
+    text-decoration: none;
+}
+
+.mlsimport-restart-link:hover {
+    text-decoration: underline;
+}
+
+/* Step-specific Styling */
+.mlsimport-connection-test {
+    margin: 1.25rem 0;
+    padding: 1rem;
+    border-radius: var(--border-radius);
+    background-color: var(--background-light);
+    border-left: 4px solid #ccc;
+}
+
+.mlsimport-connection-test.success {
+    border-color: var(--success-color);
+    background-color: rgba(16, 185, 129, 0.1);
+}
+
+.mlsimport-connection-test.error {
+    border-color: var(--error-color);
+    background-color: rgba(239, 68, 68, 0.1);
+}
+
+.mlsimport-connection-test p {
+    margin: 0;
+}
+
+.mlsimport-test-button {
+    margin-top: 0.625rem !important;
+}
+
+/* Log Display */
+.mlsimport-log-container {
+    max-height: 300px;
+    overflow-y: auto;
+    background-color: var(--background-light);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 0.75rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.75rem;
+    line-height: 1.5;
+    margin: 1rem 0;
+}
+
+.mlsimport-log-entry {
+    margin-bottom: 0.313rem;
+    padding-bottom: 0.313rem;
+    border-bottom: 1px dotted var(--border-color);
+}
+
+.mlsimport-log-entry:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.mlsimport-log-success {
+    color: var(--success-color);
+}
+
+.mlsimport-log-error {
+    color: var(--error-color);
+}
+
+.mlsimport-log-warning {
+    color: var(--warning-color);
+}
+
+/* Loading Spinner */
+.mlsimport-loading {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    margin-left: 0.625rem;
+    border: 2px solid rgba(79, 70, 229, 0.1);
+    border-radius: 50%;
+    border-top-color: var(--primary-color);
+    animation: mlsimport-spin 1s linear infinite;
+}
+
+@keyframes mlsimport-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Card Styling */
+.mlsimport-card {
+    background-color: var(--background-white);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-sm);
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid var(--border-color);
+}
+
+.mlsimport-card-header {
+    margin-bottom: 1rem;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0.75rem;
+}
+
+.mlsimport-card-title {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+/* Notification messages */
+.mlsimport-message {
+    padding: 1rem;
+    border-radius: var(--border-radius);
+    margin-bottom: 1rem;
+}
+
+.mlsimport-message-success {
+    background-color: rgba(16, 185, 129, 0.1);
+    border-left: 4px solid var(--success-color);
+    color: var(--success-color);
+}
+
+.mlsimport-message-error {
+    background-color: rgba(239, 68, 68, 0.1);
+    border-left: 4px solid var(--error-color);
+    color: var(--error-color);
+}
+
+.mlsimport-message-warning {
+    background-color: rgba(245, 158, 11, 0.1);
+    border-left: 4px solid var(--warning-color);
+    color: var(--warning-color);
+}
+
+.mlsimport-message-info {
+    background-color: rgba(79, 70, 229, 0.1);
+    border-left: 4px solid var(--primary-color);
+    color: var(--primary-color);
+}
+
+/* Autocomplete menu styling */
+.mlsimport-autocomplete-menu {
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--border-color);
+    background-color: var(--background-white);
+    z-index: 999999;
+}
+
+.ui-menu-item {
+    padding: 0.5rem 0.75rem;
+    cursor: pointer;
+    font-size: 0.875rem;
+    transition: background-color var(--transition-speed) ease;
+}
+
+.ui-menu-item:hover {
+    background-color: var(--background-light);
+}
+
+.ui-menu-item.ui-state-focus {
+    background-color: rgba(79, 70, 229, 0.1);
+    color: var(--primary-color);
+    margin: 0;
+}
+
+/* Welcome page styling */
+
+
+.mlsimport-welcome-intro {
+    font-size: 1rem;
+    line-height: 1.5;
+    margin-bottom: 1.5rem;
+}
+
+.mlsimport-welcome-note {
+    background-color: var(--background-light);
+    border-radius: var(--border-radius);
+    padding: 1.25rem;
+    margin: 1.5rem 0;
+}
+
+.mlsimport-requirements-check {
+    margin-top: 2rem;
+}
+
+.mlsimport-requirements-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    margin-bottom: 1.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    overflow: hidden;
+}
+
+.mlsimport-requirements-table th {
+    background-color: var(--background-light);
+    text-align: left;
+    padding: 0.75rem 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.mlsimport-requirements-table td {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.mlsimport-requirements-table tr:last-child td {
+    border-bottom: none;
+}
+
+.mlsimport-requirement-status.success {
+    color: var(--success-color);
+}
+
+.mlsimport-requirement-status.error {
+    color: var(--error-color);
+}
+
+.mlsimport-warning-message {
+    background-color: rgba(245, 158, 11, 0.1);
+    border-left: 4px solid var(--warning-color);
+    padding: 1rem;
+    margin: 1.25rem 0;
+    border-radius: 0.25rem;
+}
+
+.mlsimport-success-message {
+    background-color: rgba(16, 185, 129, 0.1);
+    border-left: 4px solid var(--success-color);
+    padding: 1rem;
+    margin: 1.25rem 0;
+    border-radius: 0.25rem;
+}
+
+/* Success page styling */
+.mlsimport-success-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 2rem;
+    background-color: rgba(16, 185, 129, 0.1);
+    padding: 1.5rem;
+    border-radius: var(--border-radius);
+}
+
+.mlsimport-success-icon {
+    margin-right: 1.25rem;
+}
+
+.mlsimport-success-icon .dashicons {
+    font-size: 3rem;
+    width: 3rem;
+    height: 3rem;
+    color: var(--success-color);
+}
+
+.mlsimport-links-grid,
+.mlsimport-resources-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.mlsimport-quick-link,
+.mlsimport-resource-link {
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    padding: 1rem;
+    border-radius: var(--border-radius);
+    background-color: var(--background-white);
+    border: 1px solid var(--border-color);
+    transition: all var(--transition-speed) ease;
+    color: var(--text-primary);
+}
+
+.mlsimport-quick-link:hover,
+.mlsimport-resource-link:hover {
+    border-color: var(--primary-color);
+    box-shadow: var(--shadow-sm);
+}
+
+.mlsimport-quick-link-icon .dashicons,
+.mlsimport-resource-icon .dashicons {
+    color: var(--primary-color);
+    font-size: 1.5rem;
+    width: 1.5rem;
+    height: 1.5rem;
+    margin-right: 1rem;
+}
+
+/* Test import page styling */
+.mlsimport-status-message {
+    padding: 1rem;
+    border-radius: var(--border-radius);
+    margin-bottom: 1.25rem;
+}
+
+.mlsimport-status-message.success {
+    background-color: rgba(16, 185, 129, 0.1);
+    border-left: 4px solid var(--success-color);
+}
+
+.mlsimport-status-message.error {
+    background-color: rgba(239, 68, 68, 0.1);
+    border-left: 4px solid var(--error-color);
+}
+
+.mlsimport-status-message.warning {
+    background-color: rgba(245, 158, 11, 0.1);
+    border-left: 4px solid var(--warning-color);
+}
+
+.mlsimport-status-message.progress {
+    background-color: rgba(79, 70, 229, 0.1);
+    border-left: 4px solid var(--primary-color);
+}
+
+.mlsimport-progress-bar {
+    height: 8px;
+    background-color: var(--background-light);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 0.75rem;
+    margin-bottom: 15px;
+}
+
+.mlsimport-progress-bar-inner {
+    height: 100%;
+    background-color: var(--primary-color);
+    width: 0;
+    transition: width 0.3s ease;
+}
+
+/* Field mapping styling */
+.mlsimport-mapping-intro {
+    font-size: 0.938rem;
+    margin-bottom: 1.5rem;
+}
+
+.mlsimport-section-inner {
+    margin-bottom: 2rem;
+}
+
+.mlsimport-section-inner h3 {
+    margin-top: 0;
+    padding-bottom: 0.625rem;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-primary);
+}
+
+.mlsimport-mapping-tips {
+    background-color: rgba(79, 70, 229, 0.05);
+    border-left: 4px solid var(--primary-color);
+    padding: 1rem;
+    margin-top: 1.25rem;
+    border-radius: 0.25rem;
+}
+
+.mlsimport-mapping-tips h3 {
+    margin-top: 0;
+    margin-bottom: 0.75rem;
+    font-size: 1rem;
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+/* Field selection interface */
+.mlsimport-field-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.mlsimport-field-filters .button {
+    background-color: var(--background-white);
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    border-radius: 0.375rem;
+    transition: all var(--transition-speed) ease;
+}
+
+.mlsimport-field-filters .button.active {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    color: white;
+}
+
+.mlsimport-field-search {
+    margin-bottom: 1rem;
+}
+
+.mlsimport-field-search input[type="text"] {
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.375rem;
+}
+
+.mlsimport-field-table {
+    border-collapse: separate;
+    border-spacing: 0;
+    width: 100%;
+    margin-bottom: 1.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    overflow: hidden;
+}
+
+.mlsimport-field-table th {
+    background-color: var(--background-light);
+    text-align: left;
+    padding: 0.75rem 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.mlsimport-field-table td {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border-color);
+    vertical-align: middle;
+}
+
+.mlsimport-field-table tr:last-child td {
+    border-bottom: none;
+}
+
+.mlsimport-field-table input[type="checkbox"] {
+    border: 1px solid var(--border-color);
+    border-radius: 3px;
+}
+
+.mlsimport-field-table input[type="checkbox"]:checked {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+/* Account verification styling */
+.mlsimport_warning {
+    padding: 0.75rem 1rem;
+    margin-bottom: 1rem;
+    border-radius: var(--border-radius);
+    background-color:#fee4e2;
+    border-left: 4px solid var(--error-color);
+    color: var(--text-primary);
+}
+
+.mlsimport_warning.mlsimport_validated {
+    background-color: rgba(16, 185, 129, 0.1);
+    border-left: 4px solid var(--success-color);
+}
+
+.mlsimport-fieldset {
+    margin-bottom: 1.25rem;
+}
+
+
+.mlsimport-input {
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.375rem;
+    transition: all var(--transition-speed) ease;
+}
+
+.mlsimport-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
+}
+
+.mlsimport-save-account,
+.mlsimport-save-mls-data {
+    background-color: var(--primary-color) !important;
+    color: white !important;
+    border: none !important;
+    padding: 0.5rem 1rem !important;
+    border-radius: 0.375rem !important;
+    font-weight: 500 !important;
+    transition: all var(--transition-speed) ease !important;
+    margin-top: 0.5rem !important;
+}
+
+.mlsimport-save-account:hover,
+.mlsimport-save-mls-data:hover {
+    background-color: var(--primary-hover) !important;
+}
+
+/* Import configuration styling */
+.mlsimport-price-fields {
+    display: flex;
+    gap: 1rem;
+}
+
+.mlsimport-min-price,
+.mlsimport-max-price {
+    flex: 1;
+}
+
+
+
+.mlsimport-welcome-intro {
+    font-size: 16px;
+    line-height: 1.5;
+}
+
+.mlsimport-welcome-features {
+    margin: 20px 0;
+}
+
+.mlsimport-welcome-features ul {
+    margin-left: 20px;
+}
+
+.mlsimport-welcome-features li {
+    margin-bottom: 10px;
+    list-style: circle;
+}
+
+.mlsimport-requirements-table {
+    border-collapse: collapse;
+    width: 100%;
+    margin-bottom: 20px;
+}
+
+.mlsimport-requirements-table th {
+    text-align: left;
+    padding: 10px;
+}
+
+.mlsimport-requirements-table td {
+    padding: 10px;
+}
+
+.mlsimport-requirement-status.success {
+    color: #46b450;
+}
+
+.mlsimport-requirement-status.error {
+    color: #dc3232;
+}
+
+.mlsimport-requirement-help td {
+    background-color: #f9f9f9;
+    font-style: italic;
+    padding-top: 0;
+}
+
+.mlsimport-warning-message {
+    background-color: #fff8e5;
+    border-left: 4px solid #ffb900;
+    padding: 12px;
+    margin: 20px 0;
+}
+
+.mlsimport-success-message {
+    background-color: #ecf7ed;
+    border-left: 4px solid #46b450;
+    padding: 12px;
+    margin: 20px 0;
+}
+
+.mlsimport-welcome-note {
+    margin-top: 30px;
+    background-color: #f9f9f9;
+    padding: 15px;
+    border-radius: 4px;
+}
+
+.mlsimport-welcome-note ul {
+    margin-left: 20px;
+}
+
+.mlsimport-welcome-note li {
+    margin-bottom: 5px;
+    list-style: disc;
+}

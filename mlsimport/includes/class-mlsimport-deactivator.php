@@ -35,8 +35,8 @@ class Mlsimport_Deactivator {
 	 * @since    1.0.0
 	 */
 	public static function deactivate() {
-			global $mlsimport;
-			delete_transient( 'mlsimport_plugin_data_schema' );
-			delete_option( 'mlsimport_admin_options' );
+		//	global $mlsimport;
+		//	delete_transient( 'mlsimport_plugin_data_schema' );
+		//	delete_option( 'mlsimport_admin_options' );
 	}
 }
