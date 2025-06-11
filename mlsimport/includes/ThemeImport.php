@@ -27,8 +27,18 @@ class ThemeImport {
      */
 
 	public function globalApiRequestCurlSaas($method, $valuesArray, $type = 'GET') {
+
+		
 		global $mlsimport;
-	 	$url = MLSIMPORT_API_URL . $method;
+	 	
+		// Skip validation for token requests
+		if ($method !== 'token') {
+			if (!self::validateAndRefreshToken()) {
+				return 'Token validation failed';
+			}
+		}
+		
+		$url = MLSIMPORT_API_URL . $method;
 		$headers = ['Content-Type' => 'text/plain'];
 
 		if ($method !== 'token') {
@@ -91,6 +101,17 @@ class ThemeImport {
 
 	public static function globalApiRequestSaas($method, $valuesArray, $type = 'GET') {
 			global $mlsimport;
+			 // Skip validation for token and mls requests
+			if ($method !== 'token' && $method !== 'mls') {
+				if (!self::validateAndRefreshToken()) {
+					return [
+						'success' => false,
+						'error_message' => 'Token validation failed'
+					];
+				}
+			}
+
+			
 			$url = MLSIMPORT_API_URL . $method;
 
 			$headers = [];
@@ -137,7 +158,91 @@ class ThemeImport {
 	}
 
 
+	
+	/**
+	 * Check if token is expired and refresh if needed
+	 * Call this before any external API request
+	 *
+	 * @return bool True if token is valid, false if refresh failed
+	 */
+	private static function validateAndRefreshToken() {
+		global $mlsimport;
+		
+		// Get stored expiry timestamp
+		$token_expiry = get_option('mlsimport_token_expiry', 0);
+		$current_time = time();
+		
+		// Check if token is expired
+		if ($current_time >= $token_expiry) {
+			// Token expired, refresh it
+			$refresh_result = self::refreshToken();
+			
+			if (!$refresh_result) {
+				error_log('MLSImport: Failed to refresh expired token');
+				return false;
+			}
+		}
+		
+		return true;
+	}
 
+	private static function refreshToken() {
+		global $mlsimport;
+		
+		// Get credentials for token request
+		$options = get_option('mlsimport_admin_options');
+		$username = isset($options['mlsimport_username']) ? $options['mlsimport_username'] : '';
+		$password = isset($options['mlsimport_password']) ? $options['mlsimport_password'] : '';
+		
+		if (empty($username) || empty($password)) {
+			error_log('MLSImport: Missing credentials for token refresh');
+			return false;
+		}
+		
+		// Prepare token request
+		$url = MLSIMPORT_API_URL . 'token';
+		$body = wp_json_encode(array(
+			'username' => $username,
+			'password' => $password
+		));
+		
+		$args = array(
+			'method' => 'POST',
+			'headers' => array(
+				'Content-Type' => 'application/json'
+			),
+			'body' => $body,
+			'timeout' => 45
+		);
+		
+		// Make token request
+		$response = wp_remote_post($url, $args);
+		
+		if (is_wp_error($response)) {
+			error_log('MLSImport: Token refresh request failed: ' . $response->get_error_message());
+			return false;
+		}
+		
+		$body = wp_remote_retrieve_body($response);
+		$data = json_decode($body, true);
+		
+		if (!isset($data['success']) || !$data['success'] || !isset($data['token']) || !isset($data['expires'])) {
+			error_log('MLSImport: Invalid token refresh response');
+			return false;
+		}
+		
+		// Store new token and expiry
+		//$mlsimport->admin->mlsimport_saas_store_mls_api_token_transient($data['token']);
+		
+		$expires_in = $data['expires'] - time();
+		set_transient('mlsimport_saas_token', $data['token'], $expires_in);
+
+		update_option('mlsimport_token_expiry', intval($data['expires']));
+		
+		error_log('MLSImport: Token successfully refreshed. Expires: ' . date('Y-m-d H:i:s', $data['expires']));
+		
+		return true;
+	}
 
 
 /**

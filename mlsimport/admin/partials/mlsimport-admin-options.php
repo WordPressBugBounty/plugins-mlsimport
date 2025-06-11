@@ -150,6 +150,26 @@ if ( 'yes' ===  $is_mls_connected  ) { ?>
 }
 
 
+// Add before username fieldset
+/*
+global $mlsimport;
+$current_token = $mlsimport->admin->mlsimport_saas_get_mls_api_token_from_transient();
+$token_expiry = get_option('mlsimport_token_expiry', 0);
+
+
+$expiry_date = date('Y-m-d H:i:s', $token_expiry);
+$is_expired = time() >= $token_expiry;
+$status_color = $is_expired ? '#dc3545' : '#28a745';
+$status_text = $is_expired ? 'EXPIRED' : 'VALID';
+
+echo '<div style="background: #f9f9f9; padding: 15px; margin-bottom: 20px; border-radius: 5px;">';
+echo '<h4>Current Token Status</h4>';
+echo '<p><strong>Token:</strong> ' . esc_html(substr($current_token, 0, 20)) . '...</p>';
+echo '<p><strong>Status:</strong> <span style="color: ' . $status_color . '; font-weight: bold;">' . $status_text . '</span></p>';
+echo '<p><strong>Expires:</strong> ' . esc_html($expiry_date) . '</p>';
+echo '</div>';
+*/
+
 
 foreach ( $settings_list as $key => $setting ) {
 		$value = ( isset( $options[ $key ] ) && ! empty( $options[ $key ] ) ) ? esc_attr( $options[ $key ] ) : '';
