@@ -11,9 +11,8 @@ jQuery( document ).ready(
 			log_refresh_interval = setInterval( mlsimport_log_interval, timer );
 		}
 
-		if (jQuery( '#mlsimport-start_item' ).length > 0) {
-			log_refresh_interval_per_item = setInterval( mlsimport_log_interval_per_item, timer_per_item );
-		}
+               // Start checking logs only after an import actually begins
+               // to avoid showing a completed message on initial page load.
 
 		//mlsimport_autocomplte_mls_selection();
 		/**
@@ -108,14 +107,14 @@ jQuery( document ).ready(
 							'security'			:	nonce
 
 						},
-						success: function (data) {
-							console.log( data );
-							jQuery( '#mlsimport_item_status' ).empty().append( 'Stopping import...' );
-						},
-						error: function (errorThrown) {
-							console.log( errorThrown );
-						}
-					}
+                                                success: function (data) {
+                                                        console.log( data );
+                                                       jQuery( '#mlsimport_item_status' ).empty().append( 'Import stopped!' );
+                                                },
+                                                error: function (errorThrown) {
+                                                        console.log( errorThrown );
+                                                }
+                                        }
 				);// end ajax
 			}
 		);
@@ -179,15 +178,34 @@ jQuery( document ).ready(
 							'is_onboard'		:	is_onboard,
 							'security'			:	nonce,
 						},
-						success: function (data) {
-							console.log( data );
+                                                success: function (data) {
+                                                        console.log( data );
+                                                        if ( data && data.success === false && data.message ) {
+                                                                jQuery( '#mlsimport_item_status' ).empty().append( data.message );
+                                                                jQuery( '#mlsimport-start_item,#mlsimport-run-test' ).prop( 'disabled', true );
+                                                        }
 
-						},
-						error: function (errorThrown) {
-							console.log( errorThrown );
-						}
-					}
-				);// end ajax
+                                                },
+                                                error: function (errorThrown) {
+                                                        console.log( errorThrown );
+                                                        var message = '';
+                                                        if ( errorThrown.responseJSON && errorThrown.responseJSON.message ) {
+                                                                message = errorThrown.responseJSON.message;
+                                                        } else if ( errorThrown.responseText ) {
+                                                                try {
+                                                                        var parsed = JSON.parse( errorThrown.responseText );
+                                                                        message = parsed.message || errorThrown.statusText;
+                                                                } catch (e) {
+                                                                        message = errorThrown.statusText;
+                                                                }
+                                                        } else {
+                                                                message = errorThrown.statusText;
+                                                        }
+                                                        jQuery( '#mlsimport_item_status' ).empty().append( message );
+                                                        jQuery( '#mlsimport-start_item,#mlsimport-run-test' ).prop( 'disabled', true );
+                                                }
+                                        }
+                                );// end ajax
 
 			}
 		);
@@ -441,11 +459,12 @@ jQuery( document ).ready(
                                                                 var width = progress * 100 / total;
                                                                 jQuery( '#mlsimport_item_progress .mlsimport-progress-bar-inner' ).css( 'width', width + '%' );
                                                         }
-                                                        if (data.is_done === 'done' || data.logs === '' ) {
+                                                       if (data.is_done === 'done' || data.logs === '' ) {
                                                                 console.log( 'kill interval' );
 
                                                                 clearInterval( log_refresh_interval_per_item );
-                                                                jQuery( '#mlsimport_item_status' ).empty().append( "Import stopped or completed!" );
+                                                                var message = (data.status === 'completed' && progress > 0) ? "Import completed!" : "Ready to import!";
+                                                                jQuery( '#mlsimport_item_status' ).empty().append( message );
                                                                 jQuery( '#mlsimport_item_progress .mlsimport-progress-bar-inner' ).css( 'width', '100%' );
 
                                                         }else if(data.is_done==='wip'){

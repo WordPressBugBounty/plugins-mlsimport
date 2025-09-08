@@ -15,9 +15,27 @@ if (method_exists($this->env_data, 'get_property_post_type')) {
 $available_taxonomies = mlsimport_get_custom_post_type_taxonomies($post_type);
 
 
+global $mlsimport;
+$token = $mlsimport->admin->mlsimport_saas_get_mls_api_token_from_transient();
+$is_mls_connected = get_option('mlsimport_connection_test', '');
+$mlsimport->admin->mlsimport_saas_setting_up();
 
+if ('yes' !== $is_mls_connected) {
+    $mlsimport->admin->mlsimport_saas_check_mls_connection();
+    $is_mls_connected = get_option('mlsimport_connection_test', '');
+}
 
-if ( 'yes' === $mlsimport_mls_metadata_populated ) { 
+if (trim($token) === '') {
+    echo '<div class="mlsimport_warning">' . esc_html__('You are not connected to MlsImport - Please check your Username and Password.', 'mlsimport') . '</div>';
+    return;
+}
+
+if ('yes' !== $is_mls_connected) {
+    echo '<div class="mlsimport_warning">' . esc_html__('The connection to your MLS was NOT succesful. Please check the authentication token is correct and check your MLS Data Access Application is approved.', 'mlsimport') . '</div>';
+    return;
+}
+
+if ( 'yes' === $mlsimport_mls_metadata_populated ) {
     // We have MLS metadata, so we can show the field selection interface
     ?>
     <form method="post" class= "mlsimport-import-fields-form"  name="cleanup_options" action="options.php">

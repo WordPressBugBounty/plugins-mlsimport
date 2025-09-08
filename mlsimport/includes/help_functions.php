@@ -2783,11 +2783,14 @@ function mlsimport_saas_request_list() {
 			$mls_data = wp_json_encode( $autofill_array );
 
 			set_transient( 'mlsimport_ready_to_go_mlsimport_data', $mls_data, 60 * 60 * 24 );
-		} else {
-			$mls_data      = array();
-			$mls_data['0'] = esc_html__( 'We could not connect to MLSimport Api', 'mlsimport' );
-		}
-	}
+                } else {
+                        $mls_data = array();
+                        $error_message = isset( $answer['error_message'] ) && ! empty( $answer['error_message'] )
+                                ? $answer['error_message']
+                                : esc_html__( 'We could not connect to MLSimport Api', 'mlsimport' );
+                        $mls_data['0'] = esc_html( $error_message );
+                }
+        }
 
 	return $mls_data;
 }
@@ -2905,10 +2908,11 @@ function mlsimport_populate_columns_params_display( $postID ) {
                 'InternetAddressDisplayYN',
                 'InternetEntireListingDisplayYN',
                 'PostalCode',
-                'ListAgentKey',
-                'ListAgentMlsId',
-                'ListOfficeKey',
-                'ListOfficeMlsId',
+               'ListAgentKey',
+               'ListAgentMlsId',
+               'BuyerAgentMlsId',
+               'ListOfficeKey',
+               'ListOfficeMlsId',
                 'ListingID',
                 'StandardStatus',
                 'extraCity',

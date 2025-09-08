@@ -74,115 +74,6 @@ class ResidenceClass {
 	/**
 	 * Deal with extra meta
 	 */
-	public function mlsimportSaasSetExtraMeta2( $property_id, $property ) {
-		$property_history = array();
-		$extra_meta_log   = array();
-		$answer           = array();
-		$options          = get_option( 'mlsimport_admin_fields_select' );
-		$permited_meta    = $options['mls-fields'];
-		
-
-		if ( isset( $property['extra_meta'] ) && is_array( $property['extra_meta'] ) ) {
-			$meta_properties = $property['extra_meta'];
-
-			foreach ( $meta_properties as $meta_name => $meta_value ) :
-				// check if extra meta is set to import
-				if ( ! isset( $permited_meta[ $meta_name ] ) ) {
-					// we do not have the extra meta
-				
-					continue;
-				} elseif ( isset( $permited_meta[ $meta_name ] ) && intval( $permited_meta[ $meta_name ] ) === 0 ) {
-					// meta exists but is set to no
-
-					continue;
-				}
-				$orignal_meta_name = $meta_name;
-				$meta_name = strtolower( $meta_name );
-				
-		
-				
-				if( isset( $options['mls-fields-map-postmeta'][ $orignal_meta_name ]) && $options['mls-fields-map-postmeta'][ $orignal_meta_name ]!==''   ){
-					$new_post_meta_key=$options['mls-fields-map-postmeta'][ $orignal_meta_name ];
-					
-					if ( is_array( $meta_value ) ) {
-						$meta_value = implode( ',', $meta_value );
-					}
-
-					update_post_meta( $property_id, $new_post_meta_key, $meta_value );
-					$property_history[] = 'Updated CUSTOM post meta ' . $new_post_meta_key . ' original ' . $meta_name . ' new meta '.$new_post_meta_key.' and value ' . $meta_value;
-				} 
-				else if( isset( $options['mls-fields-map-taxonomy'][ $orignal_meta_name ]) && $options['mls-fields-map-taxonomy'][ $orignal_meta_name ]!==''   ){
-					$new_taxonomy=$options['mls-fields-map-taxonomy'][ $orignal_meta_name ];
-				
-					$custom_label=$options['mls-fields-label'][ $orignal_meta_name ];
-					if ($custom_label=='none'){
-						$custom_label='';
-					}
-				
-
-					if(!is_array($meta_value)){
-						$meta_value_with_label = array( trim($custom_label.' '.$meta_value) );
-					}else{
-						$meta_value_with_label=array( trim( $custom_label.' '.implode(', ',$meta_value))  );
-					}
-
-					wp_set_object_terms( $property_id, $meta_value_with_label, $new_taxonomy, true );
-					clean_term_cache( $property_id, $new_taxonomy );
-
-				
-					$property_history[] = 'Updated CUSTOM TAX: ' . $new_taxonomy . '<-- original '.$orignal_meta_name.'/' . $meta_name .'/'.$custom_label. ' and value ' . json_encode($meta_value_with_label);
-				}else{
-					
-					if ( is_array( $meta_value ) ) {
-						$meta_value = implode( ',', $meta_value );
-					}
-				
-					update_post_meta( $property_id, $meta_name, $meta_value );
-					$property_history[] = 'Updated  EXTRA Meta ' . $meta_name . ' with meta_value ' . $meta_value;
-					$mem_usage          = memory_get_usage( true );
-					$mem_usage_show     = round( $mem_usage / 1048576, 2 );
-					$extra_meta_log[]   = 'Memory:' . $mem_usage_show . ' Property with ID ' . $property_id . '  Updated EXTRA Meta ' . $meta_name . ' with value ' . $meta_value;
-		
-	
-				}
-
-
-
-
-	// Remove empty values and decode values in one pass
-	$processed_field_values = array();
-	if(isset($field_values) && is_array($field_values)){
-		foreach ( $field_values as $value ) {
-				if ( ! empty( $value ) ) {
-						$processed_field_values[] = $value;
-				}
-		}
-	}
-
-	// Bulk update terms if array is not empty
-	if ( ! empty( $processed_field_values ) ) {
-
-	}
-
-
-
-
-
-
-				$meta_value         = null;
-
-			endforeach;
-
-			$answer['property_history'] = implode( '</br>', $property_history );
-			$answer['extra_meta_log']   = implode( PHP_EOL, $extra_meta_log );
-		}
-
-		$property_history = null;
-		$extra_meta_log   = null;
-		$options          = null;
-		$permited_meta    = null;
-		return $answer;
-	}
 
 
     /**
@@ -246,11 +137,13 @@ class ResidenceClass {
                 // Process custom postmeta mapping
                 if (isset($options['mls-fields-map-postmeta'][$original_meta_name]) && $options['mls-fields-map-postmeta'][$original_meta_name] !== '') {
                     $new_post_meta_key = $options['mls-fields-map-postmeta'][$original_meta_name];
-                    
+
                     if (is_array($meta_value)) {
-                        $meta_value = implode(',', $meta_value);
+                        $meta_value = implode(', ', array_map('trim', $meta_value));
+                    } else {
+                        $meta_value = preg_replace('/\s*,\s*/', ', ', trim($meta_value));
                     }
-                    
+
                     update_post_meta($property_id, $new_post_meta_key, $meta_value);
                     $property_history[] = 'Updated CUSTOM post meta ' . $new_post_meta_key . ' original ' . $meta_name;
                 } 
@@ -258,16 +151,18 @@ class ResidenceClass {
                 else if (isset($options['mls-fields-map-taxonomy'][$original_meta_name]) && $options['mls-fields-map-taxonomy'][$original_meta_name] !== '') {
                     $new_taxonomy = $options['mls-fields-map-taxonomy'][$original_meta_name];
                     $custom_label = isset($options['mls-fields-label'][$original_meta_name]) ? $options['mls-fields-label'][$original_meta_name] : '';
-                    
+
                     if ($custom_label == 'none') {
                         $custom_label = '';
                     }
-                    
-                    if (!is_array($meta_value)) {
-                        $meta_value_with_label = array(trim($custom_label . ' ' . $meta_value));
+
+                    if (is_array($meta_value)) {
+                        $meta_value = implode(', ', array_map('trim', $meta_value));
                     } else {
-                        $meta_value_with_label = array(trim($custom_label . ' ' . implode(', ', $meta_value)));
+                        $meta_value = preg_replace('/\s*,\s*/', ', ', trim($meta_value));
                     }
+
+                    $meta_value_with_label = array(trim($custom_label . ' ' . $meta_value));
                     
                     wp_set_object_terms($property_id, $meta_value_with_label, $new_taxonomy, true);
                     
@@ -291,9 +186,11 @@ class ResidenceClass {
                 // Standard meta update
                 else {
                     if (is_array($meta_value)) {
-                        $meta_value = implode(',', $meta_value);
+                        $meta_value = implode(', ', array_map('trim', $meta_value));
+                    } else {
+                        $meta_value = preg_replace('/\s*,\s*/', ', ', trim($meta_value));
                     }
-                    
+
                     update_post_meta($property_id, $meta_name_lower, $meta_value);
                     $property_history[] = 'Updated EXTRA Meta ' . $meta_name_lower;
                 }

@@ -4,7 +4,7 @@ Tags: Multiple Listing Services, MLS Integration, MLS, Real Estate, Real Estate 
 Requires at least: 5.2
 Tested up to: 6.7.1
 Requires PHP: 7.4
-Stable Tag: 6.0.7
+Stable Tag: 6.1.1
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 MlsImport is an MLS Wordpress plugin that lets you download and synchronize real estate data from various MLSs (Multiple Listing Services). It works by calling  MLSimport API/your MLS API, reading the data from your Multiple Listing Association, and transforming it into a WordPress-like format. You will need a valid access token from your MLS to use this plugin and an MLSImport account. Currently, the plugin only works for <a href="https://wpresidence.net/" target="_blank">WPResidence</a>, Houzes, Real Homes, and <a href="https://wpestate.org/" target="_blank">WpEstate Wordpress Themes</a>. 
@@ -36,7 +36,6 @@ MLS Import regularly updates your published property listings to match the most 
 We can establish connections with more than 800 MLS markets in the United States and Canada. If you don't see your specific MLS listed, please get in touch with us, and we'll gladly assist you.
 
 
-== What’s New? ==
 
 
 == CONNECT WITH US ==
@@ -76,15 +75,22 @@ You control how many listings you want to import and have special filters availa
 5. Under your WordPress admin's "MLS Import Settings" section, use the MLSImport.com credentials, select your MLS from the list, and add your MLS access credentials.
 6. If your MLS requires "activation via ticket," open a ticket in your MLSimport.com dashboard, and we will activate it.
 7. Go to the "Select Import Fields" tab and select what fields you want to import 
-8. Create and publish a new 'MLS Import Item". Pick your property type, status, counties, or cities, and click start import when ready.
+8. Create and publish a new 'MLS Import Task". Pick your property type, status, counties, or cities, and click start import when ready.
 
 == Use of 3rd party services ==
 This plugin will connect via REST API to mlsimport.com and https://requests.mlsimport.com to get real estate data from your MLS. It will send your connection details and reply with real estate prepared to be imported into your website. 
 Read the terms and conditions of using MLSimport APIs here : https://mlsimport.com/terms-conditions/
 
 
-
 == Changelog ==
+
+= 6.1.1 =
+* Added BuyerAgentMlsId import option
+* Updated labels from MLSimport item to Import task
+* Improved formatting for MLS fields using comma separation
+* Enhanced messaging for starting/stopping imports
+* Improved error handling
+
 
 =  5.8.6 =
 * Fix on importing into Houzez theme

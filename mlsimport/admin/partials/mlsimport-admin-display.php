@@ -1,4 +1,4 @@
-<i?php
+<?php
 /**
  * Provide a admin area view for the plugin
  *
@@ -33,13 +33,31 @@ if ( ! defined( 'ABSPATH' ) ) {
 		<a href="?page=mlsimport_plugin_options&tab=field_options"   class="nav-tab    		  <?php echo   'field_options' 			 === $active_tab  ? 'nav-tab-active' : ''; ?>"><?php esc_html_e( 'Select Import fields', 'mlsimport' ); ?></a>
 		<a href="?page=mlsimport_plugin_options&tab=administrative_options"  class="nav-tab   <?php echo    'administrative_options' === $active_tab  ? 'nav-tab-active' : ''; ?>"><?php esc_html_e( 'Tools', 'mlsimport' ); ?></a>
 	</div>
+
+
+	<?php 
+	$extra_class='';
+	if ( 'display_options' === $active_tab ) {
+		$extra_class='mlsimport_2025_card_admin_options';
+	} ?>
 	
-	<div class="content-nav-tab  mlsimport_2025_card mlsimport_2025_card_left_oriented <?php echo  'display_options' === $active_tab  ? 'content-nav-tab-active' : ''; ?>">
+	<div class="content-nav-tab  <?php echo esc_attr($extra_class);?>   mlsimport_2025_card mlsimport_2025_card_left_oriented <?php echo  'display_options' === $active_tab  ? 'content-nav-tab-active' : ''; ?>">
 		<?php
 		if ( 'display_options' ===  $active_tab  ) {
 			include_once '' . $this->plugin_name . '-admin-options.php';
 		}
 		?>
+<?php if ( 'display_options' === $active_tab ) : ?>
+                <div class="mlsimport-steps">
+                <ol>
+                        <li><a href="<?php echo esc_url( admin_url( 'admin.php?page=mlsimport_plugin_options' ) ); ?>"><?php esc_html_e( 'Add your  MLSimport & MLS credentials.', 'mlsimport' ); ?></a></li>
+                        <li><a href="<?php echo esc_url( admin_url( 'admin.php?page=mlsimport_plugin_options&tab=field_options' ) ); ?>"><?php esc_html_e( 'Select import fields.', 'mlsimport' ); ?></a></li>
+                        <li><a href="<?php echo esc_url( admin_url( 'post-new.php?post_type=mlsimport_item' ) ); ?>"><?php esc_html_e( 'Create an import task & fetch listings.', 'mlsimport' ); ?></a></li>
+                </ol>
+        </div>
+<?php endif; ?>
+
+
 	</div>
 		
 	<div class="content-nav-tab  mlsimport_2025_card mlsimport_2025_card_left_oriented <?php echo 'field_options' === $active_tab  ? 'content-nav-tab-active' : ''; ?>">    

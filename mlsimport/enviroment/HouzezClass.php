@@ -82,9 +82,7 @@ class HouzezClass {
 		$permited_meta = isset($options['mls-fields']) ? $options['mls-fields'] : array();
 
 		// Log input data
-		//error_log("mlsimportSaasSetExtraMeta START: property_id = $property_id");
-
-		//error_log("permited_meta Data: " . print_r($permited_meta, true));
+		
 
 
 		// save geo coordinates
@@ -116,17 +114,19 @@ class HouzezClass {
 					continue;
 				}
 
-				if ( is_array( $meta_value ) ) {
-					$meta_value = implode( ',', $meta_value );
-				}
+                               if ( is_array( $meta_value ) ) {
+                                       $meta_value = implode( ', ', array_map( 'trim', $meta_value ) );
+                               } else {
+                                       $meta_value = preg_replace( '/\s*,\s*/', ', ', trim( $meta_value ) );
+                               }
 
 							if ( '' !== $meta_value
 									&& isset( $options['mls-fields'][ $meta_name ] )
 									&& 1 === intval( $options['mls-fields'][ $meta_name ] )
 							) {
 									$feature_name = isset( $options['mls-fields-label'][ $meta_name ] ) && '' !== $options['mls-fields-label'][ $meta_name ] ? $options['mls-fields-label'][ $meta_name ] : $meta_name;
-					if( isset( $options['mls-fields-map-postmeta'][ $orignal_meta_name ]) && $options['mls-fields-map-postmeta'][ $orignal_meta_name ]!==''   ){
-						$new_post_meta_key=$options['mls-fields-map-postmeta'][ $orignal_meta_name ];
+                                        if( isset( $options['mls-fields-map-postmeta'][ $orignal_meta_name ]) && $options['mls-fields-map-postmeta'][ $orignal_meta_name ]!==''   ){
+                                                $new_post_meta_key=$options['mls-fields-map-postmeta'][ $orignal_meta_name ];
 
 					//if ( isset( $options['mls-fields-map-postmeta'][ $meta_name ]) && $options['mls-fields-map-postmeta'][ $meta_name ] !== '' ) {
 						$new_post_meta_key = $options['mls-fields-map-postmeta'][ $orignal_meta_name ];
@@ -135,19 +135,15 @@ class HouzezClass {
 						$property_history .= $log_msg . '</br>';
 						$extra_meta_log   .= $log_msg . PHP_EOL;
 						//error_log($log_msg);
-					} elseif ( isset( $options['mls-fields-map-taxonomy'][ $orignal_meta_name ]) && $options['mls-fields-map-taxonomy'][ $orignal_meta_name ] !== '' ) {
-						$new_taxonomy = $options['mls-fields-map-taxonomy'][ $orignal_meta_name ];
-						$custom_label = $options['mls-fields-label'][ $orignal_meta_name ];
-						if ( $custom_label === 'none' ) {
-							$custom_label = '';
-						}
-						if ( !is_array($meta_value) ) {
-							$meta_value_with_label = array( trim( $custom_label . ' ' . $meta_value ) );
-						} else {
-							$meta_value_with_label = array( trim( $custom_label . ' ' . implode(', ', $meta_value) ) );
-						}
-						wp_set_object_terms( $property_id, $meta_value_with_label, $new_taxonomy, true );
-						clean_term_cache( $property_id, $new_taxonomy );
+                                        } elseif ( isset( $options['mls-fields-map-taxonomy'][ $orignal_meta_name ]) && $options['mls-fields-map-taxonomy'][ $orignal_meta_name ] !== '' ) {
+                                                $new_taxonomy = $options['mls-fields-map-taxonomy'][ $orignal_meta_name ];
+                                                $custom_label = $options['mls-fields-label'][ $orignal_meta_name ];
+                                                if ( $custom_label === 'none' ) {
+                                                        $custom_label = '';
+                                                }
+                                                $meta_value_with_label = array( trim( $custom_label . ' ' . $meta_value ) );
+                                                wp_set_object_terms( $property_id, $meta_value_with_label, $new_taxonomy, true );
+                                                clean_term_cache( $property_id, $new_taxonomy );
 						$log_msg = 'Updated CUSTOM TAX: ' . $new_taxonomy . '<-- original '.$orignal_meta_name.'/' . $meta_name . '/' . $custom_label . ' value ' . json_encode($meta_value_with_label);
 						$property_history .= $log_msg;
 						//error_log($log_msg);
@@ -177,8 +173,7 @@ class HouzezClass {
 					}
 				}
 			endforeach;
-			//error_log("Before  ordering   Data: " . print_r($extra_fields, true));
-	// Order extra fields based on admin configuration
+
 					usort(
 							$extra_fields,
 							function ( $a, $b ) {
@@ -187,9 +182,6 @@ class HouzezClass {
 									return $orderA <=> $orderB;
 							}
 					);
-
-					//error_log("After ordering   Data: " . print_r($extra_fields, true));
-
 
 					// Remove helper keys before saving
 					$ordered_extra_fields = array();
@@ -200,7 +192,7 @@ class HouzezClass {
 							);
 					}
 
-					//error_log("extra_fields saving - Data: " . print_r($ordered_extra_fields, true));
+
 
 					update_post_meta( $property_id, 'additional_features', $ordered_extra_fields );
 
@@ -226,7 +218,9 @@ class HouzezClass {
 	public function correlationUpdateAfter( $is_insert, $property_id, $global_extra_fields, $new_agent ) {
 		if ( 'yes' === $is_insert ) {
 			$options_mls = get_option( 'mlsimport_admin_mls_sync' );
-			update_post_meta( $property_id, 'fave_agents', $options_mls['property_agent'] );
+			if ( is_array( $options_mls ) && isset( $options_mls['property_agent'] ) ) {
+				update_post_meta( $property_id, 'fave_agents', $options_mls['property_agent'] );
+			}
 			update_post_meta( $property_id, 'fave_agents', $new_agent );
 			update_post_meta( $property_id, 'fave_agent_display_option', 'agent_info' );
 			update_post_meta( $property_id, 'fave_featured', 0 );

@@ -73,10 +73,12 @@ class EstateClass {
 
 				$meta_name = strtolower( $meta_name );
 				if ( is_array( $meta_value ) ) {
-					$meta_value = implode( ',', $meta_value );
+						$meta_value = implode( ', ', array_map( 'trim', $meta_value ) );
+				} else {
+						$meta_value = preg_replace( '/\s*,\s*/', ', ', trim( $meta_value ) );
 				}
 				update_post_meta( $property_id, $meta_name, $meta_value );
-				
+
 				if( isset( $options['mls-fields-map-postmeta'][ $meta_name ]) && $options['mls-fields-map-postmeta'][ $meta_name ]!==''   ){
 					$new_post_meta_key=$options['mls-fields-map-postmeta'][ $meta_name ];
 					update_post_meta( $property_id, $new_post_meta_key, $meta_value );
@@ -195,6 +197,10 @@ class EstateClass {
 
 
 
+	public function enviroment_image_save_gallery( $property_id, $post_attachments ) {
+      
+
+	}
 
 
 	/**

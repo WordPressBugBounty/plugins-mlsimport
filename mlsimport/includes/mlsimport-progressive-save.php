@@ -234,7 +234,7 @@ function mlsimport_ajax_save_field_chunk() {
     }
     
  
-   // print_r($options);
+
     
     // Save the options
     $saved = update_option('mlsimport_admin_fields_select', $options);

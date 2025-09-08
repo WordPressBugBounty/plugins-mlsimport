@@ -136,7 +136,6 @@ class ThemeImport {
 			];
 			$response = wp_remote_post($url, $args);
 
-//			print_r($response);
 
 
 			if (is_wp_error($response)) {
@@ -147,12 +146,34 @@ class ThemeImport {
 				];
 			}
 
-			if (isset($response['response']['code']) && $response['response']['code'] === 200) {
-				$receivedData = json_decode(wp_remote_retrieve_body($response), true);
-				return $receivedData;
-			} else {
-				return ['success' => false];
-			}
+                        $status_code = isset($response['response']['code']) ? intval($response['response']['code']) : 0;
+                        $body        = wp_remote_retrieve_body($response);
+
+                        if (200 === $status_code) {
+                                $receivedData = json_decode($body, true);
+                                return $receivedData;
+                        }
+
+                        $error_message = 'Unknown error';
+                        $error_code    = $status_code;
+
+                        $decoded_body = json_decode($body, true);
+                        if (json_last_error() === JSON_ERROR_NONE && is_array($decoded_body)) {
+                                if (isset($decoded_body['error']['message'])) {
+                                        $error_message = $decoded_body['error']['message'];
+                                        if (isset($decoded_body['error']['code'])) {
+                                                $error_code = $decoded_body['error']['code'];
+                                        }
+                                } elseif (isset($decoded_body['message'])) {
+                                        $error_message = $decoded_body['message'];
+                                }
+                        }
+
+                        return [
+                                'success' => false,
+                                'error_code' => $error_code,
+                                'error_message' => esc_html($error_message),
+                        ];
 
 			exit();
 	}
@@ -178,7 +199,7 @@ class ThemeImport {
 			$refresh_result = self::refreshToken();
 			
 			if (!$refresh_result) {
-				error_log('MLSImport: Failed to refresh expired token');
+				//error_log('MLSImport: Failed to refresh expired token');
 				return false;
 			}
 		}
@@ -195,7 +216,7 @@ class ThemeImport {
 		$password = isset($options['mlsimport_password']) ? $options['mlsimport_password'] : '';
 		
 		if (empty($username) || empty($password)) {
-			error_log('MLSImport: Missing credentials for token refresh');
+			//error_log('MLSImport: Missing credentials for token refresh');
 			return false;
 		}
 		
@@ -219,7 +240,7 @@ class ThemeImport {
 		$response = wp_remote_post($url, $args);
 		
 		if (is_wp_error($response)) {
-			error_log('MLSImport: Token refresh request failed: ' . $response->get_error_message());
+			//error_log('MLSImport: Token refresh request failed: ' . $response->get_error_message());
 			return false;
 		}
 		
@@ -227,7 +248,7 @@ class ThemeImport {
 		$data = json_decode($body, true);
 		
 		if (!isset($data['success']) || !$data['success'] || !isset($data['token']) || !isset($data['expires'])) {
-			error_log('MLSImport: Invalid token refresh response');
+			//error_log('MLSImport: Invalid token refresh response');
 			return false;
 		}
 		
@@ -239,7 +260,7 @@ class ThemeImport {
 
 		update_option('mlsimport_token_expiry', intval($data['expires']));
 		
-		error_log('MLSImport: Token successfully refreshed. Expires: ' . date('Y-m-d H:i:s', $data['expires']));
+		//error_log('MLSImport: Token successfully refreshed. Expires: ' . date('Y-m-d H:i:s', $data['expires']));
 		
 		return true;
 	}
@@ -811,7 +832,7 @@ private function cleanUpMemory($intensive = false) {
 	 * @param string $isInsert Whether the property is being inserted.
 	 * @return string The media history log.
 	 */
-	public function mlsimportSassAttachMediaToPost($propertyId, $media, $isInsert,$media_attachments) {
+	public function mlsimportSassAttachMediaToPost($propertyId, $media, $isInsert,$media_attachments,$featuredImageKey) {
 
 		$mediaHistory = [];
 		//error_log("MLSImport: Starting image processing for property ID: $propertyId");
@@ -827,19 +848,14 @@ private function cleanUpMemory($intensive = false) {
 		include_once ABSPATH . 'wp-admin/includes/image.php';
 		$hasFeatured = false;
 
+	
 
 
 		add_filter('intermediate_image_sizes_advanced', [$this, 'wpcUnsetImageSizes']);
 
-		// Sorting media
-		if (isset($media[0]['Order'])) {
-			$order = array_column($media, 'Order');
-			array_multisort($order, SORT_ASC, $media);
-			//error_log("MLSImport: Media sorted by 'Order'");
-		}
-
+		
 		if (is_array($media)) {
-			foreach ($media as $image) {
+			foreach ($media as $key=>$image) {
 				if (isset($image['MediaCategory']) && $image['MediaCategory'] !== 'Property Photo' && $image['MediaCategory'] !== 'Photo') {
 					//error_log("MLSImport: Skipping non-photo media category: " . $image['MediaCategory']);
 					continue;
@@ -863,7 +879,9 @@ private function cleanUpMemory($intensive = false) {
 						'post_title' => $image['MediaKey'] ?? '',
 					];
 			
+	
 					$attachId = wp_insert_attachment($attachment, $file);
+					//error_log("Processing: " . $file . " - Result: " . (is_wp_error($attachId) ? $attachId->get_error_message() : $attachId));
 					if (is_wp_error($attachId)) {
 						//error_log("MLSImport: Failed to insert attachment for $file. Error: " . $attachId->get_error_message());
 					} else {
@@ -874,10 +892,16 @@ private function cleanUpMemory($intensive = false) {
 
 						$mlsimport->admin->env_data->enviroment_image_save($propertyId, $attachId);
 						update_post_meta($attachId, 'is_mlsimport', 1);
-						if (!$hasFeatured) {
-							set_post_thumbnail($propertyId, $attachId);
-							//error_log("MLSImport: Set attachment ID $attachId as featured image");
-							$hasFeatured = true;
+						
+						if ($key===$featuredImageKey){
+						
+				
+						//error_log("BEFORE set_post_thumbnail: hasFeatured=false, setting featuredImageKey=$featuredImageKey as $key featured for propertyId=$propertyId");
+						set_post_thumbnail($propertyId, $attachId);
+						
+						//	error_log("AFTER set_post_thumbnail: hasFeatured=true, attachId=$attachId should now be featured");
+						} else {
+						//	error_log("SKIPPING featured image: hasFeatured=true, attachId=$attachId");
 						}
 					}
 				} else {
@@ -1596,7 +1620,7 @@ public function check_if_delete_when_status($property_id, $mlsImportItemStatus, 
 private function processPropertyDetails($property, $propertyId, $tipImport, &$propertyHistory, $newAgent, $itemIdArray, $isInsert) {
     global $mlsimport, $wpdb;
     
-	//error_log("Property Data: " . print_r($property, true));
+
 
    	// Normalize timestamp fields in extra_meta to format like "May 17, 2025 at 06:26am"
     if (isset($property['extra_meta']) && is_array($property['extra_meta'])) {
@@ -1730,9 +1754,11 @@ private function processPropertyDetails($property, $propertyId, $tipImport, &$pr
             $meta_values = [];
             foreach ($property['meta'] as $metaName => $metaValue) {
                 if (is_array($metaValue)) {
-                    $metaValue = implode(',', $metaValue);
+                    $metaValue = implode(', ', array_map('trim', $metaValue));
+                } else {
+                    $metaValue = preg_replace('/\s*,\s*/', ', ', trim($metaValue));
                 }
-                
+
                 // Build history separately
                 $propertyHistory[] = 'Updated Meta ' . $metaName . ' with meta_value ' . $metaValue;
                 
@@ -1761,7 +1787,9 @@ private function processPropertyDetails($property, $propertyId, $tipImport, &$pr
             // Standard approach for fewer meta fields
             foreach ($property['meta'] as $metaName => $metaValue) {
                 if (is_array($metaValue)) {
-                    $metaValue = implode(',', $metaValue);
+                    $metaValue = implode(', ', array_map('trim', $metaValue));
+                } else {
+                    $metaValue = preg_replace('/\s*,\s*/', ', ', trim($metaValue));
                 }
                 update_post_meta($propertyId, $metaName, $metaValue);
                 $propertyHistory[] = 'Updated Meta ' . $metaName . ' with meta_value ' . $metaValue;
@@ -1789,12 +1817,67 @@ private function processPropertyDetails($property, $propertyId, $tipImport, &$pr
         $mediaCount = count($property['Media']);
         //error_log("PROPERTY DETAILS - Processing {$mediaCount} media items");
         
+
+
+		// Sort media by Order field if it exists
+		if (isset($property['Media'][0]['Order'])) {
+			$order = array_column($property['Media'], 'Order');
+			array_multisort($order, SORT_ASC, $property['Media']);
+			//error_log("MLSImport: Media sorted by 'Order'");
+		}
+
+
+
         // Process in chunks of 5
-        $mediaChunks = array_chunk($property['Media'], 5);
+        $mediaChunks = array_chunk($property['Media'], 5,true);
         $mediaHistoryParts = [];
         
         // Clear original array to free memory
         $originalMedia = $property['Media'];
+
+
+
+
+		// Find featured image in single loop
+		$featuredImageKey = null;
+		$orderOneKey = null;
+
+
+		// First priority: Look for PreferredPhotoYN = 1
+		foreach ($property['Media'] as $key => $mediaItem) {
+			// Priority 1: PreferredPhotoYN = 1 (immediate selection)
+			if (isset($mediaItem['PreferredPhotoYN']) && $mediaItem['PreferredPhotoYN'] == 1) {
+				$featuredImageKey = $key;
+				//error_log("MLSImport: Featured image set from PreferredPhotoYN");
+				break;
+			}
+
+			 
+			// Priority 2: Store Order = 1 key for potential use
+			if ($orderOneKey === null && isset($mediaItem['Order']) && $mediaItem['Order'] == 1) {
+				$orderOneKey = $key;
+			}
+			
+		}
+
+		if ($featuredImageKey === null && $orderOneKey !== null) {
+			$featuredImageKey = $orderOneKey;
+			//error_log("MLSImport: Featured image set from Order = 1");
+		}
+
+		// Use Order = 1 image if no preferred image was found
+		if ($featuredImageKey === null && $orderOneKey !== null) {
+			$featuredImageKey = $orderOneKey;
+			//error_log("MLSImport: Featured image set from Order = 1");
+		}
+
+		// Priority 3: Use first image if nothing else found
+		if ($featuredImageKey === null && !empty($property['Media'])) {
+			$featuredImageKey = 0;
+			//error_log("MLSImport: Featured image set as first image in array");
+		}
+
+
         unset($property['Media']);
 
 		if ($isInsert !== 'no') {
@@ -1806,7 +1889,7 @@ private function processPropertyDetails($property, $propertyId, $tipImport, &$pr
 
         
         foreach ($mediaChunks as $index => $mediaChunk) {
-            $media_attachments = $this->mlsimportSassAttachMediaToPost($propertyId, $mediaChunk, $isInsert,$media_attachments);
+            $media_attachments = $this->mlsimportSassAttachMediaToPost($propertyId, $mediaChunk, $isInsert,$media_attachments,$featuredImageKey);
            // $mediaHistoryParts[] = $chunkHistory;
             
             // Free memory
@@ -1831,7 +1914,7 @@ private function processPropertyDetails($property, $propertyId, $tipImport, &$pr
         unset($mediaHistory);
         unset($originalMedia);
     } else {
-        $mediaHistory = $this->mlsimportSassAttachMediaToPost($propertyId, $property['Media'] ?? [], $isInsert);
+        $mediaHistory = $this->mlsimportSassAttachMediaToPost($propertyId, $property['Media'] ?? [], $isInsert,$featuredImageKey);
         $propertyHistory = array_merge($propertyHistory, (array)$mediaHistory);
     }
     

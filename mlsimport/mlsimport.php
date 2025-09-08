@@ -2,11 +2,10 @@
 /**
  * Plugin Name:       MlsImport
  * Plugin URI:        https://mlsimport.com/
- * Description:       "MLS Import - The MLSImport plugin facilitates the connection to your real estate MLS database, allowing you to download and synchronize real estate property data from the MLS.
- * Version:           6.0.7
- * Stable tag: 		  6.0.7
+ * Description:       MLS Import - The MLSImport plugin facilitates the connection to your real estate MLS database, allowing you to download and synchronize real estate property data from the MLS.
+ * Version:           6.1.1
  * Requires at least: 5.2
- * Requires PHP:      7.2
+ * Requires PHP:      7.4
  * License: GPLv3
  * License URI: https://www.gnu.org/licenses/gpl-3.0.html
  * Author:            MlsImport
@@ -21,14 +20,23 @@ if ( ! defined( 'WPINC' ) ) {
 }
 
 
-define( 'MLSIMPORT_VERSION', '6.0.7' );
+define( 'MLSIMPORT_VERSION', '6.1.0' );
 define( 'MLSIMPORT_CLUBLINK', 'mlsimport.com' );
 define( 'MLSIMPORT_CLUBLINKSSL', 'https' );
 define( 'MLSIMPORT_CRON_STEP', 20 );
 define( 'MLSIMPORT_PLUGIN_PATH', plugin_dir_path( __FILE__ ) );
 define( 'MLSIMPORT_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
+
+
 //define( 'MLSIMPORT_API_URL', 'https://requests.mlsimport.com/' );
-define( 'MLSIMPORT_API_URL', 'https://pyjzsilw7b.execute-api.us-east-1.amazonaws.com/dev/' );
+//define( 'MLSIMPORT_API_URL', 'https://pyjzsilw7b.execute-api.us-east-1.amazonaws.com/dev/' );
+define( 'MLSIMPORT_API_URL', 'https://srky9ddikl.execute-api.us-east-1.amazonaws.com/blue/');
+
+
+
+
+
+
 if ( ! defined( 'MLSIMPORT_HIDE_SETUP_NOTICE' ) ) {
     define( 'MLSIMPORT_HIDE_SETUP_NOTICE', false );
 }

@@ -21,7 +21,7 @@ $mlsimport->admin->setting_up();
 ?>
 <h1>Import settings</h1>
 <fieldset class="mlsimport-fieldset">      
-<p class="mlsimport-exp">Starting with MlsImport 3.0 ths import settings options are set per each Mls Import Item. Create a new MlsImport and adjust the importat parameters from that interface.</p>
+<p class="mlsimport-exp">Starting with MlsImport 3.0 ths import settings options are set per each Mls Import Task. Create a new MlsImport and adjust the importat parameters from that interface.</p>
 </fieldset>
 
 <?php

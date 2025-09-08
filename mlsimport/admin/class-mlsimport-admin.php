@@ -1128,6 +1128,7 @@ class Mlsimport_Admin {
 			'mlsimport_item_stat_cron',
                        'mlsimport_item_listagentkey',
                        'mlsimport_item_listagentmlsid',
+                       'mlsimport_item_buyeragentmlsid',
                        'mlsimport_item_listofficekey',
                        'mlsimport_item_postalcode',
                        'mlsimport_item_listofficemlsid',
@@ -1182,37 +1183,55 @@ class Mlsimport_Admin {
 	 * @param WP_Post $post The post object.
 	 */
 	public function mlsimport_saas_display_meta_options($post) {
-		wp_nonce_field(plugin_basename(__FILE__), 'estate_agent_noncename');
-		global $mlsimport;
-		
-		$postId = $post->ID;
-	 	$token = $mlsimport->admin->mlsimport_saas_get_mls_api_token_from_transient();
-		
-		$mlsimportItemHowMany 	= esc_html(get_post_meta($postId, 'mlsimport_item_how_many', true));
-		$mlsimportItemStatCron 	= esc_html(get_post_meta($postId, 'mlsimport_item_stat_cron', true));
-		$lastDate 				= get_post_meta($postId, 'mlsimport_last_date', true);
-		$status 				= get_option('mlsimport_force_stop_' . $postId);
-		$fieldImport 			= $this->mlsimport_saas_return_mls_fields();		
-		$options 				= get_option('mlsimport_admin_options');
-		$mlsimportMlsId 		= isset($options['mlsimport_mls_name']) && $options['mlsimport_mls_name'] !== '' 
-									? intval($options['mlsimport_mls_name']) 
-									: 0;
-		
-		$mlsRequest = $this->mlsimport_make_listing_requests($postId);
-//print_r($mlsRequest);
+                wp_nonce_field(plugin_basename(__FILE__), 'estate_agent_noncename');
+                global $mlsimport;
 
-		if (isset($mlsRequest['success']) && !$mlsRequest['success']) {
-			echo '<div class="mlsimport_warning">' . esc_html($mlsRequest['message']) . '</div>';
-		}
-		
-		$foundItems = isset($mlsRequest['results']) ? intval($mlsRequest['results']) : 'none';
-		if ($foundItems === 'none') {
-			$mlsimport->admin->mlsimport_saas_check_mls_connection();
-			esc_html_e('Your Token was expired. Please refresh the page to renew it wait while we renew it.', 'mlsimport');
-		}
-		
-  		echo $this->generateMetaOptionsHtml($postId, $foundItems, $lastDate, $mlsimportItemHowMany, $mlsimportItemStatCron, $mlsimportMlsId, $fieldImport);
-	}
+                $token = $mlsimport->admin->mlsimport_saas_get_mls_api_token_from_transient();
+                $is_mls_connected = get_option('mlsimport_connection_test', '');
+                $mlsimport->admin->mlsimport_saas_setting_up();
+
+                if ('yes' !== $is_mls_connected) {
+                        $mlsimport->admin->mlsimport_saas_check_mls_connection();
+                        $is_mls_connected = get_option('mlsimport_connection_test', '');
+                }
+
+                if (trim($token) === '') {
+                        echo '<div class="mlsimport_warning">' . esc_html__('You are not connected to MlsImport - Please check your Username and Password.', 'mlsimport') . '</div>';
+                        return;
+                }
+
+                if ('yes' !== $is_mls_connected) {
+                        echo '<div class="mlsimport_warning">' . esc_html__('The connection to your MLS was NOT succesful. Please check the authentication token is correct and check your MLS Data Access Application is approved.', 'mlsimport') . '</div>';
+                        return;
+                }
+
+                $postId = $post->ID;
+                $mlsimportItemHowMany   = esc_html(get_post_meta($postId, 'mlsimport_item_how_many', true));
+                $mlsimportItemStatCron  = esc_html(get_post_meta($postId, 'mlsimport_item_stat_cron', true));
+                $lastDate                               = get_post_meta($postId, 'mlsimport_last_date', true);
+                $status                                 = get_option('mlsimport_force_stop_' . $postId);
+                $fieldImport                    = $this->mlsimport_saas_return_mls_fields();
+                $options                                = get_option('mlsimport_admin_options');
+                $mlsimportMlsId                 = isset($options['mlsimport_mls_name']) && $options['mlsimport_mls_name'] !== ''
+
+                                                                        ? intval($options['mlsimport_mls_name'])
+                                                                        : 0;
+
+               $mlsRequest = $this->mlsimport_make_listing_requests($postId);
+
+               $hasError = isset($mlsRequest['success']) && !$mlsRequest['success'];
+               if ($hasError) {
+                       echo '<div class="mlsimport_warning">' . esc_html($mlsRequest['message']) . '</div>';
+               }
+
+               $foundItems = isset($mlsRequest['results']) ? intval($mlsRequest['results']) : 'none';
+                if ($foundItems === 'none') {
+                        $mlsimport->admin->mlsimport_saas_check_mls_connection();
+                        esc_html_e('Your Token was expired. Please refresh the page to renew it wait while we renew it.', 'mlsimport');
+                }
+
+               echo $this->generateMetaOptionsHtml($postId, $foundItems, $lastDate, $mlsimportItemHowMany, $mlsimportItemStatCron, $mlsimportMlsId, $fieldImport, $hasError);
+       }
 
 
 
@@ -1229,7 +1248,7 @@ class Mlsimport_Admin {
 	 * @param array $fieldImport The fields to import.
 	 * @return string The generated HTML.
 	 */
-	private function generateMetaOptionsHtml($postId, $foundItems, $lastDate, $mlsimportItemHowMany, $mlsimportItemStatCron, $mlsimportMlsId, $fieldImport) {
+       private function generateMetaOptionsHtml($postId, $foundItems, $lastDate, $mlsimportItemHowMany, $mlsimportItemStatCron, $mlsimportMlsId, $fieldImport, $hasError = false) {
 
 		ob_start();
 
@@ -1244,7 +1263,7 @@ class Mlsimport_Admin {
 
 		<?php if (is_numeric($foundItems) && $foundItems >= 500): ?>
 			<div class="mlsimport_notification">
-				<?php esc_html_e('You found a large number of listings. While MlsImport import can handle such a large number, you need to make sure that your server can do this operation. This import will take some time. Make sure your server has the capacity, there are no time limits for a long-running process and consider splitting the import between multiple MLS Import items.', 'mlsimport'); ?>
+				<?php esc_html_e('You found a large number of listings. While MlsImport import can handle such a large number, you need to make sure that your server can do this operation. This import will take some time. Make sure your server has the capacity, there are no time limits for a long-running process and consider splitting the import between multiple MLS Import Tasks.', 'mlsimport'); ?>
 			</div>
 		<?php endif; ?>
 
@@ -1270,18 +1289,18 @@ class Mlsimport_Admin {
 			</label>
 		</fieldset>
 
-		<?php if ($mlsimportItemStatCron !== ''): ?>
-                        <div id="mlsimport_item_status"></div>
-                        <div id="mlsimport_item_progress" class="mlsimport-progress-bar">
-                                <div class="mlsimport-progress-bar-inner" style="width:0%;"></div>
-                        </div>
-			<input class="button mlsimport_button  save_data " type="button" id="mlsimport-start_item"
-				data-post-number="<?php echo intval($foundItems); ?>"
-				data-post_id="<?php echo intval($postId); ?>" value="Start Import">
-			<input class="button mlsimport_button error_action" type="button" id="mlsimport_stop_item"
-				data-post-number="<?php echo intval($foundItems); ?>"
-				data-post_id="<?php echo intval($postId); ?>" value="Stop Import">
-		<?php endif; ?>
+               <?php if ($mlsimportItemStatCron !== '' && !$hasError): ?>
+                       <div id="mlsimport_item_status">Ready to import!</div>
+                       <div id="mlsimport_item_progress" class="mlsimport-progress-bar">
+                               <div class="mlsimport-progress-bar-inner" style="width:0%;"></div>
+                       </div>
+                       <input class="button mlsimport_button  save_data " type="button" id="mlsimport-start_item"
+                               data-post-number="<?php echo intval($foundItems); ?>"
+                               data-post_id="<?php echo intval($postId); ?>" value="Start Import">
+                       <input class="button mlsimport_button error_action" type="button" id="mlsimport_stop_item"
+                               data-post-number="<?php echo intval($foundItems); ?>"
+                               data-post_id="<?php echo intval($postId); ?>" value="Stop Import">
+               <?php endif; ?>
 
 		<input type="hidden" id="mlsimport_item_actions" value="<?php echo esc_attr(wp_create_nonce("mlsimport_item_actions")); ?>"/>
 		<div class="mlsimport_param_wrapper"><h2><?php esc_html_e('Import Parameters', 'mlsimport'); ?></h2>
@@ -1417,9 +1436,10 @@ class Mlsimport_Admin {
                                                                 'PostalCode',
                                                                 'ListAgentKey',
                                                                 'ListAgentMlsId',
-																'ListOfficeKey',
-																'ListOfficeMlsId',
-																'StandardStatus',
+                                                                'BuyerAgentMlsId',
+                                                                                                                              'ListOfficeKey',
+                                                                                                                              'ListOfficeMlsId',
+                                                                                                                              'StandardStatus',
 																'StandardStatusDelete',
 																'ListingId',
 																'extraCity',
@@ -1853,7 +1873,7 @@ function mlsimport_preload_all_mls_item_status_meta() {
 			return array(
 				'success'         => false,
 				'potential_leght' => $potential_leght,
-				'message'         => esc_html__( 'You have too many parameters selected. Split the import beween multiple MLS Import items: For ex : Import per County instead of selecting 10 cities or import listing between certain price range.', 'mlsimport' ),
+				'message'         => esc_html__( 'You have too many parameters selected. Split the import beween multiple MLS Import Tasks: For ex : Import per County instead of selecting 10 cities or import listing between certain price range.', 'mlsimport' ),
 			);
 		}
 	
@@ -1954,12 +1974,14 @@ function mlsimport_preload_all_mls_item_status_meta() {
 		// add internet_address_displayyn
 		$values = $this->mls_import_saas_add_to_parms_input( 'InternetAddressDisplayYN', $item_id, 'internet_address_displayyn', $values );
 
-		// add ListAgentKey
-		$values = $this->mls_import_saas_add_to_parms_input( 'ListAgentKey', $item_id, 'list_agentkey', $values );
-		// add ListAgentKey
-		$values = $this->mls_import_saas_add_to_parms_input( 'ListAgentMlsId', $item_id, 'list_agentmlsid', $values );
-		// add ListOfficeKey
-		$values = $this->mls_import_saas_add_to_parms_input( 'ListOfficeKey', $item_id, 'list_officekey', $values );
+                // add ListAgentKey
+                $values = $this->mls_import_saas_add_to_parms_input( 'ListAgentKey', $item_id, 'list_agentkey', $values );
+                // add ListAgentKey
+                $values = $this->mls_import_saas_add_to_parms_input( 'ListAgentMlsId', $item_id, 'list_agentmlsid', $values );
+               // add BuyerAgentMlsId
+               $values = $this->mls_import_saas_add_to_parms_input( 'BuyerAgentMlsId', $item_id, 'buyer_agentmlsid', $values );
+                // add ListOfficeKey
+                $values = $this->mls_import_saas_add_to_parms_input( 'ListOfficeKey', $item_id, 'list_officekey', $values );
 		// add ListOfficeMlsId
 		$values = $this->mls_import_saas_add_to_parms_input( 'ListOfficeMlsId', $item_id, 'list_officemlsid', $values );
 
@@ -2083,7 +2105,7 @@ function mlsimport_preload_all_mls_item_status_meta() {
 
 	/*
 	 *
-	 * All Enums fiels to be used on MLS import Item
+	 * All Enums fiels to be used on MLS import Taaks
 	 *
 	 *
 	 *
@@ -2273,17 +2295,23 @@ function mlsimport_preload_all_mls_item_status_meta() {
 				'type'        => 'input',
 				'multiple'    => 'no',
 			),
-			'ListAgentMlsId'                 => array(
-				'label'       => esc_html__( 'ListAgentMlsId', 'mlsimport' ),
-				'description' => esc_html__( 'Import listings from a specific Agent (contact your MLS for this information)', 'mlsimport' ),
-				'type'        => 'input',
-				'multiple'    => 'no',
-			),
-			'ListOfficeKey'                  => array(
-				'label'       => esc_html__( 'ListOfficeKey', 'mlsimport' ),
-				'description' => esc_html__( 'Import listings from a specific Office (contact your MLS for this information)', 'mlsimport'),
-				'type'        => 'input',
-				'multiple'    => 'no',
+                        'ListAgentMlsId'                 => array(
+                                'label'       => esc_html__( 'ListAgentMlsId', 'mlsimport' ),
+                                'description' => esc_html__( 'Import listings from a specific Agent (contact your MLS for this information)', 'mlsimport' ),
+                                'type'        => 'input',
+                                'multiple'    => 'no',
+                        ),
+                       'BuyerAgentMlsId'                 => array(
+                               'label'       => esc_html__( 'BuyerAgentMlsId', 'mlsimport' ),
+                               'description' => esc_html__( 'Import listings from a specific Buyer Agent (contact your MLS for this information)', 'mlsimport' ),
+                               'type'        => 'input',
+                               'multiple'    => 'no',
+                       ),
+                        'ListOfficeKey'                  => array(
+                                'label'       => esc_html__( 'ListOfficeKey', 'mlsimport' ),
+                                'description' => esc_html__( 'Import listings from a specific Office (contact your MLS for this information)', 'mlsimport'),
+                                'type'        => 'input',
+                                'multiple'    => 'no',
 			),
 			'ListOfficeMlsId'                => array(
 				'label'       => esc_html__( 'ListOfficeMlsId', 'mlsimport' ),
@@ -2371,11 +2399,20 @@ function mlsimport_preload_all_mls_item_status_meta() {
 		//error_log(json_encode($item_id_array));
 		//error_log("starting post id ".$post_id);
 
-		update_post_meta( $post_id, 'mlsimport_attach_to_move_' . $post_id, '' );
-		
-		$attachments_to_move = (array) $this->mlsimport_saas_generate_import_requests_per_item( $item_id_array );
+                update_post_meta( $post_id, 'mlsimport_attach_to_move_' . $post_id, '' );
 
-		update_post_meta( $post_id, 'mlsimport_attach_to_move_' . $post_id, $attachments_to_move );
+                $attachments_to_move = (array) $this->mlsimport_saas_generate_import_requests_per_item( $item_id_array );
+
+                // If an error was returned from the API, sanitize and send it back to the client and stop further processing.
+                if ( isset( $attachments_to_move['success'] ) && false === $attachments_to_move['success'] ) {
+                        if ( isset( $attachments_to_move['message'] ) ) {
+                                $attachments_to_move['message'] = wp_strip_all_tags( $attachments_to_move['message'] );
+                        }
+                        wp_send_json( $attachments_to_move );
+                        wp_die();
+                }
+
+                update_post_meta( $post_id, 'mlsimport_attach_to_move_' . $post_id, $attachments_to_move );
 
 		// net stat data
 		update_post_meta( $post_id, 'mlsimport_progress_properties', 0 );
@@ -2406,11 +2443,13 @@ function mlsimport_preload_all_mls_item_status_meta() {
 		//as_enqueue_async_action( 'mlsimport_background_process_per_item', $attachments_to_send, '', true );
 
 
-		spawn_cron();
+                spawn_cron();
 
-		unset( $attachments_to_send ); print'before die';
-		die();
-	}
+                unset( $attachments_to_send );
+
+                // Return success response to the AJAX caller.
+                wp_send_json( array( 'success' => true ) );
+        }
 
 	/**
         * Process MLS Import attachments via background cron.
@@ -2509,27 +2548,26 @@ function mlsimport_preload_all_mls_item_status_meta() {
 			$import_step = $how_many;
 		}
 
-		while ( $skip < $how_many ) {
+                while ( $skip < $how_many ) {
 
-			//$batch_step = min( $import_step, $how_many - $skip );
-			
-			//$search_url_step = $this->mlsimport_saas_make_listing_requests_arguments( $prop_id, $last_date, $skip, $import_step );
-			//$skip            = $skip + $import_step;
-			//$urls_array[]    = $search_url_step;
+                        // Determine how many items to request for this batch.
+                        $batch_step = min( $import_step, $how_many - $skip );
 
-			// Determine how many items to request for this batch.
-			$batch_step = min( $import_step, $how_many - $skip );
+                        // Build the request arguments using the remaining count.
+                        $search_url_step = $this->mlsimport_saas_make_listing_requests_arguments( $prop_id, $last_date, $skip, $batch_step );
 
-			// Build the request arguments using the remaining count.
-			$search_url_step = $this->mlsimport_saas_make_listing_requests_arguments( $prop_id, $last_date, $skip, $batch_step );
+                        // If the API returned an error, propagate it immediately.
+                        if ( isset( $search_url_step['success'] ) && false === $search_url_step['success'] ) {
+                                return $search_url_step;
+                        }
 
-			$skip       += $batch_step;
-			$urls_array[] = $search_url_step;
+                        $skip       += $batch_step;
+                        $urls_array[] = $search_url_step;
 
 
-		}
-		return $urls_array;
-	}
+                }
+                return $urls_array;
+        }
 
 
 
@@ -2703,15 +2741,17 @@ function mlsimport_preload_all_mls_item_status_meta() {
 			die();
 		}
 
-		if ( ''  === $status  ||  'completed' === $status  ) {
-			echo wp_json_encode(
-				array(
-					'is_done' => 'done',
-					'status'  => $status,
-					'logs'    => $logs,
-				)
-			);
-		} else {
+               if ( ''  === $status  ||  'completed' === $status  ) {
+                       echo wp_json_encode(
+                               array(
+                                       'is_done'                       => 'done',
+                                       'status'                        => $status,
+                                       'logs'                          => $logs,
+                                       'mlsimport_progress_properties' => $current,
+                                       'mlsimport_task_to_import'      => $total,
+                               )
+                       );
+               } else {
 			// return from log
 			echo wp_json_encode(
 				array(

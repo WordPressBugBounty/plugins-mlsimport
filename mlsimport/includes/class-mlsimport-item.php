@@ -198,10 +198,10 @@ class Mlsimport_Item {
 		$post_types_fields = array(
 			array(
 				'slug'                => 'mlsimport_item',
-				'singular'            => __( 'MLS Import batch', 'mlsimport' ),
-				'plural'              => __( 'MLS Import Item', 'mlsimport' ),
-				'menu_name'           => __( 'MLS Import Items', 'mlsimport' ),
-				'description'         => __( 'MLS Import Item', 'mlsimport' ),
+				'singular'            => __( 'Import Task', 'mlsimport' ),
+				'plural'              => __( 'Import Tasks', 'mlsimport' ),
+				'menu_name'           => __( 'Import Tasks', 'mlsimport' ),
+				'description'         => __( 'Import Task', 'mlsimport' ),
 				'has_archive'         => true,
 				'hierarchical'        => false,
 				'menu_icon'           => 'dashicons-tag',

@@ -97,10 +97,12 @@ class RealHomesClass {
 					continue;
 				}
 
-				if ( is_array( $meta_value ) ) {
-					$meta_value = implode( ',', $meta_value );
-				}
-            	$orignal_meta_name = $meta_name;
+                               if ( is_array( $meta_value ) ) {
+                                       $meta_value = implode( ', ', array_map( 'trim', $meta_value ) );
+                               } else {
+                                       $meta_value = preg_replace( '/\s*,\s*/', ', ', trim( $meta_value ) );
+                               }
+               $orignal_meta_name = $meta_name;
 
 				if( isset( $options['mls-fields-map-postmeta'][ $meta_name ]) && $options['mls-fields-map-postmeta'][ $meta_name ]!==''   ){
 					$new_post_meta_key=$options['mls-fields-map-postmeta'][ $orignal_meta_name ];
@@ -109,12 +111,8 @@ class RealHomesClass {
 				}else if( isset( $options['mls-fields-map-taxonomy'][ $orignal_meta_name ]) && $options['mls-fields-map-taxonomy'][ $orignal_meta_name ]!==''   ){
 					$new_taxonomy=$options['mls-fields-map-taxonomy'][ $orignal_meta_name ];
 				
-					$custom_label=$options['mls-fields-label'][ $orignal_meta_name ];
-					if(!is_array($meta_value)){
-						$meta_value_with_label = array( trim( $custom_label.' '.$meta_value) ) ;
-					}else{
-						$meta_value_with_label=array( trim( $custom_label.' '.implode(', ',$meta_value) ) );
-					}
+                                       $custom_label=$options['mls-fields-label'][ $orignal_meta_name ];
+                                       $meta_value_with_label = array( trim( $custom_label.' '.$meta_value) );
 					
 
 					

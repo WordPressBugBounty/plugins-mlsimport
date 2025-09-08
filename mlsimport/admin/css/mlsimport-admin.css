@@ -540,6 +540,51 @@ label.mlsimport_switch {
 }
 
 
+.mlsimport_2025_card_admin_options  {
+    display: flex;
+    flex-direction: row;
+}
+
+.mlsimport_2025_card_admin_options:empty{
+	display: none;
+}
+.mlsimport-steps{
+	font-size: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-left: 74px;
+}
+
+.mlsimport-steps ol {
+   list-style: none;
+   counter-reset: step-counter;
+   padding: 0;
+}
+
+.mlsimport-steps li {
+counter-increment: step-counter;
+    position: relative;
+    padding-left: 44px;
+    margin-bottom: 20px;
+    line-height: 27px;
+}
+
+.mlsimport-steps li::before {
+    content: counter(step-counter);
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 30px;
+    height: 30px;
+    background-color: #635bff;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 500;
+}
 
 
 /*==2025 Inputs*/
