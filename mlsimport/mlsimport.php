@@ -3,7 +3,7 @@
  * Plugin Name:       MlsImport
  * Plugin URI:        https://mlsimport.com/
  * Description:       MLS Import - The MLSImport plugin facilitates the connection to your real estate MLS database, allowing you to download and synchronize real estate property data from the MLS.
- * Version:           6.1.1
+ * Version:           6.1.2
  * Requires at least: 5.2
  * Requires PHP:      7.4
  * License: GPLv3

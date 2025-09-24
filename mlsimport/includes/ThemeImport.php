@@ -199,7 +199,6 @@ class ThemeImport {
 			$refresh_result = self::refreshToken();
 			
 			if (!$refresh_result) {
-				//error_log('MLSImport: Failed to refresh expired token');
 				return false;
 			}
 		}
@@ -216,7 +215,6 @@ class ThemeImport {
 		$password = isset($options['mlsimport_password']) ? $options['mlsimport_password'] : '';
 		
 		if (empty($username) || empty($password)) {
-			//error_log('MLSImport: Missing credentials for token refresh');
 			return false;
 		}
 		
@@ -240,7 +238,6 @@ class ThemeImport {
 		$response = wp_remote_post($url, $args);
 		
 		if (is_wp_error($response)) {
-			//error_log('MLSImport: Token refresh request failed: ' . $response->get_error_message());
 			return false;
 		}
 		
@@ -248,7 +245,6 @@ class ThemeImport {
 		$data = json_decode($body, true);
 		
 		if (!isset($data['success']) || !$data['success'] || !isset($data['token']) || !isset($data['expires'])) {
-			//error_log('MLSImport: Invalid token refresh response');
 			return false;
 		}
 		
@@ -260,14 +256,12 @@ class ThemeImport {
 
 		update_option('mlsimport_token_expiry', intval($data['expires']));
 		
-		//error_log('MLSImport: Token successfully refreshed. Expires: ' . date('Y-m-d H:i:s', $data['expires']));
 		
 		return true;
 	}
 
 
 /**
- * Parse Result Array with //error_log memory tracking and enhanced memory management
  *
  * @param array $readyToParseArray The array ready to be parsed.
  * @param array $itemIdArray The item ID array.
@@ -280,7 +274,6 @@ public function mlsimportSaasParseSearchArrayPerItem($readyToParseArray, $itemId
     
     // Log initial memory usage
     $initialMemory = memory_get_usage(true);
-    //error_log("MLS Import - START batch {$batchKey} - Memory: " . round($initialMemory / 1048576, 2) . " MB");
     
     $counterProp = 0;
     $processedData = [];
@@ -288,7 +281,6 @@ public function mlsimportSaasParseSearchArrayPerItem($readyToParseArray, $itemId
     if (isset($readyToParseArray['data']) && is_array($readyToParseArray['data'])) {
         // Log total items to process
         $totalItems = count($readyToParseArray['data']);
-        //error_log("MLS Import - Processing {$totalItems} properties in batch {$batchKey}");
         
 	
 
@@ -315,7 +307,6 @@ public function mlsimportSaasParseSearchArrayPerItem($readyToParseArray, $itemId
 		$mlsimportItemId = intval($itemIdArray['item_id']);
 
 		$current_prop_value = (int) get_post_meta( $mlsimportItemId, 'mlsimport_progress_properties', true );
-		//error_log('for itemID '.$mlsimportItemId.' count1 -> before bathich '.$current_prop_value);
 
         
         // Process each property
@@ -327,7 +318,6 @@ public function mlsimportSaasParseSearchArrayPerItem($readyToParseArray, $itemId
             $memoryBeforeMB = round($memoryBefore / 1048576, 2);
             
             $listingKey = isset($property['ListingKey']) ? $property['ListingKey'] : 'unknown';
-            //error_log("MLS Import - Before property {$counterProp}/{$totalItems} (ListingKey: {$listingKey}) - Memory: {$memoryBeforeMB} MB");
             
             // Clear out database caches that might be polluted
             wp_cache_delete('mlsimport_force_stop_' . $itemIdArray['item_id'], 'options');
@@ -340,7 +330,6 @@ public function mlsimportSaasParseSearchArrayPerItem($readyToParseArray, $itemId
 				   
 				$current_prop_value = $current_prop_value + 1;
 				update_post_meta( $mlsimportItemId, 'mlsimport_progress_properties', $current_prop_value );
-				//error_log(' count2 -> after updateing '.$current_prop_value);
 
 
 
@@ -352,11 +341,9 @@ public function mlsimportSaasParseSearchArrayPerItem($readyToParseArray, $itemId
                 $memoryAfterMB = round($memoryAfter / 1048576, 2);
                 $memoryDiff = round(($memoryAfter - $memoryBefore) / 1048576, 2);
                 
-                //error_log("MLS Import - After property {$counterProp}/{$totalItems} - Memory: {$memoryAfterMB} MB, Diff: {$memoryDiff} MB");
                 
                 // Check for memory leak pattern
                 if ($memoryDiff > 10) {
-                    //error_log("MLS Import - WARNING: Significant memory increase of {$memoryDiff} MB after property {$counterProp}");
                     // Force cleanup on large increases
                     $this->cleanUpMemory(true);
                 }
@@ -377,10 +364,8 @@ public function mlsimportSaasParseSearchArrayPerItem($readyToParseArray, $itemId
                     // Log memory after cleanup
                     $memoryAfterCleanup = memory_get_usage(true);
                     $freedMemory = round(($memoryAfter - $memoryAfterCleanup) / 1048576, 2);
-                    //error_log("MLS Import - After cleanup: {$freedMemory} MB freed, Current: " . round($memoryAfterCleanup / 1048576, 2) . " MB");
                 }
             } else {
-                //error_log("MLS Import - Import stopped by user command at property {$counterProp}");
                 update_post_meta($itemIdArray['item_id'], 'mlsimport_spawn_status', 'completed');
                 break;
             }
@@ -389,7 +374,6 @@ public function mlsimportSaasParseSearchArrayPerItem($readyToParseArray, $itemId
             unset($processedData[$key]);
         }
     } else {
-        //error_log("MLS Import - No valid data in batch {$batchKey}");
     }
     
     // Final cleanup
@@ -402,8 +386,6 @@ public function mlsimportSaasParseSearchArrayPerItem($readyToParseArray, $itemId
     $totalMemoryDiff = round(($finalMemory - $initialMemory) / 1048576, 2);
     $peakMemory = round(memory_get_peak_usage(true) / 1048576, 2);
     
-    //error_log("MLS Import - END batch {$batchKey} - Processed {$counterProp} properties");
-    //error_log("MLS Import - Final Memory: {$finalMemoryMB} MB, Diff: {$totalMemoryDiff} MB, Peak: {$peakMemory} MB");
 }
 
 
@@ -602,7 +584,6 @@ private function cleanUpMemory($intensive = false) {
 				if (taxonomy_exists($taxonomy)) {
 					wp_delete_object_term_relationships($propertyId, $taxonomy);
 				} else {
-				//	//error_log("Taxonomy does not exist: {$taxonomy}");
 				}
 			}
 		}
@@ -835,11 +816,9 @@ private function cleanUpMemory($intensive = false) {
 	public function mlsimportSassAttachMediaToPost($propertyId, $media, $isInsert,$media_attachments,$featuredImageKey) {
 
 		$mediaHistory = [];
-		//error_log("MLSImport: Starting image processing for property ID: $propertyId");
 
 		if ($isInsert === 'no') {
 			$mediaHistory[] = 'Media - We have edit - images are not replaced';
-			//error_log("MLSImport: Edit mode detected, images not replaced.");
 			return $media_attachments;
 			//return implode('</br>', $mediaHistory);
 		}
@@ -857,12 +836,10 @@ private function cleanUpMemory($intensive = false) {
 		if (is_array($media)) {
 			foreach ($media as $key=>$image) {
 				if (isset($image['MediaCategory']) && $image['MediaCategory'] !== 'Property Photo' && $image['MediaCategory'] !== 'Photo') {
-					//error_log("MLSImport: Skipping non-photo media category: " . $image['MediaCategory']);
 					continue;
 				}
 
 				if ( empty( $image['MediaURL'] ) ) {
-					//error_log('empty mediaURL');
 					continue;
 				}
 
@@ -881,11 +858,8 @@ private function cleanUpMemory($intensive = false) {
 			
 	
 					$attachId = wp_insert_attachment($attachment, $file);
-					//error_log("Processing: " . $file . " - Result: " . (is_wp_error($attachId) ? $attachId->get_error_message() : $attachId));
 					if (is_wp_error($attachId)) {
-						//error_log("MLSImport: Failed to insert attachment for $file. Error: " . $attachId->get_error_message());
 					} else {
-						//error_log("MLSImport: Inserted attachment ID $attachId for file $file");
 						$mediaHistory[] = 'Media - Added ' . $file . ' as attachment ' . $attachId;
 						$media_attachments[]=$attachId;
 
@@ -896,21 +870,16 @@ private function cleanUpMemory($intensive = false) {
 						if ($key===$featuredImageKey){
 						
 				
-						//error_log("BEFORE set_post_thumbnail: hasFeatured=false, setting featuredImageKey=$featuredImageKey as $key featured for propertyId=$propertyId");
 						set_post_thumbnail($propertyId, $attachId);
 						
-						//	error_log("AFTER set_post_thumbnail: hasFeatured=true, attachId=$attachId should now be featured");
 						} else {
-						//	error_log("SKIPPING featured image: hasFeatured=true, attachId=$attachId");
 						}
 					}
 				} else {
-					//error_log("MLSImport: Media item missing 'MediaURL', skipping.");
 				}
 			}
 		} else {
 			$mediaHistory[] = 'Media data is blank - there are no images';
-			//error_log("MLSImport: Media array is not valid or empty.");
 		}
 
 		remove_filter('intermediate_image_sizes_advanced', [$this, 'wpcUnsetImageSizes']);
@@ -1186,7 +1155,6 @@ public function mlsimportSaasPrepareToImportPerItem($property, $itemIdArray, $ti
 	// Log initial memory
 	$memStart = memory_get_usage(true);
 	$memStartMB = round($memStart / 1048576, 2);
-	//error_log("PROPERTY IMPORT START - ListingKey: " . ($property['ListingKey'] ?? 'unknown') . " - Memory: {$memStartMB} MB");
 
 	$mlsImportItemStatus 		= $mlsimportItemOptionData['mlsimport_item_standardstatus'];
 	$mlsImportItemStatusDelete 	= $mlsimportItemOptionData['mlsimport_item_standardstatusdelete'];
@@ -1210,13 +1178,11 @@ public function mlsimportSaasPrepareToImportPerItem($property, $itemIdArray, $ti
 
 	// Memory before property ID lookup
 	$memBeforeRetrieve = memory_get_usage(true);
-	//error_log("PROPERTY IMPORT - Before property ID lookup - Memory: " . round($memBeforeRetrieve / 1048576, 2) . " MB");
 	
 	$propertyId 		= intval($this->mlsimportSaasRetrievePropertyById($ListingKey, $listingPostType));
 	
 	// Memory after property ID lookup
 	$memAfterRetrieve = memory_get_usage(true);
-	//error_log("PROPERTY IMPORT - After property ID lookup - Memory: " . round($memAfterRetrieve / 1048576, 2) . " MB, Diff: " . round(($memAfterRetrieve - $memBeforeRetrieve) / 1048576, 2) . " MB");
 	
 	$status 			= isset($property['StandardStatus']) ? strtolower($property['StandardStatus']) : strtolower($property['extra_meta']['MlsStatus']);
 	
@@ -1233,7 +1199,6 @@ public function mlsimportSaasPrepareToImportPerItem($property, $itemIdArray, $ti
 
 	// Memory before insert/update
 	$memBeforeInsert = memory_get_usage(true);
-	//error_log("PROPERTY IMPORT - Before " . ($isInsert === 'yes' ? "insert" : "update/check") . " - Memory: " . round($memBeforeInsert / 1048576, 2) . " MB");
 
 	if ($isInsert === 'yes') {
 		$post = [
@@ -1247,7 +1212,6 @@ public function mlsimportSaasPrepareToImportPerItem($property, $itemIdArray, $ti
 		$propertyId = wp_insert_post($post);
 		if (is_wp_error($propertyId)) {
 			$this->writeImportLogs('ERROR: on inserting ' . PHP_EOL, $tipImport);
-			//error_log("PROPERTY IMPORT ERROR - Failed to insert property: " . $propertyId->get_error_message());
 		} else {
 			update_post_meta($propertyId, 'ListingKey', $ListingKey);
 			update_post_meta($propertyId, 'MLSimport_item_inserted', $itemIdArray['item_id'],);
@@ -1261,7 +1225,6 @@ public function mlsimportSaasPrepareToImportPerItem($property, $itemIdArray, $ti
 	} elseif ($propertyId !== 0) {
 		// Memory before checking existing property
 		$memBeforeCheck = memory_get_usage(true);
-		//error_log("PROPERTY IMPORT - Before checking existing property - Memory: " . round($memBeforeCheck / 1048576, 2) . " MB");
 
 		$keep = $this->check_if_delete_when_status($propertyId,$mlsImportItemStatus,$mlsImportItemStatusDelete);
 
@@ -1271,13 +1234,11 @@ public function mlsimportSaasPrepareToImportPerItem($property, $itemIdArray, $ti
 			
 			// Memory before delete
 			$memBeforeDelete = memory_get_usage(true);
-			//error_log("PROPERTY IMPORT - Before deleting property - Memory: " . round($memBeforeDelete / 1048576, 2) . " MB");
 			
 			$this->deleteProperty($propertyId, $ListingKey);
 			
 			// Memory after delete
 			$memAfterDelete = memory_get_usage(true);
-			//error_log("PROPERTY IMPORT - After deleting property - Memory: " . round($memAfterDelete / 1048576, 2) . " MB, Diff: " . round(($memAfterDelete - $memBeforeDelete) / 1048576, 2) . " MB");
 			
 			$this->writeImportLogs($log, $tipImport);
 		} else {	
@@ -1285,19 +1246,16 @@ public function mlsimportSaasPrepareToImportPerItem($property, $itemIdArray, $ti
 			
 			// Memory before updating
 			$memBeforeUpdate = memory_get_usage(true);
-			//error_log("PROPERTY IMPORT - Before updating existing property - Memory: " . round($memBeforeUpdate / 1048576, 2) . " MB");
 			
 			$propertyHistory = $this->updateExistingProperty($propertyId,$mlsImportItemStatusDelete, $content, $listingPostType, $newAuthor, $status, $mlsImportItemStatus, $propertyHistory, $tipImport, $ListingKey);
 			
 			// Memory after updating
 			$memAfterUpdate = memory_get_usage(true);
-			//error_log("PROPERTY IMPORT - After updating existing property - Memory: " . round($memAfterUpdate / 1048576, 2) . " MB, Diff: " . round(($memAfterUpdate - $memBeforeUpdate) / 1048576, 2) . " MB");
 		}
 	}
 
 	// Memory after insert/update
 	$memAfterInsert = memory_get_usage(true);
-	//error_log("PROPERTY IMPORT - After " . ($isInsert === 'yes' ? "insert" : "update/check") . " - Memory: " . round($memAfterInsert / 1048576, 2) . " MB, Diff: " . round(($memAfterInsert - $memBeforeInsert) / 1048576, 2) . " MB");
 
 	if ($propertyId === 0) {
 		$this->writeImportLogs('ERROR property id is 0' . PHP_EOL, $tipImport);
@@ -1306,13 +1264,11 @@ public function mlsimportSaasPrepareToImportPerItem($property, $itemIdArray, $ti
 
 	// Memory before processing details
 	$memBeforeDetails = memory_get_usage(true);
-	//error_log("PROPERTY IMPORT - Before processing property details - Memory: " . round($memBeforeDetails / 1048576, 2) . " MB");
 
 	$newTitle = $this->processPropertyDetails($property, $propertyId, $tipImport, $propertyHistory, $newAgent, $itemIdArray,$isInsert);
 
 	// Memory after processing details
 	$memAfterDetails = memory_get_usage(true);
-	//error_log("PROPERTY IMPORT - After processing property details - Memory: " . round($memAfterDetails / 1048576, 2) . " MB, Diff: " . round(($memAfterDetails - $memBeforeDetails) / 1048576, 2) . " MB");
 
 	$log = PHP_EOL . 'Ending on Property ' . $propertyId . ', ListingKey: ' . $ListingKey . ' , is insert? ' . $isInsert . ' with new title: ' . $newTitle . '  ' . PHP_EOL;
 	$this->writeImportLogs($log, $tipImport);
@@ -1382,11 +1338,9 @@ public function mlsimportSaasPrepareToImportPerItem($property, $itemIdArray, $ti
 	$memEnd = memory_get_usage(true);
 	$memEndMB = round($memEnd / 1048576, 2);
 	$memDiff = round(($memEnd - $memStart) / 1048576, 2);
-	//error_log("PROPERTY IMPORT COMPLETE - ListingKey: {$ListingKey} - Final Memory: {$memEndMB} MB, Total Change: {$memDiff} MB");
 	
 	// If we see a significant memory increase, log a warning
 	if ($memDiff > 5) {
-		//error_log("WARNING: Significant memory increase of {$memDiff} MB after processing property {$ListingKey}");
 	}
 	
 	// Restore WordPress hooks
@@ -1419,8 +1373,8 @@ public function mlsimportSaasPrepareToImportPerItem($property, $itemIdArray, $ti
 			$tipImport
 		);
 
+
 		if ($propertyId !== 0 || !is_array($mlsImportItemStatus)) {
-			//error_log('mlsImportItemStatus 0 ');
 			return 'no';
 			
 		}
@@ -1438,18 +1392,15 @@ public function mlsimportSaasPrepareToImportPerItem($property, $itemIdArray, $ti
 		];
 		if(is_array($mlsImportItemStatus)){
 			if (!in_array(strtolower($status), $mlsImportItemStatus, true)) {
-				//error_log('mlsImportItemStatus 1 ');
 				return 'no';
 			}
 	
 			if ($tipImport === 'cron' && !in_array($status, $mlsImportItemStatus, true)) {
-				//error_log('mlsImportItemStatus 2');
 				return 'no';
 			}
 	
 		}else{
 			if(!in_array($status, $activeStatuses, true) ){
-				//error_log('mlsImportItemStatus 3 ');
 				return 'no';
 			}
 		}
@@ -1491,8 +1442,6 @@ public function check_if_delete_when_status($property_id, $mlsImportItemStatus, 
         $post_status = strtolower(get_post_meta($property_id, 'inspiry_property_label', true));
     }
 
-    // //error_log for debugging (can comment out in production)
-    // //error_log("[MLSImport] post_status: {$post_status} | keep_status: " . json_encode($mlsImportItemStatus) . " | delete_status: " . json_encode($mlsImportItemStatusDelete));
 
     // Keep if status matches "keep" status
     if ((is_array($mlsImportItemStatus) && in_array($post_status, $mlsImportItemStatus, true)) ||
@@ -1664,7 +1613,6 @@ private function processPropertyDetails($property, $propertyId, $tipImport, &$pr
     
     // Initial memory
     $memStart = memory_get_usage(true);
-    //error_log("PROPERTY DETAILS START - Property ID: {$propertyId} - Initial Memory: " . round($memStart / 1048576, 2) . " MB");
     
     $log = PHP_EOL . $this->mlsimportMemUsage() . '====before tax======' . PHP_EOL;
     $this->writeImportLogs($log, $tipImport);
@@ -1672,7 +1620,6 @@ private function processPropertyDetails($property, $propertyId, $tipImport, &$pr
     // 3. OPTIMIZE TAXONOMY PROCESSING
     if (isset($property['taxonomies']) && is_array($property['taxonomies'])) {
         $memBeforeTax = memory_get_usage(true);
-        //error_log("PROPERTY DETAILS - Before taxonomy processing - Memory: " . round($memBeforeTax / 1048576, 2) . " MB");
 
         // Load taxonomy mapping options
         $options = get_option('mlsimport_admin_fields_select');
@@ -1730,7 +1677,6 @@ private function processPropertyDetails($property, $propertyId, $tipImport, &$pr
         wp_defer_term_counting(false);
         
         $memAfterTax = memory_get_usage(true);
-        //error_log("PROPERTY DETAILS - After all taxonomy processing - Memory: " . round($memAfterTax / 1048576, 2) . 
               //   " MB, Total Diff: " . round(($memAfterTax - $memBeforeTax) / 1048576, 2) . " MB");
     }
     
@@ -1797,7 +1743,6 @@ private function processPropertyDetails($property, $propertyId, $tipImport, &$pr
         }
         
         $memAfterMeta = memory_get_usage(true);
-        //error_log("PROPERTY DETAILS - After meta processing - Memory: " . round($memAfterMeta / 1048576, 2) . 
             //     " MB, Diff: " . round(($memAfterMeta - $memBeforeMeta) / 1048576, 2) . " MB");
     }
     
@@ -1815,7 +1760,6 @@ private function processPropertyDetails($property, $propertyId, $tipImport, &$pr
 		$media_attachments=array();
 
         $mediaCount = count($property['Media']);
-        //error_log("PROPERTY DETAILS - Processing {$mediaCount} media items");
         
 
 
@@ -1823,7 +1767,6 @@ private function processPropertyDetails($property, $propertyId, $tipImport, &$pr
 		if (isset($property['Media'][0]['Order'])) {
 			$order = array_column($property['Media'], 'Order');
 			array_multisort($order, SORT_ASC, $property['Media']);
-			//error_log("MLSImport: Media sorted by 'Order'");
 		}
 
 
@@ -1848,7 +1791,6 @@ private function processPropertyDetails($property, $propertyId, $tipImport, &$pr
 			// Priority 1: PreferredPhotoYN = 1 (immediate selection)
 			if (isset($mediaItem['PreferredPhotoYN']) && $mediaItem['PreferredPhotoYN'] == 1) {
 				$featuredImageKey = $key;
-				//error_log("MLSImport: Featured image set from PreferredPhotoYN");
 				break;
 			}
 
@@ -1862,19 +1804,16 @@ private function processPropertyDetails($property, $propertyId, $tipImport, &$pr
 
 		if ($featuredImageKey === null && $orderOneKey !== null) {
 			$featuredImageKey = $orderOneKey;
-			//error_log("MLSImport: Featured image set from Order = 1");
 		}
 
 		// Use Order = 1 image if no preferred image was found
 		if ($featuredImageKey === null && $orderOneKey !== null) {
 			$featuredImageKey = $orderOneKey;
-			//error_log("MLSImport: Featured image set from Order = 1");
 		}
 
 		// Priority 3: Use first image if nothing else found
 		if ($featuredImageKey === null && !empty($property['Media'])) {
 			$featuredImageKey = 0;
-			//error_log("MLSImport: Featured image set as first image in array");
 		}
 
 
@@ -1884,7 +1823,6 @@ private function processPropertyDetails($property, $propertyId, $tipImport, &$pr
 			delete_post_meta($propertyId, 'fave_property_images');
 			delete_post_meta($propertyId, 'REAL_HOMES_property_images');
 			delete_post_meta($propertyId, 'wpestate_property_gallery');
-			//error_log("MLSImport: Deleted existing image meta for property ID: $propertyId");
 		}
 
         
@@ -1898,7 +1836,6 @@ private function processPropertyDetails($property, $propertyId, $tipImport, &$pr
             gc_collect_cycles();
             
             // Incremental progress report
-            //error_log("PROPERTY DETAILS - Processed media chunk " . ($index + 1) . "/" . count($mediaChunks));
         }
         
 
@@ -1920,7 +1857,6 @@ private function processPropertyDetails($property, $propertyId, $tipImport, &$pr
     
 
     $memAfterMedia = memory_get_usage(true);
-    //error_log("PROPERTY DETAILS - After media processing - Memory: " . round($memAfterMedia / 1048576, 2) . 
            //  " MB, Diff: " . round(($memAfterMedia - $memBeforeMedia) / 1048576, 2) . " MB");
     
     // Update title
@@ -1973,9 +1909,6 @@ private function processPropertyDetails($property, $propertyId, $tipImport, &$pr
     
     // Final memory stats
     $memEnd = memory_get_usage(true);
-    //error_log("PROPERTY DETAILS COMPLETE - Property ID: {$propertyId} - " . 
-       //      "Final Memory: " . round($memEnd / 1048576, 2) . " MB, " . 
-       //      "Total Change: " . round(($memEnd - $memStart) / 1048576, 2) . " MB");
     
     return $newTitle;
 }

@@ -1041,7 +1041,6 @@ class Mlsimport_Admin {
 			delete_transient( 'mlsimport_saas_token' );
 
 			delete_option( 'mlsimport_mls_metadata_populated' );
-			//error_log('deleting '.$prev_mls.' - '.$mls_name);
 
 			delete_option( 'mlsimport_admin_fields_select' );
 		}
@@ -1182,7 +1181,7 @@ class Mlsimport_Admin {
 	 *
 	 * @param WP_Post $post The post object.
 	 */
-	public function mlsimport_saas_display_meta_options($post) {
+        public function mlsimport_saas_display_meta_options($post) {
                 wp_nonce_field(plugin_basename(__FILE__), 'estate_agent_noncename');
                 global $mlsimport;
 
@@ -1249,6 +1248,7 @@ class Mlsimport_Admin {
 	 * @return string The generated HTML.
 	 */
        private function generateMetaOptionsHtml($postId, $foundItems, $lastDate, $mlsimportItemHowMany, $mlsimportItemStatCron, $mlsimportMlsId, $fieldImport, $hasError = false) {
+
 
 		ob_start();
 
@@ -1587,7 +1587,6 @@ class Mlsimport_Admin {
         */
        public function mlsimport_saas_start_cron_links_per_item( $item_id ) {
            // Log memory before start
-           //error_log("[MLSimport] Start $item_id, memory: " . (memory_get_usage(true) / 1024 / 1024) . " MB");
 
            $last_date = $this->mlsimport_saas_get_last_date( $item_id );
            print 'MLSitem id: ' . $item_id . ' - ';
@@ -1596,7 +1595,6 @@ class Mlsimport_Admin {
 
            // Make request to MLS API
            $mlsrequest = $this->mlsimport_make_listing_requests( $item_id, $last_date );
-           //error_log("[MLSimport] After mlsimport_make_listing_requests, memory: " . (memory_get_usage(true) / 1024 / 1024) . " MB");
 
            $found_items = 0;
            if ( isset( $mlsrequest['results'] ) ) {
@@ -1618,7 +1616,6 @@ class Mlsimport_Admin {
 
                // Potentially large array, log memory before/after
                $attachments_to_move = (array) $this->mlsimport_saas_generate_import_requests_per_item( $item_id_array, $last_date );
-               //error_log("[MLSimport] After generate_import_requests_per_item, memory: " . (memory_get_usage(true) / 1024 / 1024) . " MB");
 
                // Store in post meta (beware if array is huge)
                update_post_meta( $item_id, 'mlsimport_spawn_status_cron_job', 'started' );
@@ -1640,7 +1637,6 @@ class Mlsimport_Admin {
                // Unset large arrays/objects after use
                unset($attachments_to_move, $attachments_to_send, $mlsrequest, $item_id_array);
                gc_collect_cycles();
-               //error_log("[MLSimport] End processing $item_id, memory: " . (memory_get_usage(true) / 1024 / 1024) . " MB");
            }
        }
 
@@ -2396,8 +2392,6 @@ function mlsimport_preload_all_mls_item_status_meta() {
 			'batch_counter' => 1,
 		);
 
-		//error_log(json_encode($item_id_array));
-		//error_log("starting post id ".$post_id);
 
                 update_post_meta( $post_id, 'mlsimport_attach_to_move_' . $post_id, '' );
 
@@ -2541,7 +2535,6 @@ function mlsimport_preload_all_mls_item_status_meta() {
 		if ( $how_many > 10000 ) {
 			$how_many = 10000;
 		}
-		//error_log('updating  for '.$prop_id.' with'. $how_many);
 		update_post_meta($prop_id,'mlsimport_task_to_import', intval($how_many) );
 
 		if ( $how_many < $import_step ) {
@@ -2598,10 +2591,6 @@ function mlsimport_preload_all_mls_item_status_meta() {
 		);
 
 		$total_batches = count( $attachments_to_move );
-                
-		//error_log('$total_batches '. json_encode($total_batches) );
-                
-                
 
 		// removed because $this
 		global $mlsimport;
@@ -2630,7 +2619,6 @@ function mlsimport_preload_all_mls_item_status_meta() {
 
 				mlsimport_saas_single_write_import_custom_logs( $log );
 				$log = 'Parsing import batch: ' . ( $key + 1 ) . ' of ' . $total_batches . '. Memory used: ' . $mem_usage_show . ' MB.' . PHP_EOL;
-                                //error_log($log);
 				
 
 				// Combine logs and reduce function calls
@@ -2668,7 +2656,7 @@ function mlsimport_preload_all_mls_item_status_meta() {
 
 					//new stats
 					update_post_meta( $mlsimportItemId, 'mlsimport_progress_batches', $total_batches );
-                	update_post_meta( $mlsimportItemId, 'mlsimport_progress_memory', $final_mem_usage_show );
+				update_post_meta( $mlsimportItemId, 'mlsimport_progress_memory', $final_mem_usage_show );
                 
 
 					mlsimport_saas_single_write_import_custom_logs( PHP_EOL . 'Parsing importing link  FORCE STOP : ' );

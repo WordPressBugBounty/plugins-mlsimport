@@ -49,7 +49,6 @@ class HouzezClass {
 	 * @var      string    $plugin_name
 	 */
 	public function enviroment_image_save( $property_id, $attach_id ) {
-		////error_log(' for '.$property_id.' adding '.$attach_id);
 		add_post_meta( $property_id, 'fave_property_images', intval( $attach_id ) );
 	}
 
@@ -60,12 +59,104 @@ class HouzezClass {
 	 * @access   protected
 	 * @var      string    $plugin_name
 	 */
-	public function enviroment_image_save_gallery( $property_id, $post_attachments ) {
+	        public function enviroment_image_save_gallery( $property_id, $post_attachments ) {
       return;
-	}
+        }
 
-	
-	public function return_extra_fields( $property_id ) {
+
+        /**
+         * Format extra meta values into a safe string representation.
+         */
+        private function normalizeExtraMetaValue($meta_value) {
+                if (is_array($meta_value)) {
+                        $normalized = array();
+
+                        foreach ($meta_value as $value) {
+                                if (is_array($value)) {
+                                        $encoded = function_exists('wp_json_encode') ? wp_json_encode($value) : json_encode($value);
+
+                                        if (false !== $encoded && null !== $encoded) {
+                                                $normalized[] = $encoded;
+                                        }
+                                } else {
+                                        $value = trim((string) $value);
+                                        if ('' !== $value) {
+                                                $normalized[] = $value;
+                                        }
+                                }
+                        }
+
+                        if (empty($normalized)) {
+                                return '';
+                        }
+
+                        return implode(', ', $normalized);
+                }
+
+                return preg_replace('/\s*,\s*/', ', ', trim((string) $meta_value));
+        }
+
+        /**
+         * Format Rooms extra meta entries into a single string.
+         */
+        private function formatRoomsExtraMeta($rooms) {
+                if (!is_array($rooms) || empty($rooms)) {
+                        return '';
+                }
+
+                $formatted_rooms = array();
+
+                foreach ($rooms as $room_details) {
+                        if (!is_array($room_details)) {
+                                continue;
+                        }
+
+                        $room_type  = isset($room_details['RoomType']) ? trim((string) $room_details['RoomType']) : '';
+                        $room_level = isset($room_details['RoomLevel']) ? trim((string) $room_details['RoomLevel']) : '';
+                        $room_length = isset($room_details['RoomLength']) ? trim((string) $room_details['RoomLength']) : '';
+                        $room_width = isset($room_details['RoomWidth']) ? trim((string) $room_details['RoomWidth']) : '';
+                        $room_units = isset($room_details['RoomLengthWidthUnits']) ? trim((string) $room_details['RoomLengthWidthUnits']) : '';
+
+                        if ($room_type === '') {
+                                continue;
+                        }
+
+                        $details = array();
+                        if ($room_level !== '') {
+                                $details[] = $room_level;
+                        }
+
+                        $dimension = '';
+                        if ($room_length !== '' && $room_width !== '') {
+                                $dimension = $room_length . ' x ' . $room_width;
+                        } elseif ($room_length !== '') {
+                                $dimension = $room_length;
+                        } elseif ($room_width !== '') {
+                                $dimension = $room_width;
+                        }
+
+                        if ($dimension !== '') {
+                                if ($room_units !== '') {
+                                        $dimension .= ' ' . $room_units;
+                                }
+                                $details[] = $dimension;
+                        } elseif ($room_units !== '') {
+                                $details[] = $room_units;
+                        }
+
+                        $formatted_value = $room_type;
+                        if (!empty($details)) {
+                                $formatted_value .= ': ' . implode(', ', $details);
+                        }
+
+                        $formatted_rooms[] = $formatted_value;
+                }
+
+                return implode(' | ', $formatted_rooms);
+        }
+
+        public function return_extra_fields
+( $property_id ) {
 		return get_post_meta( $property_id, 'additional_features', true );
 	}
 
@@ -73,140 +164,140 @@ class HouzezClass {
 	/**
 	 * Deal with extra meta
 		*/
-	public function mlsimportSaasSetExtraMeta( $property_id, $property ) {
-		$property_history = '';
-		$extra_meta_log   = '';
-		$answer           = array();
-		$extra_fields     = array();
-		$options = get_option('mlsimport_admin_fields_select');
-		$permited_meta = isset($options['mls-fields']) ? $options['mls-fields'] : array();
+        public function mlsimportSaasSetExtraMeta( $property_id, $property ) {
+                $property_history = '';
+                $extra_meta_log   = '';
+                $answer           = array();
+                $extra_fields     = array();
+                $options = get_option('mlsimport_admin_fields_select');
+                $permited_meta = isset($options['mls-fields']) ? $options['mls-fields'] : array();
 
-		// Log input data
-		
+                if ( isset( $property['meta']['houzez_geolocation_long'] ) && isset( $property['meta']['houzez_geolocation_lat'] ) ) {
+                        $savingx = $property['meta']['houzez_geolocation_lat'] . ',' . $property['meta']['houzez_geolocation_long'];
+                        update_post_meta( $property_id, 'fave_property_location', $savingx );
+                        update_post_meta( $property_id, 'property_location', $savingx );
+                        $property_history .= 'Update Coordinates Meta (having houzez_geolocation_long ) with ' . $savingx . '</br>';
+                        $extra_meta_log   .= 'Property with ID ' . $property_id . '  Update Coordinates Meta with ' . $savingx . PHP_EOL;
+                } elseif ( isset( $property['meta']['property_longitude'] ) && isset( $property['meta']['property_latitude'] ) ) {
+                        $savingx = $property['meta']['property_latitude'] . ',' . $property['meta']['property_longitude'];
+                        update_post_meta( $property_id, 'fave_property_location', $savingx );
+                        update_post_meta( $property_id, 'property_location', $savingx );
+                        $property_history .= 'Update Coordinates Meta (having property_longitude) with ' . $savingx . '</br>';
+                        $extra_meta_log   .= 'Property with ID ' . $property_id . '  Update Coordinates Meta with ' . $savingx . PHP_EOL;
+                }
 
+                if ( isset( $property['extra_meta'] ) && is_array( $property['extra_meta'] ) ) {
+                        $meta_properties = $property['extra_meta'];
 
-		// save geo coordinates
-		if ( isset( $property['meta']['houzez_geolocation_long'] ) && isset( $property['meta']['houzez_geolocation_lat'] ) ) {
-			$savingx = $property['meta']['houzez_geolocation_lat'] . ',' . $property['meta']['houzez_geolocation_long'];
-			update_post_meta( $property_id, 'fave_property_location', $savingx );
-			update_post_meta( $property_id, 'property_location', $savingx );
-			$property_history .= 'Update Coordinates Meta (having houzez_geolocation_long ) with ' . $savingx . '</br>';
-			$extra_meta_log   .= 'Property with ID ' . $property_id . '  Update Coordinates Meta with ' . $savingx . PHP_EOL;
-			//error_log($extra_meta_log);
-		} elseif ( isset( $property['meta']['property_longitude'] ) && isset( $property['meta']['property_latitude'] ) ) {
-			$savingx = $property['meta']['property_latitude'] . ',' . $property['meta']['property_longitude'];
-			update_post_meta( $property_id, 'fave_property_location', $savingx );
-			update_post_meta( $property_id, 'property_location', $savingx );
-			$property_history .= 'Update Coordinates Meta (having property_longitude) with ' . $savingx . '</br>';
-			$extra_meta_log   .= 'Property with ID ' . $property_id . '  Update Coordinates Meta with ' . $savingx . PHP_EOL;
-			//error_log($extra_meta_log);
-		}
+                        foreach ( $meta_properties as $meta_name => $meta_value ) {
+                                if ( ! isset( $permited_meta[ $meta_name ] ) || intval( $permited_meta[ $meta_name ] ) === 0 ) {
+                                        continue;
+                                }
 
-		if ( isset( $property['extra_meta'] ) && is_array( $property['extra_meta'] ) ) {
-			$meta_properties = $property['extra_meta'];
-			foreach ( $meta_properties as $meta_name => $meta_value ) :
-				$orignal_meta_name = $meta_name;
+                                if ( 'Rooms' === $meta_name && is_array( $meta_value ) ) {
+                                        $formatted_rooms = $this->formatRoomsExtraMeta( $meta_value );
+                                        if ( '' === $formatted_rooms ) {
+                                                continue;
+                                        }
 
-				//error_log('doing meta_name: '.$meta_name.' with '.$meta_value);
+                                        // Save the formatted value on the dedicated meta key and
+                                        // reuse the string for the rest of the processing pipeline
+                                        // (custom mappings, additional features, etc.).
+                                        update_post_meta( $property_id, 'rooms', $formatted_rooms );
+                                        $property_history .= 'Updated EXTRA Meta rooms</br>';
+                                        $extra_meta_log   .= 'Property with ID ' . $property_id . ' Updated EXTRA Meta rooms with value ' . $formatted_rooms . PHP_EOL;
 
-				if ( ! isset( $permited_meta[ $meta_name ] ) || intval( $permited_meta[ $meta_name ] ) === 0 ) {
-				
-					continue;
-				}
+                                        $meta_value = $formatted_rooms;
+                                }
 
-                               if ( is_array( $meta_value ) ) {
-                                       $meta_value = implode( ', ', array_map( 'trim', $meta_value ) );
-                               } else {
-                                       $meta_value = preg_replace( '/\s*,\s*/', ', ', trim( $meta_value ) );
-                               }
+                                $meta_value = $this->normalizeExtraMetaValue( $meta_value );
+                                $orignal_meta_name = $meta_name;
+                                $feature_name = isset( $options['mls-fields-label'][ $meta_name ] ) && '' !== $options['mls-fields-label'][ $meta_name ] ? $options['mls-fields-label'][ $meta_name ] : $meta_name;
 
-							if ( '' !== $meta_value
-									&& isset( $options['mls-fields'][ $meta_name ] )
-									&& 1 === intval( $options['mls-fields'][ $meta_name ] )
-							) {
-									$feature_name = isset( $options['mls-fields-label'][ $meta_name ] ) && '' !== $options['mls-fields-label'][ $meta_name ] ? $options['mls-fields-label'][ $meta_name ] : $meta_name;
-                                        if( isset( $options['mls-fields-map-postmeta'][ $orignal_meta_name ]) && $options['mls-fields-map-postmeta'][ $orignal_meta_name ]!==''   ){
-                                                $new_post_meta_key=$options['mls-fields-map-postmeta'][ $orignal_meta_name ];
+                                if ( isset( $options['mls-fields-map-postmeta'][ $orignal_meta_name ] ) && $options['mls-fields-map-postmeta'][ $orignal_meta_name ] !== '' ) {
+                                        $new_post_meta_key = $options['mls-fields-map-postmeta'][ $orignal_meta_name ];
+                                        update_post_meta( $property_id, $new_post_meta_key, $meta_value );
+                                        $log_msg = 'Property with ID ' . $property_id . ' Updated CUSTOM post meta ' . $new_post_meta_key . ' original ' . $meta_name . ' with value ' . $meta_value;
+                                        $property_history .= $log_msg . '</br>';
+                                        $extra_meta_log   .= $log_msg . PHP_EOL;
+                                        continue;
+                                }
 
-					//if ( isset( $options['mls-fields-map-postmeta'][ $meta_name ]) && $options['mls-fields-map-postmeta'][ $meta_name ] !== '' ) {
-						$new_post_meta_key = $options['mls-fields-map-postmeta'][ $orignal_meta_name ];
-						update_post_meta( $property_id, $new_post_meta_key, $meta_value );
-						$log_msg = 'Property with ID ' . $property_id . ' Updated CUSTOM post meta ' . $new_post_meta_key . ' original ' . $meta_name . ' with value ' . $meta_value;
-						$property_history .= $log_msg . '</br>';
-						$extra_meta_log   .= $log_msg . PHP_EOL;
-						//error_log($log_msg);
-                                        } elseif ( isset( $options['mls-fields-map-taxonomy'][ $orignal_meta_name ]) && $options['mls-fields-map-taxonomy'][ $orignal_meta_name ] !== '' ) {
-                                                $new_taxonomy = $options['mls-fields-map-taxonomy'][ $orignal_meta_name ];
-                                                $custom_label = $options['mls-fields-label'][ $orignal_meta_name ];
-                                                if ( $custom_label === 'none' ) {
-                                                        $custom_label = '';
-                                                }
-                                                $meta_value_with_label = array( trim( $custom_label . ' ' . $meta_value ) );
+                                if ( isset( $options['mls-fields-map-taxonomy'][ $orignal_meta_name ] ) && $options['mls-fields-map-taxonomy'][ $orignal_meta_name ] !== '' ) {
+                                        $new_taxonomy = $options['mls-fields-map-taxonomy'][ $orignal_meta_name ];
+                                        $custom_label = isset( $options['mls-fields-label'][ $orignal_meta_name ] ) ? $options['mls-fields-label'][ $orignal_meta_name ] : '';
+                                        if ( 'none' === $custom_label ) {
+                                                $custom_label = '';
+                                        }
+                                        $term_value = trim( $custom_label . ' ' . $meta_value );
+                                        $meta_value_with_label = array();
+                                        if ( '' !== $term_value ) {
+                                                $meta_value_with_label[] = $term_value;
                                                 wp_set_object_terms( $property_id, $meta_value_with_label, $new_taxonomy, true );
                                                 clean_term_cache( $property_id, $new_taxonomy );
-						$log_msg = 'Updated CUSTOM TAX: ' . $new_taxonomy . '<-- original '.$orignal_meta_name.'/' . $meta_name . '/' . $custom_label . ' value ' . json_encode($meta_value_with_label);
-						$property_history .= $log_msg;
-						//error_log($log_msg);
-									} else {
-									if ( isset( $options['mls-fields-admin'][ $meta_name ] ) && intval( $options['mls-fields-admin'][ $meta_name ] ) === 0 ) {
-													// Determine correct field order regardless of storage format
-													if ( isset( $options['field_order'][ $orignal_meta_name ] ) ) {
-															$order = intval( $options['field_order'][ $orignal_meta_name ] );
-													} else {
-															$index = array_search( $orignal_meta_name, $options['field_order'], true );
-															$order = ( false !== $index ) ? intval( $index ) : 9999;
-													}
-													$element = array(
-															'meta_name'                    => $orignal_meta_name,
-															'fave_additional_feature_title' => $feature_name,
-															'fave_additional_feature_value' => $meta_value,
-															'order'                        => $order,
-													);
-													$extra_fields[] = $element;
-						} elseif ( isset( $options['mls-fields-admin'][ $meta_name ] ) && intval( $options['mls-fields-admin'][ $meta_name ] ) === 1 ) {
-							update_post_meta( $property_id, strtolower( $feature_name ), $meta_value );
-							$log_msg = 'Property with ID ' . $property_id . ' Updated EXTRA Meta ' . $meta_name . ' label ' . $feature_name . ' with value ' . $meta_value;
-							$property_history .= $log_msg . '</br>';
-							$extra_meta_log   .= $log_msg . PHP_EOL;
-							//error_log($log_msg);
-						}
-					}
-				}
-			endforeach;
+                                        }
+                                        $property_history .= 'Updated CUSTOM TAX: ' . $new_taxonomy . '<-- original ' . $orignal_meta_name . '/' . $meta_name . '/' . $custom_label . ' value ' . json_encode( $meta_value_with_label );
+                                        continue;
+                                }
 
-					usort(
-							$extra_fields,
-							function ( $a, $b ) {
-									$orderA = isset( $a['order'] ) ? intval( $a['order'] ) : 9999;
-									$orderB = isset( $b['order'] ) ? intval( $b['order'] ) : 9999;
-									return $orderA <=> $orderB;
-							}
-					);
+                                if (
+                                        '' !== $meta_value &&
+                                        isset( $options['mls-fields'][ $meta_name ] ) &&
+                                        1 === intval( $options['mls-fields'][ $meta_name ] )
+                                ) {
+                                        if (
+                                                isset( $options['mls-fields-admin'][ $meta_name ] ) &&
+                                                0 === intval( $options['mls-fields-admin'][ $meta_name ] )
+                                        ) {
+                                                if ( isset( $options['field_order'][ $orignal_meta_name ] ) ) {
+                                                        $order = intval( $options['field_order'][ $orignal_meta_name ] );
+                                                } else {
+                                                        $index = array_search( $orignal_meta_name, $options['field_order'], true );
+                                                        $order = ( false !== $index ) ? intval( $index ) : 9999;
+                                                }
+                                                $extra_fields[] = array(
+                                                        'meta_name' => $orignal_meta_name,
+                                                        'fave_additional_feature_title' => $feature_name,
+                                                        'fave_additional_feature_value' => $meta_value,
+                                                        'order' => $order,
+                                                );
+                                        } elseif (
+                                                isset( $options['mls-fields-admin'][ $meta_name ] ) &&
+                                                1 === intval( $options['mls-fields-admin'][ $meta_name ] )
+                                        ) {
+                                                update_post_meta( $property_id, strtolower( $feature_name ), $meta_value );
+                                                $log_msg = 'Property with ID ' . $property_id . ' Updated EXTRA Meta ' . $meta_name . ' label ' . $feature_name . ' with value ' . $meta_value;
+                                                $property_history .= $log_msg . '</br>';
+                                                $extra_meta_log   .= $log_msg . PHP_EOL;
+                                        }
+                                }
+                        }
 
-					// Remove helper keys before saving
-					$ordered_extra_fields = array();
-					foreach ( $extra_fields as $field ) {
-							$ordered_extra_fields[] = array(
-									'fave_additional_feature_title' => $field['fave_additional_feature_title'],
-									'fave_additional_feature_value' => $field['fave_additional_feature_value'],
-							);
-					}
+                        usort(
+                                $extra_fields,
+                                function ( $a, $b ) {
+                                        $orderA = isset( $a['order'] ) ? intval( $a['order'] ) : 9999;
+                                        $orderB = isset( $b['order'] ) ? intval( $b['order'] ) : 9999;
+                                        return $orderA <=> $orderB;
+                                }
+                        );
 
+                        $ordered_extra_fields = array();
+                        foreach ( $extra_fields as $field ) {
+                                $ordered_extra_fields[] = array(
+                                        'fave_additional_feature_title' => $field['fave_additional_feature_title'],
+                                        'fave_additional_feature_value' => $field['fave_additional_feature_value'],
+                                );
+                        }
 
+                        update_post_meta( $property_id, 'additional_features', $ordered_extra_fields );
+                }
 
-					update_post_meta( $property_id, 'additional_features', $ordered_extra_fields );
+                $answer['property_history'] = $property_history;
+                $answer['extra_meta_log']   = $extra_meta_log;
 
-
-			$answer['property_history'] = $property_history;
-			$answer['extra_meta_log']   = $extra_meta_log;
-			//error_log("Final Property History for $property_id: " . $property_history);
-			//error_log("Final Extra Meta Log for $property_id: " . $extra_meta_log);
-		}
-
-		//error_log("mlsimportSaasSetExtraMeta END for property_id = $property_id");
-
-		return $answer;
-	}
+                return $answer;
+        }
 
 	/**
 	 * set hardcode fields after updated

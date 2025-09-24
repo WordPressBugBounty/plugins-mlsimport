@@ -71,31 +71,128 @@ class ResidenceClass {
 
 
 
-	/**
-	 * Deal with extra meta
-	 */
+        /**
+         * Format extra meta values into a safe string representation.
+         */
+        private function normalizeExtraMetaValue($meta_value) {
+                if (is_array($meta_value)) {
+                        $normalized = array();
+
+                        foreach ($meta_value as $value) {
+                                if (is_array($value)) {
+                                        if (function_exists('wp_json_encode')) {
+                                                $encoded = wp_json_encode($value);
+                                        } else {
+                                                $encoded = json_encode($value);
+                                        }
+
+                                        if (false !== $encoded && null !== $encoded) {
+                                                $normalized[] = $encoded;
+                                        }
+                                } else {
+                                        $value = trim((string) $value);
+                                        if ('' !== $value) {
+                                                $normalized[] = $value;
+                                        }
+                                }
+                        }
+
+                        if (empty($normalized)) {
+                                return '';
+                        }
+
+                        return implode(', ', $normalized);
+                }
+
+                return preg_replace('/\s*,\s*/', ', ', trim((string) $meta_value));
+        }
+
+       /**
+        * Format Rooms extra meta entries into a single string.
+        */
+       private function formatRoomsExtraMeta($rooms, $property_id) {
+               if (!is_array($rooms) || empty($rooms)) {
+                       return '';
+               }
 
 
-    /**
-     * Deal with extra meta
-     */
-    public function mlsimportSaasSetExtraMeta($property_id, $property) {
+               $formatted_rooms = array();
+
+               foreach ($rooms as $index => $room_details) {
+                       if (!is_array($room_details)) {
+                               continue;
+                       }
+
+                       $room_type  = isset($room_details['RoomType']) ? trim((string) $room_details['RoomType']) : '';
+                       $room_level = isset($room_details['RoomLevel']) ? trim((string) $room_details['RoomLevel']) : '';
+                       $room_length = isset($room_details['RoomLength']) ? trim((string) $room_details['RoomLength']) : '';
+                       $room_width = isset($room_details['RoomWidth']) ? trim((string) $room_details['RoomWidth']) : '';
+                       $room_units = isset($room_details['RoomLengthWidthUnits']) ? trim((string) $room_details['RoomLengthWidthUnits']) : '';
+
+                       if ($room_type === '') {
+                               continue;
+                       }
+
+                       $details = array();
+                       if ($room_level !== '') {
+                               $details[] = $room_level;
+                       }
+
+                       $dimension = '';
+                       if ($room_length !== '' && $room_width !== '') {
+                               $dimension = $room_length . ' x ' . $room_width;
+                       } elseif ($room_length !== '') {
+                               $dimension = $room_length;
+                       } elseif ($room_width !== '') {
+                               $dimension = $room_width;
+                       }
+
+                       if ($dimension !== '') {
+                               if ($room_units !== '') {
+                                       $dimension .= ' ' . $room_units;
+                               }
+                               $details[] = $dimension;
+                       } elseif ($room_units !== '') {
+                               $details[] = $room_units;
+                       }
+
+                       $formatted_value = $room_type;
+                       if (!empty($details)) {
+                               $formatted_value .= ': ' . implode(', ', $details);
+                       }
+
+                       $formatted_rooms[] = $formatted_value;
+               }
+
+               $result = implode(' | ', $formatted_rooms);
+
+               return $result;
+       }
+
+
+        /**
+         * Deal with extra meta
+         */
+
+
+        /**
+         * Deal with extra meta
+         */
+        public function mlsimportSaasSetExtraMeta($property_id, $property) {
         // Memory tracking
         $startMemory = memory_get_usage(true);
         $startMemoryFormatted = round($startMemory / 1048576, 2);
-        //error_log("[Memory-ExtraMeta] Starting extra meta processing with memory: {$startMemoryFormatted} MB");
 
         $property_history = array();
         $answer = array();
         
         if (!isset($property['extra_meta']) || !is_array($property['extra_meta'])) {
             $answer['property_history'] = '';
-            
+
             $endMemory = memory_get_usage(true);
             $endMemoryFormatted = round($endMemory / 1048576, 2);
             $memoryDiff = $endMemoryFormatted - $startMemoryFormatted;
-            //error_log("[Memory-ExtraMeta] No extra meta, finished with memory: {$endMemoryFormatted} MB (change: +{$memoryDiff} MB)");
-            
+
             return $answer;
         }
         
@@ -109,19 +206,18 @@ class ResidenceClass {
         $batch_count = 0;
         foreach ($meta_batches as $meta_batch_keys) {
             $batch_count++;
-            
+
             $batchMemory = memory_get_usage(true);
             $batchMemoryFormatted = round($batchMemory / 1048576, 2);
-            //error_log("[Memory-ExtraMeta] Processing batch {$batch_count} with memory: {$batchMemoryFormatted} MB");
             
             foreach ($meta_batch_keys as $meta_name) {
                 // Skip if meta doesn't exist in property extra_meta
                 if (!isset($property['extra_meta'][$meta_name])) {
                     continue;
                 }
-                
+
                 $meta_value = $property['extra_meta'][$meta_name];
-                
+
                 // Check if extra meta is set to import
                 if (!isset($permited_meta[$meta_name])) {
                     // We do not have the extra meta
@@ -130,7 +226,18 @@ class ResidenceClass {
                     // Meta exists but is set to no
                     continue;
                 }
-                
+
+                if ('Rooms' === $meta_name && is_array($meta_value)) {
+                    $formatted_rooms = $this->formatRoomsExtraMeta($meta_value, $property_id);
+                    if ($formatted_rooms !== '') {
+                        update_post_meta($property_id, 'rooms', $formatted_rooms);
+                        $property_history[] = 'Updated EXTRA Meta rooms';
+                    }
+                    continue;
+                }
+
+                $normalized_meta_value = $this->normalizeExtraMetaValue($meta_value);
+
                 $original_meta_name = $meta_name;
                 $meta_name_lower = strtolower($meta_name);
                 
@@ -138,15 +245,9 @@ class ResidenceClass {
                 if (isset($options['mls-fields-map-postmeta'][$original_meta_name]) && $options['mls-fields-map-postmeta'][$original_meta_name] !== '') {
                     $new_post_meta_key = $options['mls-fields-map-postmeta'][$original_meta_name];
 
-                    if (is_array($meta_value)) {
-                        $meta_value = implode(', ', array_map('trim', $meta_value));
-                    } else {
-                        $meta_value = preg_replace('/\s*,\s*/', ', ', trim($meta_value));
-                    }
-
-                    update_post_meta($property_id, $new_post_meta_key, $meta_value);
+                    update_post_meta($property_id, $new_post_meta_key, $normalized_meta_value);
                     $property_history[] = 'Updated CUSTOM post meta ' . $new_post_meta_key . ' original ' . $meta_name;
-                } 
+                }
                 // Process custom taxonomy mapping
                 else if (isset($options['mls-fields-map-taxonomy'][$original_meta_name]) && $options['mls-fields-map-taxonomy'][$original_meta_name] !== '') {
                     $new_taxonomy = $options['mls-fields-map-taxonomy'][$original_meta_name];
@@ -156,18 +257,16 @@ class ResidenceClass {
                         $custom_label = '';
                     }
 
-                    if (is_array($meta_value)) {
-                        $meta_value = implode(', ', array_map('trim', $meta_value));
-                    } else {
-                        $meta_value = preg_replace('/\s*,\s*/', ', ', trim($meta_value));
+                    $meta_value_with_label = array();
+                    $term_value = trim($custom_label . ' ' . $normalized_meta_value);
+                    if ($term_value !== '') {
+                        $meta_value_with_label[] = $term_value;
                     }
 
-                    $meta_value_with_label = array(trim($custom_label . ' ' . $meta_value));
-                    
-                    wp_set_object_terms($property_id, $meta_value_with_label, $new_taxonomy, true);
-                    
-                    // Fix the clean_term_cache call to avoid SQL errors
                     if (!empty($meta_value_with_label)) {
+                        wp_set_object_terms($property_id, $meta_value_with_label, $new_taxonomy, true);
+
+                        // Fix the clean_term_cache call to avoid SQL errors
                         $term_ids = array();
                         foreach ($meta_value_with_label as $term_name) {
                             $term = get_term_by('name', $term_name, $new_taxonomy);
@@ -175,28 +274,23 @@ class ResidenceClass {
                                 $term_ids[] = $term->term_id;
                             }
                         }
-                        
+
                         if (!empty($term_ids)) {
                             clean_term_cache($term_ids, $new_taxonomy);
                         }
                     }
-                    
+
                     $property_history[] = 'Updated CUSTOM TAX: ' . $new_taxonomy . ' original ' . $original_meta_name;
-                } 
+                }
                 // Standard meta update
                 else {
-                    if (is_array($meta_value)) {
-                        $meta_value = implode(', ', array_map('trim', $meta_value));
-                    } else {
-                        $meta_value = preg_replace('/\s*,\s*/', ', ', trim($meta_value));
-                    }
-
-                    update_post_meta($property_id, $meta_name_lower, $meta_value);
+                    update_post_meta($property_id, $meta_name_lower, $normalized_meta_value);
                     $property_history[] = 'Updated EXTRA Meta ' . $meta_name_lower;
                 }
-                
+
                 // Clear each variable after use
                 $meta_value = null;
+                $normalized_meta_value = null;
             }
             
             // Clean up after each batch
@@ -206,7 +300,6 @@ class ResidenceClass {
             $afterBatchMemory = memory_get_usage(true);
             $afterBatchMemoryFormatted = round($afterBatchMemory / 1048576, 2);
             $batchMemoryDiff = $afterBatchMemoryFormatted - $batchMemoryFormatted;
-            //error_log("[Memory-ExtraMeta] Finished batch {$batch_count} with memory: {$afterBatchMemoryFormatted} MB (change: +{$batchMemoryDiff} MB)");
         }
         
         // Remove unused code that was referencing undefined variables
@@ -217,7 +310,7 @@ class ResidenceClass {
             $property_history = array_slice($property_history, -20);
             $property_history[] = '... [truncated history to save memory] ...';
         }
-        
+
         $answer['property_history'] = implode('</br>', $property_history);
         
         // Clean up variables
@@ -229,7 +322,6 @@ class ResidenceClass {
         $endMemory = memory_get_usage(true);
         $endMemoryFormatted = round($endMemory / 1048576, 2);
         $memoryDiff = $endMemoryFormatted - $startMemoryFormatted;
-        //error_log("[Memory-ExtraMeta] Finished extra meta processing with memory: {$endMemoryFormatted} MB (change: +{$memoryDiff} MB)");
         
         return $answer;
     }
