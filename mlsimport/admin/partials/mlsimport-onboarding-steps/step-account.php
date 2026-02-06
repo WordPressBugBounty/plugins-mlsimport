@@ -16,10 +16,12 @@ $settings_list = array(
 	'mlsimport_password'                => array('name' => esc_html__('MLSImport.com Password', 'mlsimport')),
 	'mlsimport_mls_name'                => array('type' => 'select', 'name' => esc_html__('Your MLS', 'mlsimport')),
 	'mlsimport_mls_token'               => array('name' => esc_html__('Your API Server token -  provided by your MLS', 'mlsimport')),
-	'mlsimport_tresle_client_id'        => array('name' => esc_html__('Your Trestle Client ID - provided by your MLS', 'mlsimport')),
-	'mlsimport_tresle_client_secret'    => array('name' => esc_html__('Your Trestle Client Secret - provided by your MLS', 'mlsimport')),
-	'mlsimport_rapattoni_client_id'     => array('name' => esc_html__('MLSImport Rapattoni Client id', 'mlsimport')),
-	'mlsimport_rapattoni_client_secret' => array('name' => esc_html__('MLSImport Rapattoni Client Secret', 'mlsimport')),
+        'mlsimport_tresle_client_id'        => array('name' => esc_html__('Your Trestle Client ID - provided by your MLS', 'mlsimport')),
+        'mlsimport_tresle_client_secret'    => array('name' => esc_html__('Your Trestle Client Secret - provided by your MLS', 'mlsimport')),
+        'mlsimport_connectmls_username'     => array('name' => esc_html__('Your ConnectMLS Username - provided by your MLS', 'mlsimport')),
+        'mlsimport_connectmls_password'     => array('name' => esc_html__('Your ConnectMLS Password - provided by your MLS', 'mlsimport')),
+        'mlsimport_rapattoni_client_id'     => array('name' => esc_html__('MLSImport Rapattoni Client id', 'mlsimport')),
+        'mlsimport_rapattoni_client_secret' => array('name' => esc_html__('MLSImport Rapattoni Client Secret', 'mlsimport')),
 	'mlsimport_rapattoni_username'      => array('name' => esc_html__('MLSImport Rapattoni Username', 'mlsimport')),
 	'mlsimport_rapattoni_password'      => array('name' => esc_html__('MLSImport Rapattoni Client Password', 'mlsimport')),
 	'mlsimport_paragon_client_id'       => array('name' => esc_html__('MLSImport Paragon Client id', 'mlsimport')),
@@ -64,15 +66,16 @@ foreach ($settings_list as $key => $setting) {
 	} elseif ($key === 'mlsimport_theme_used' && isset($setting['type']) && $setting['type'] === 'select') {
 		$list = mlsiport_mls_select_list($key, $value, MLSIMPORT_THEME);
 		echo wp_kses($list, mlsimport_allowed_html_tags_content());
-	} else {
-		$type = $key === 'mlsimport_password' ? 'password' : 'text';
-		echo '<input type="' . $type . '" class="mlsimport-input xxx" autocomplete="off" id="' . esc_attr( 'mlsimport_admin_options') . '-' . esc_attr($key) . '" name="' . esc_attr('mlsimport_admin_options') . '[' . esc_attr($key) . ']" value="' . $value . '" />';
-	}
+        } else {
+                $password_fields = array('mlsimport_password', 'mlsimport_connectmls_password');
+                $type = in_array($key, $password_fields, true) ? 'password' : 'text';
+                echo '<input type="' . $type . '" class="mlsimport-input xxx" autocomplete="off" id="' . esc_attr( 'mlsimport_admin_options') . '-' . esc_attr($key) . '" name="' . esc_attr('mlsimport_admin_options') . '[' . esc_attr($key) . ']" value="' . $value . '" />';
+        }
 
     if($key ==='mlsimport_password'){
         echo '<button  class="button button-primary mlsimport-save-account">'.esc_html('Save account','mlsimport').'</button>';
-		echo '<a href="https://mlsimport.com/mls-import-plugin-pricing" class="button button-primary mlsimport-save-account"  style="margin-left:15px;" target="_blank">'. esc_html__('Create My Account', 'mlsimport').'</a>';
-	}
+                echo '<a href="https://mlsimport.com/mls-import-plugin-pricing" class="button button-primary mlsimport-save-account"  style="margin-left:15px;" target="_blank">'. esc_html__('Create My Account', 'mlsimport').'</a>';
+        }
 
 
 	echo '</fieldset>';

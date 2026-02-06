@@ -156,16 +156,20 @@ class RealHomesClass {
                 return implode(' | ', $formatted_rooms);
         }
 
-	/**
-	 * Deal with extra meta
-	 */
+        /**
+         * Deal with extra meta
+         */
         public function mlsimportSaasSetExtraMeta( $property_id, $property ) {
                 $property_history = '';
                 $extra_meta_log   = '';
                 $answer           = array();
                 $extra_fields     = array();
                 $options          = get_option( 'mlsimport_admin_fields_select' );
-                $permited_meta    = isset( $options['mls-fields'] ) ? $options['mls-fields'] : array();
+                if ( ! is_array( $options ) ) {
+                        $options = array();
+                }
+                $permited_meta = isset( $options['mls-fields'] ) && is_array( $options['mls-fields'] ) ? $options['mls-fields'] : array();
+                $field_order   = isset( $options['field_order'] ) && is_array( $options['field_order'] ) ? $options['field_order'] : array();
 
                 if ( isset( $property['meta']['property_longitude'] ) && isset( $property['meta']['property_latitude'] ) ) {
                         $savingx = $property['meta']['property_latitude'] . ',' . $property['meta']['property_longitude'];
@@ -221,10 +225,10 @@ class RealHomesClass {
                                                         isset( $options['mls-fields-admin'][ $meta_name ] ) &&
                                                         0 === intval( $options['mls-fields-admin'][ $meta_name ] )
                                                 ) {
-                                                        if ( isset( $options['field_order'][ $orignal_meta_name ] ) ) {
-                                                                $order = intval( $options['field_order'][ $orignal_meta_name ] );
+                                                        if ( isset( $field_order[ $orignal_meta_name ] ) ) {
+                                                                $order = intval( $field_order[ $orignal_meta_name ] );
                                                         } else {
-                                                                $index = array_search( $orignal_meta_name, $options['field_order'], true );
+                                                                $index = array_search( $orignal_meta_name, $field_order, true );
                                                                 $order = ( false !== $index ) ? intval( $index ) : 9999;
                                                         }
                                                         $extra_fields[] = array(
@@ -309,13 +313,13 @@ class RealHomesClass {
 
 
 
-	/**
-	 * save custom fields per environment
-	 *
-	 * @since    1.0.0
-	 * @access   protected
-	 * @var      string    $plugin_name
-	 */
+        /**
+         * save custom fields per environment
+         *
+         * @since    1.0.0
+         * @access   protected
+         * @var      string    $plugin_name
+         */
         public function enviroment_custom_fields( $option_name ) {
                 $theme_options = get_option( 'wpresidence_admin' );
                 $custom_fields = array();
@@ -334,12 +338,19 @@ class RealHomesClass {
                 }
 
                 $options = get_option( $option_name . '_admin_fields_select' );
+                if ( ! is_array( $options ) ) {
+                        $options = array();
+                }
+                $mls_fields       = isset( $options['mls-fields'] ) && is_array( $options['mls-fields'] ) ? $options['mls-fields'] : array();
+                $mls_fields_admin = isset( $options['mls-fields-admin'] ) && is_array( $options['mls-fields-admin'] ) ? $options['mls-fields-admin'] : array();
+                $mls_fields_tax   = isset( $options['mls-fields-map-taxonomy'] ) && is_array( $options['mls-fields-map-taxonomy'] ) ? $options['mls-fields-map-taxonomy'] : array();
+                $field_order      = isset( $options['field_order'] ) && is_array( $options['field_order'] ) ? $options['field_order'] : array();
 
-                foreach ( $options['mls-fields'] as $key => $value ) {
-                        $import   = intval( $value );
-                        $admin    = isset( $options['mls-fields-admin'][ $key ] ) ? intval( $options['mls-fields-admin'][ $key ] ) : 0;
-                        $taxonomy = isset( $options['mls-fields-map-taxonomy'][ $key ] ) ? $options['mls-fields-map-taxonomy'][ $key ] : '';
-                        $order_value = isset( $options['field_order'][ $key ] ) ? intval( $options['field_order'][ $key ] ) + 100 : 100;
+                foreach ( $mls_fields as $key => $value ) {
+                        $import      = intval( $value );
+                        $admin       = isset( $mls_fields_admin[ $key ] ) ? intval( $mls_fields_admin[ $key ] ) : 0;
+                        $taxonomy    = isset( $mls_fields_tax[ $key ] ) ? $mls_fields_tax[ $key ] : '';
+                        $order_value = isset( $field_order[ $key ] ) ? intval( $field_order[ $key ] ) + 100 : 100;
 
                         if ( 1 === $import && 0 === $admin && '' === $taxonomy ) {
                                 $existing_index = array_search( $key, $custom_fields['add_field_name'], true );

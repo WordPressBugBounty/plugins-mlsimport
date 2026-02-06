@@ -1210,6 +1210,7 @@ public function mlsimportSaasPrepareToImportPerItem($property, $itemIdArray, $ti
 		];
 
 		$propertyId = wp_insert_post($post);
+	
 		if (is_wp_error($propertyId)) {
 			$this->writeImportLogs('ERROR: on inserting ' . PHP_EOL, $tipImport);
 		} else {
@@ -1223,15 +1224,17 @@ public function mlsimportSaasPrepareToImportPerItem($property, $itemIdArray, $ti
 		clean_post_cache($propertyId);
 
 	} elseif ($propertyId !== 0) {
+
+			
 		// Memory before checking existing property
 		$memBeforeCheck = memory_get_usage(true);
 
-		$keep = $this->check_if_delete_when_status($propertyId,$mlsImportItemStatus,$mlsImportItemStatusDelete);
+		$keep = $this->check_if_delete_when_status_on_manual_import($propertyId,$mlsImportItemStatus,$mlsImportItemStatusDelete);
 
 
 		if(!$keep){
 			$log = 'Property with ID ' . $propertyId . ' and with name ' . get_the_title($propertyId) . ' has a status of <strong>' . $status . ' </strong> and will be deleted' . PHP_EOL;
-			
+	
 			// Memory before delete
 			$memBeforeDelete = memory_get_usage(true);
 			
@@ -1444,10 +1447,12 @@ public function check_if_delete_when_status($property_id, $mlsImportItemStatus, 
 
 
     // Keep if status matches "keep" status
-    if ((is_array($mlsImportItemStatus) && in_array($post_status, $mlsImportItemStatus, true)) ||
+    /* deactivated becausee we should check only delete stautuses not import statuse
+ 	if ((is_array($mlsImportItemStatus) && in_array($post_status, $mlsImportItemStatus, true)) ||
         (!is_array($mlsImportItemStatus) && $post_status === $mlsImportItemStatus)) {
         return true;
     }
+	*/
 
     // Delete if status matches "delete" status
     if (!empty($mlsImportItemStatusDelete)) {
@@ -1464,6 +1469,46 @@ public function check_if_delete_when_status($property_id, $mlsImportItemStatus, 
 
 
 
+public function check_if_delete_when_status_on_manual_import($property_id, $mlsImportItemStatus, $mlsImportItemStatusDelete) {
+    // Normalize status arrays/strings to lowercase
+    $mlsImportItemStatus = is_array($mlsImportItemStatus)
+        ? array_map('strtolower', $mlsImportItemStatus)
+        : strtolower($mlsImportItemStatus);
+
+    $mlsImportItemStatusDelete = is_array($mlsImportItemStatusDelete)
+        ? array_map('strtolower', $mlsImportItemStatusDelete)
+        : strtolower($mlsImportItemStatusDelete);
+
+    // Get post_status based on post type/taxonomy
+    $post_status = '';
+    if (post_type_exists('estate_property')) {
+        $terms = get_the_terms($property_id, 'property_status');
+        if (!empty($terms) && is_array($terms)) {
+            $post_status = strtolower($terms[0]->name);
+        }
+    } elseif (post_type_exists('property') && taxonomy_exists('property_label')) {
+        $terms = get_the_terms($property_id, 'property_label');
+        if (!empty($terms) && is_array($terms)) {
+            $post_status = strtolower($terms[0]->name);
+        }
+    } else {
+        $post_status = strtolower(get_post_meta($property_id, 'inspiry_property_label', true));
+    }
+
+
+
+    // Keep if status matches "keep" status
+ 	if ((is_array($mlsImportItemStatus) && in_array($post_status, $mlsImportItemStatus, true)) ||
+        (!is_array($mlsImportItemStatus) && $post_status === $mlsImportItemStatus)) {
+		
+        return true;
+    }
+
+
+
+    // Default: keep
+    return false;
+}
 
 
 
@@ -1471,6 +1516,7 @@ public function check_if_delete_when_status($property_id, $mlsImportItemStatus, 
 	
 	/**
         * Check if we should keep or delete the listing when still in MLS.
+	    * true we keep 
         */
        public function check_if_delete_when_status_when_in_mls($property_id,$mlsimport_item_standardstatus) {
            // Get the inserted item and its MLS standard status

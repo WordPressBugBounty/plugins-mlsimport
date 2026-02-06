@@ -412,7 +412,12 @@ label.mlsimport_switch {
 
 .fieldset_mlsimport_tresle_client_id,
 .fieldset_mlsimport_tresle_client_secret{
-	display:none;
+        display:none;
+}
+
+.fieldset_mlsimport_connectmls_username,
+.fieldset_mlsimport_connectmls_password{
+        display:none;
 }
 
 

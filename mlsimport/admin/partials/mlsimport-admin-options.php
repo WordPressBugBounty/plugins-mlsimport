@@ -43,15 +43,25 @@ if ( ! defined( 'ABSPATH' ) ) {
 			'details' => 'to be added',
 		),
 
-		'mlsimport_tresle_client_secret'    => array(
-			'name'    => esc_html__( 'Your Trestle Client Secret - provided by your MLS', 'mlsimport' ),
-			'details' => 'to be added',
-		),
+                'mlsimport_tresle_client_secret'    => array(
+                        'name'    => esc_html__( 'Your Trestle Client Secret - provided by your MLS', 'mlsimport' ),
+                        'details' => 'to be added',
+                ),
 
-		'mlsimport_rapattoni_client_id'     => array(
-			'name'    => esc_html__( 'MLSImport Rapattoni Client id', 'mlsimport' ),
-			'details' => 'to be added',
-		),
+                'mlsimport_connectmls_username'     => array(
+                        'name'    => esc_html__( 'Your ConnectMLS Username - provided by your MLS', 'mlsimport' ),
+                        'details' => 'to be added',
+                ),
+
+                'mlsimport_connectmls_password'     => array(
+                        'name'    => esc_html__( 'Your ConnectMLS Password - provided by your MLS', 'mlsimport' ),
+                        'details' => 'to be added',
+                ),
+
+                'mlsimport_rapattoni_client_id'     => array(
+                        'name'    => esc_html__( 'MLSImport Rapattoni Client id', 'mlsimport' ),
+                        'details' => 'to be added',
+                ),
 
 		'mlsimport_rapattoni_client_secret' => array(
 			'name'    => esc_html__( 'MLSImport Rapattoni Client Secret', 'mlsimport' ),
@@ -212,16 +222,16 @@ foreach ( $settings_list as $key => $setting ) {
 			} else {
 				?>
 			
-			<input 
-				<?php
-				if ( 'mlsimport_password' === $key  ) { ?>
-					type="password" 
-				<?php 
-				} else { ?>
-					type="text"
-				<?php
-				}
-				?>
+                        <input
+                                <?php
+                                if ( in_array( $key, array( 'mlsimport_password', 'mlsimport_connectmls_password' ), true ) ) { ?>
+                                        type="password"
+                                <?php
+                                } else { ?>
+                                        type="text"
+                                <?php
+                                }
+                                ?>
 					
 				class="mlsimport-input mlsimport-2025-input " autocomplete="off" 
 				id="<?php echo esc_attr( $this->plugin_name . '_admin_options' ); ?>-<?php echo esc_attr( $key ); ?>" 

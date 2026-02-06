@@ -340,15 +340,25 @@ class Mlsimport_Admin {
 				'details' => 'to be added',
 			),
 
-			'mlsimport_tresle_client_secret'    => array(
-				'name'    => esc_html__( 'MLSImport Client Secret', 'mlsimport' ),
-				'details' => 'to be added',
-			),
+                        'mlsimport_tresle_client_secret'    => array(
+                                'name'    => esc_html__( 'MLSImport Client Secret', 'mlsimport' ),
+                                'details' => 'to be added',
+                        ),
 
-			'mlsimport_rapattoni_client_id'     => array(
-				'name'    => esc_html__( 'MLSImport Rapattoni Client id','mlsimport'),
-				'details' => 'to be added',
-			),
+                        'mlsimport_connectmls_username'     => array(
+                                'name'    => esc_html__( 'MLSImport ConnectMLS Username', 'mlsimport' ),
+                                'details' => 'to be added',
+                        ),
+
+                        'mlsimport_connectmls_password'     => array(
+                                'name'    => esc_html__( 'MLSImport ConnectMLS Password', 'mlsimport' ),
+                                'details' => 'to be added',
+                        ),
+
+                        'mlsimport_rapattoni_client_id'     => array(
+                                'name'    => esc_html__( 'MLSImport Rapattoni Client id','mlsimport'),
+                                'details' => 'to be added',
+                        ),
 
 			'mlsimport_rapattoni_client_secret' => array(
 				'name'    => esc_html__( 'MLSImport Rapattoni Secret', 'mlsimport' ),
@@ -611,10 +621,10 @@ class Mlsimport_Admin {
 		if(!empty($mlsImportItemStatusDelete)) {
 			if(is_array($mlsImportItemStatusDelete)) {
 				
-				echo 'Do not delete if status: ' .  implode(',' ,$mlsImportItemStatusDelete) . '<br>';
+				echo 'When not in MLS Delete if status: ' .  implode(',' ,$mlsImportItemStatusDelete) . '<br>';
 			} else {
 
-				echo 'Do not delete if status: ' .  esc_html($mlsImportItemStatusDelete) . '<br>';
+				echo 'When not in MLS if status: ' .  esc_html($mlsImportItemStatusDelete) . '<br>';
 
 			}
 			
@@ -818,42 +828,54 @@ class Mlsimport_Admin {
 			
 	}
 
-	/**
-	 * Check if token validates with MLS
-	 *
-	 * @since    4.0.1
-	 * returns token fron mlsimport
-	 */
+        /**
+         * Check if token validates with MLS
+         *
+         * @since    4.0.1
+         * returns token fron mlsimport
+         */
 	public function mlsimport_saas_check_mls_connection() {
 
 		$values  = array();
 		$options = get_option( $this->plugin_name . '_admin_options' );
 
 		$mls_id = '';
-		if ( isset( $options['mlsimport_mls_name'] ) ) {
-			$mls_id = sanitize_text_field( trim( $options['mlsimport_mls_name'] ) );
-		}
+                if ( isset( $options['mlsimport_mls_name'] ) ) {
+                        $mls_id = sanitize_text_field( trim( $options['mlsimport_mls_name'] ) );
+                }
 
-		$mls_token = '';
-		if ( isset( $options['mlsimport_mls_name'] ) ) {
-			$mls_token = sanitize_text_field( trim( $options['mlsimport_mls_token'] ) );
-		}
+                $mls_token = '';
+                if ( isset( $options['mlsimport_mls_name'] ) ) {
+                        $mls_token = sanitize_text_field( trim( $options['mlsimport_mls_token'] ) );
+                }
+
+                $mls_id_int = intval( $mls_id );
 
 		$mlsimport_tresle_client_id = '';
 		if ( isset( $options['mlsimport_tresle_client_id'] ) ) {
 			$mlsimport_tresle_client_id = sanitize_text_field( trim( $options['mlsimport_tresle_client_id'] ) );
 		}
 
-		$mlsimport_tresle_client_secret = '';
-		if ( isset( $options['mlsimport_tresle_client_secret'] ) ) {
-			$mlsimport_tresle_client_secret = sanitize_text_field( trim( $options['mlsimport_tresle_client_secret'] ) );
-		}
+                $mlsimport_tresle_client_secret = '';
+                if ( isset( $options['mlsimport_tresle_client_secret'] ) ) {
+                        $mlsimport_tresle_client_secret = sanitize_text_field( trim( $options['mlsimport_tresle_client_secret'] ) );
+                }
 
-		// rapattoni data
-		$mlsimport_rapattoni_client_id = '';
-		if ( isset( $options['mlsimport_rapattoni_client_id'] ) ) {
-			$mlsimport_rapattoni_client_id = sanitize_text_field( trim( $options['mlsimport_rapattoni_client_id'] ) );
-		}
+                $mlsimport_connectmls_username = '';
+                if ( isset( $options['mlsimport_connectmls_username'] ) ) {
+                        $mlsimport_connectmls_username = sanitize_text_field( trim( $options['mlsimport_connectmls_username'] ) );
+                }
+
+                $mlsimport_connectmls_password = '';
+                if ( isset( $options['mlsimport_connectmls_password'] ) ) {
+                        $mlsimport_connectmls_password = sanitize_text_field( trim( $options['mlsimport_connectmls_password'] ) );
+                }
+
+                // rapattoni data
+                $mlsimport_rapattoni_client_id = '';
+                if ( isset( $options['mlsimport_rapattoni_client_id'] ) ) {
+                        $mlsimport_rapattoni_client_id = sanitize_text_field( trim( $options['mlsimport_rapattoni_client_id'] ) );
+                }
 		$mlsimport_rapattoni_client_secret = '';
 		if ( isset( $options['mlsimport_rapattoni_client_secret'] ) ) {
 			$mlsimport_rapattoni_client_secret = sanitize_text_field( trim( $options['mlsimport_rapattoni_client_secret'] ) );
@@ -895,53 +917,62 @@ class Mlsimport_Admin {
 
 
 
-		if ( trim( $mls_token ) === '' ) {
-			if ( intval( $mls_id ) > 900 && intval( $mls_id ) < 3000 ) {
-				if ( trim( $mlsimport_tresle_client_id ) === '' || trim( $mlsimport_tresle_client_secret ) === '' ) {
-					return;
-				}
-			} elseif ( intval( $mls_id ) >= 5000 && intval( $mls_id ) < 6000 ) {
-				if (
-					trim( $mlsimport_rapattoni_client_id ) === '' ||
-					trim( $mlsimport_rapattoni_client_secret ) === '' ||
-					trim( $mlsimport_rapattoni_username ) === '' ||
-					trim( $mlsimport_rapattoni_password ) === ''
-				) {
-					return;
-				}
-			} elseif ( intval( $mls_id ) >= 6000 && intval( $mls_id ) < 7000 ) {
-				if (
-					trim( $mlsimport_paragon_client_id ) === '' ||
-					trim( $mlsimport_paragon_client_secret ) === ''
-				) {
-					return;
-				}
-			} elseif ( intval( $mls_id ) >= 7000 ) {
-				if (
-					trim( $mlsimport_realtorca_client_id ) === '' ||
-					trim( $mlsimport_realtorca_client_secret ) === ''
-				) {
-					return;
-				}
-			}
-		}
+                if ( trim( $mls_token ) === '' ) {
+                        if ( $mls_id_int > 900 && $mls_id_int < 3000 ) { // Trestle
+                                if ( trim( $mlsimport_tresle_client_id ) === '' || trim( $mlsimport_tresle_client_secret ) === '' ) {
+                                        return;
+                                }
+                        } elseif ( $this->mlsimport_is_connectmls_provider( $mls_id_int ) ) { // ConnectMLS
+                                if (
+                                        trim( $mlsimport_connectmls_username ) === '' ||
+                                        trim( $mlsimport_connectmls_password ) === ''
+                                ) {
+                                        return;
+                                }
+                        } elseif ( $mls_id_int >= 5000 && $mls_id_int < 6000 ) { // Rapattoni
+                                if (
+                                        trim( $mlsimport_rapattoni_client_id ) === '' ||
+                                        trim( $mlsimport_rapattoni_client_secret ) === '' ||
+                                        trim( $mlsimport_rapattoni_username ) === '' ||
+                                        trim( $mlsimport_rapattoni_password ) === ''
+                                ) {
+                                        return;
+                                }
+                        } elseif ( $mls_id_int >= 6000 && $mls_id_int < 7000 ) { // Paragon
+                                if (
+                                        trim( $mlsimport_paragon_client_id ) === '' ||
+                                        trim( $mlsimport_paragon_client_secret ) === ''
+                                ) {
+                                        return;
+                                }
+                        } elseif ( $mls_id_int >= 7000 && $mls_id_int < 8000 ) { // Realtor.ca
+                                if (
+                                        trim( $mlsimport_realtorca_client_id ) === '' ||
+                                        trim( $mlsimport_realtorca_client_secret ) === ''
+                                ) {
+                                        return;
+                                }
+                        }
+                }
 
-		$values['mls_token']                      = $mls_token;
-		$values['mls_id']                         = $mls_id;
-		$values['mlsimport_tresle_client_id']     = $mlsimport_tresle_client_id;
-		$values['mlsimport_tresle_client_secret'] = $mlsimport_tresle_client_secret;
+                $values['mls_token']                      = $mls_token;
+                $values['mls_id']                         = $mls_id;
+                $values['mlsimport_tresle_client_id']     = $mlsimport_tresle_client_id;
+                $values['mlsimport_tresle_client_secret'] = $mlsimport_tresle_client_secret;
+                $values['mlsimport_connectmls_username']  = $mlsimport_connectmls_username;
+                $values['mlsimport_connectmls_password']  = $mlsimport_connectmls_password;
 
-		$values['mlsimport_rapattoni_client_id']     = $mlsimport_rapattoni_client_id;
-		$values['mlsimport_rapattoni_client_secret'] = $mlsimport_rapattoni_client_secret;
-		$values['mlsimport_rapattoni_username']      = $mlsimport_rapattoni_username;
-		$values['mlsimport_rapattoni_password']      = $mlsimport_rapattoni_password;
+                $values['mlsimport_rapattoni_client_id']     = $mlsimport_rapattoni_client_id;
+                $values['mlsimport_rapattoni_client_secret'] = $mlsimport_rapattoni_client_secret;
+                $values['mlsimport_rapattoni_username']      = $mlsimport_rapattoni_username;
+                $values['mlsimport_rapattoni_password']      = $mlsimport_rapattoni_password;
 
 		$values['mlsimport_paragon_client_id']     = $mlsimport_paragon_client_id;
 		$values['mlsimport_paragon_client_secret'] = $mlsimport_paragon_client_secret;
 
 		
-		$values['mlsimport_realtorca_client_id']     = $mlsimport_realtorca_client_id;
-		$values['mlsimport_realtorca_client_secret'] = $mlsimport_realtorca_client_secret;
+                $values['mlsimport_realtorca_client_id']     = $mlsimport_realtorca_client_id;
+                $values['mlsimport_realtorca_client_secret'] = $mlsimport_realtorca_client_secret;
 
 
 
@@ -968,6 +999,10 @@ class Mlsimport_Admin {
 
 		return $answer;
 	}
+
+        private function mlsimport_is_connectmls_provider( $mls_id_int ) {
+                return $mls_id_int >= 8000 && $mls_id_int < 9000;
+        }
 
 
 
@@ -1252,6 +1287,28 @@ class Mlsimport_Admin {
 
 		ob_start();
 
+                $metadata_api_call_city          = array();
+                $metadata_api_call_county        = array();
+                $metadata_api_call_property_type = array();
+		$mlsimport_mls_metadata_mls_enums = get_option('mlsimport_mls_metadata_mls_enums', '');
+		if ('' !== $mlsimport_mls_metadata_mls_enums) {
+			$metadata_api_call_full = json_decode($mlsimport_mls_metadata_mls_enums, true);
+			if (isset($metadata_api_call_full['global_array']['PropertyEnums'])) {
+				$property_enums = $metadata_api_call_full['global_array']['PropertyEnums'];
+                                if (isset($property_enums['City']) && is_array($property_enums['City'])) {
+                                        $metadata_api_call_city = $property_enums['City'];
+                                }
+
+                                if (isset($property_enums['CountyOrParish']) && is_array($property_enums['CountyOrParish'])) {
+                                        $metadata_api_call_county = $property_enums['CountyOrParish'];
+                                }
+
+                                if (isset($property_enums['PropertyType']) && is_array($property_enums['PropertyType'])) {
+                                        $metadata_api_call_property_type = $property_enums['PropertyType'];
+                                }
+                        }
+                }
+
 		?>
 		<div class="mlsimport_item_search_url" style="display:none;"><?php echo esc_html__('Last date/time we check :', 'mlsimport') . ' ' . esc_html($lastDate); ?></div>
 		<ul>
@@ -1405,6 +1462,9 @@ class Mlsimport_Admin {
 				unset($fieldImport['PropertyType']);
 			}
 
+
+
+
 			foreach ($fieldImport as $key => $field):
 				$nameCheck = strtolower('mlsimport_item_' . $key . '_check');
 				$name = strtolower('mlsimport_item_' . $key);
@@ -1485,24 +1545,46 @@ class Mlsimport_Admin {
 
 							// Additional conditions can be placed here.
 							?>
-							<select class="mlsimport-select mlsimport-2025-select" id="<?php echo esc_attr($name); ?>" name="<?php echo esc_attr($name); ?>" <?php echo esc_attr($multiple); ?>>
-								<?php foreach ($field['values'] as $selectKey): ?>
+                                                        <select class="mlsimport-select mlsimport-2025-select" id="<?php echo esc_attr($name); ?>" name="<?php echo esc_attr($name); ?>" <?php echo esc_attr($multiple); ?>>
+                                                                <?php foreach ($field['values'] as $selectKey): ?>
 
-									<?php if ('' !== $selectKey): ?>
-										<option value="<?php echo esc_attr($selectKey); ?>"
-											<?php   
-											if ($key === "StandardStatusDelete" && $value==null ) {
-                                            
-												print 'selected';
-                                        	}
-											?>
-											<?php if (is_array($value) ? in_array($selectKey, $value) : $selectKey === $value) echo 'selected'; ?>>
-											<?php echo esc_html($selectKey); ?>
-										</option>
-									<?php endif; ?>
+                                                                        <?php if ('' !== $selectKey): ?>
+                                                                                <?php
+                                                                                $option_value = $selectKey;
+                                                                                $option_label = $selectKey;
+                                                                                $comparison_values = array($option_value);
 
-								<?php endforeach; ?>
-							</select>
+                                                                                if ('City' === $key && isset($metadata_api_call_city[$selectKey])) {
+                                                                                        $option_label = $selectKey;
+                                                                                        $comparison_values[] = $metadata_api_call_city[$selectKey];
+                                                                                } elseif ('CountyOrParish' === $key && isset($metadata_api_call_county[$selectKey])) {
+                                                                                        $option_label = $selectKey;
+                                                                                        $comparison_values[] = $metadata_api_call_county[$selectKey];
+                                                                                } elseif ('PropertyType' === $key && isset($metadata_api_call_property_type[$selectKey])) {
+                                                                                        $option_label = $selectKey;
+                                                                                        $comparison_values[] = $metadata_api_call_property_type[$selectKey];
+                                                                                }
+
+                                                                                $comparison_values = array_values(array_unique(array_filter($comparison_values, static function ($compare_value) {
+                                                                                        return '' !== $compare_value && null !== $compare_value;
+                                                                                })));
+
+                                                                                $is_selected = false;
+                                                                                if ($key === "StandardStatusDelete" && $value == null) {
+                                                                                        $is_selected = true;
+                                                                                } elseif (is_array($value)) {
+                                                                                        $is_selected = count(array_intersect($comparison_values, $value)) > 0;
+                                                                                } else {
+                                                                                        $is_selected = in_array($value, $comparison_values, true);
+                                                                                }
+                                                                                ?>
+                                                                                <option value="<?php echo esc_attr($option_value); ?>" <?php echo $is_selected ? 'selected' : ''; ?>>
+                                                                                        <?php echo esc_html($option_label); ?>
+                                                                                </option>
+                                                                        <?php endif; ?>
+
+                                                                <?php endforeach; ?>
+                                                        </select>
 
 						<?php elseif ($field['type'] === 'input'): ?>
 							<input type="text" class="mlsimport-select mlsimport-input mlsimport-2025-input" id="<?php echo esc_attr($name); ?>" name="<?php echo esc_attr($name); ?>" value="<?php echo esc_attr($value); ?>">
