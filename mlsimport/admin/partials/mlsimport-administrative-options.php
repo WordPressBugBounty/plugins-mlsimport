@@ -102,30 +102,39 @@ if ( 0 ===  intval($disable_history)  ) {
 <div>
 	 
 <fieldset class="mlsimport-fieldset" style="background-color: #eee;padding: 10px;border-radius: 5px;">
-		
-	<h3><?php esc_html__('Delete Properties','mlsimport'); ?></h3>
-			 
-	<div id="mlsimport-delete-notification" ><?php esc_html_e('Please fill all the forms','mlsimport');?></div>
-	 
-	 
-	<label class="mlsimport-label" for="<?php echo esc_attr($this->plugin_name) . '_administrative_options'; ?>-import" >
-		<?php echo esc_html__( 'Delete from Category', 'mlsimport' ); ?>
-	</label></br>
-	<input type="text" class="mlsimport-input mlsimport-2025-input" id="mlsimport_delete_category"></br>
-	</br>
-	<label class="mlsimport-label" for="<?php echo esc_attr($this->plugin_name) . '_administrative_options'; ?>-import" >
-		<?php echo esc_html__( 'Delete the term from category(use term slug)', 'mlsimport' ); ?>
-	</label></br>
-	<input type="text" class="mlsimport-input mlsimport-2025-input" id="mlsimport_delete_category_term"></br>
-	</br>
-	<label class="mlsimport-label" for="<?php echo esc_attr($this->plugin_name) . '_administrative_options'; ?>-import" >
-		<?php esc_html_e('Pause the script between property delete processes (1=1 sec . For slow hosting use a number between 1 and 5)','mlsimport'); ?> 
-	</label>
-	 
-	<input type="text" class="mlsimport-input mlsimport-2025-input" id="mlsimport_delete_timeout" value="0">
 
-	</br>
-	<input class="button mlsimport_button error_action"  type="button" id="mlsimport-delete-prop" value="Delete" />
+	<h3><?php esc_html_e('Delete Properties','mlsimport'); ?></h3>
+
+	<div id="mlsimport-delete-notification"><?php esc_html_e('Select a taxonomy and terms, then click Delete.','mlsimport');?></div>
+
+	<label class="mlsimport-label"><?php esc_html_e( 'Select Taxonomy', 'mlsimport' ); ?></label><br>
+	<select id="mlsimport_delete_category" class="mlsimport-select mlsimport-2025-select">
+		<option value=""><?php esc_html_e( '-- Select Taxonomy --', 'mlsimport' ); ?></option>
+		<?php
+		$delete_taxonomies = mlsimport_get_custom_post_type_taxonomies( $mlsimport->admin->env_data->get_property_post_type() );
+		foreach ( $delete_taxonomies as $tax_slug => $tax_label ) :
+		?>
+			<option value="<?php echo esc_attr( $tax_slug ); ?>"><?php echo esc_html( $tax_label ); ?> (<?php echo esc_html( $tax_slug ); ?>)</option>
+		<?php endforeach; ?>
+	</select>
+	<br><br>
+
+	<label class="mlsimport-label"><?php esc_html_e( 'Select Terms', 'mlsimport' ); ?></label><br>
+	<select id="mlsimport_delete_category_term" class="mlsimport-select mlsimport-2025-select" multiple disabled style="min-height:120px;width:100%;max-width:400px;">
+		<option value="" disabled><?php esc_html_e( 'Select a taxonomy first', 'mlsimport' ); ?></option>
+	</select>
+	<p class="mlsimport-exp"><?php esc_html_e( 'Hold Ctrl (Windows) or Command (Mac) to select multiple terms.', 'mlsimport' ); ?></p>
+	<br>
+
+	<div id="mlsimport-delete-progress" style="display:none;margin-bottom:10px;">
+		<div style="background:#ddd;border-radius:4px;overflow:hidden;height:20px;margin-bottom:5px;">
+			<div id="mlsimport-delete-progress-bar" style="background:#0073aa;height:100%;width:0%;transition:width 0.3s;"></div>
+		</div>
+		<span id="mlsimport-delete-progress-text">0 / 0</span>
+	</div>
+
+	<input class="button mlsimport_button error_action" type="button" id="mlsimport-delete-prop" value="<?php esc_attr_e( 'Delete', 'mlsimport' ); ?>" />
+	<input class="button" type="button" id="mlsimport-delete-stop" value="<?php esc_attr_e( 'Stop', 'mlsimport' ); ?>" style="display:none;margin-left:10px;" />
 </fieldset>
 <?php
 $ajax_nonce = wp_create_nonce( "mlsimport_tool_actions" );

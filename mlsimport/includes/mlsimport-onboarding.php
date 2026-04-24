@@ -591,23 +591,7 @@ function mlsimport_setup_import_item_defaults($post_id, $import_data) {
 
     // Default statuses and visibility options
     update_post_meta($post_id, 'mlsimport_item_standardstatus', array('Active'));
-    update_post_meta(
-        $post_id,
-        'mlsimport_item_standardstatusdelete',
-        array(
-            'Active',
-            'ActiveUnderContract',
-            'Canceled',
-            'Closed',
-            'ComingSoon',
-            'Delete',
-            'Expired',
-            'Hold',
-            'Incomplete',
-            'Pending',
-            'Withdrawn'
-        )
-    );
+    update_post_meta($post_id, 'mlsimport_item_standardstatusprotect', array('Active', 'ActiveUnderContract', 'ComingSoon', 'Pending'));
     update_post_meta($post_id, 'mlsimport_item_internetentirelistingdisplayyn', 'yes');
     update_post_meta($post_id, 'mlsimport_item_internetaddressdisplayyn', 'yes');
     

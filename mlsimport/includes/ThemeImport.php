@@ -479,7 +479,7 @@ private function cleanUpMemory($intensive = false) {
         // Gather relevant meta for this MLSimport item
         $mlsimportItemOptionData = [
             'mlsimport_item_standardstatus'        => get_post_meta($itemIdArray['item_id'], 'mlsimport_item_standardstatus', true),
-            'mlsimport_item_standardstatusdelete'  => get_post_meta($itemIdArray['item_id'], 'mlsimport_item_standardstatusdelete', true),
+            'mlsimport_item_standardstatusprotect'  => get_post_meta($itemIdArray['item_id'], 'mlsimport_item_standardstatusprotect', true),
             'mlsimport_item_property_user'         => get_post_meta($itemIdArray['item_id'], 'mlsimport_item_property_user', true),
             'mlsimport_item_agent'                 => get_post_meta($itemIdArray['item_id'], 'mlsimport_item_agent', true),
             'mlsimport_item_property_status'       => get_post_meta($itemIdArray['item_id'], 'mlsimport_item_property_status', true),
@@ -798,6 +798,33 @@ private function cleanUpMemory($intensive = false) {
 			$property['meta']['fave_property_bathrooms'] = $bathrooms;
 			$property['meta']['REAL_HOMES_property_bathrooms'] = $bathrooms;
 		}
+
+		// PostalCode is commonly provided in normalized meta (property_zip) rather than extra_meta.
+		// Mirror it into extra_meta when missing so field mappings (postmeta/taxonomy) can process it.
+		if (!isset($property['extra_meta']) || !is_array($property['extra_meta'])) {
+			$property['extra_meta'] = array();
+		}
+
+		$postal_code = '';
+		if (isset($property['meta']) && is_array($property['meta'])) {
+			if (!empty($property['meta']['property_zip'])) {
+				$postal_code = $property['meta']['property_zip'];
+			} elseif (!empty($property['meta']['fave_property_zip'])) {
+				$postal_code = $property['meta']['fave_property_zip'];
+			} elseif (!empty($property['meta']['REAL_HOMES_property_zip'])) {
+				$postal_code = $property['meta']['REAL_HOMES_property_zip'];
+			}
+		}
+
+		if (is_array($postal_code)) {
+			$postal_code = reset($postal_code);
+		}
+		$postal_code = trim((string) $postal_code);
+
+		if ('' !== $postal_code && empty($property['extra_meta']['PostalCode'])) {
+			$property['extra_meta']['PostalCode'] = $postal_code;
+		}
+
 		return $property;
 	}
 
@@ -813,14 +840,13 @@ private function cleanUpMemory($intensive = false) {
 	 * @param string $isInsert Whether the property is being inserted.
 	 * @return string The media history log.
 	 */
-	public function mlsimportSassAttachMediaToPost($propertyId, $media, $isInsert,$media_attachments,$featuredImageKey) {
+	public function mlsimportSassAttachMediaToPost($propertyId, $media, $isInsert,$media_attachments,$featuredImageKey, $shouldRefreshMedia = false) {
 
 		$mediaHistory = [];
 
-		if ($isInsert === 'no') {
+		if ($isInsert === 'no' && !$shouldRefreshMedia) {
 			$mediaHistory[] = 'Media - We have edit - images are not replaced';
 			return $media_attachments;
-			//return implode('</br>', $mediaHistory);
 		}
 
 		global $mlsimport;
@@ -1157,7 +1183,6 @@ public function mlsimportSaasPrepareToImportPerItem($property, $itemIdArray, $ti
 	$memStartMB = round($memStart / 1048576, 2);
 
 	$mlsImportItemStatus 		= $mlsimportItemOptionData['mlsimport_item_standardstatus'];
-	$mlsImportItemStatusDelete 	= $mlsimportItemOptionData['mlsimport_item_standardstatusdelete'];
 	$newAuthor 					= $mlsimportItemOptionData['mlsimport_item_property_user'];
 	$newAgent 					= $mlsimportItemOptionData['mlsimport_item_agent'];
 	$propertyStatus 			= $mlsimportItemOptionData['mlsimport_item_property_status'];
@@ -1216,7 +1241,6 @@ public function mlsimportSaasPrepareToImportPerItem($property, $itemIdArray, $ti
 		} else {
 			update_post_meta($propertyId, 'ListingKey', $ListingKey);
 			update_post_meta($propertyId, 'MLSimport_item_inserted', $itemIdArray['item_id'],);
-			update_post_meta($propertyId, 'mlsImportItemStatusDelete', $mlsImportItemStatusDelete);
 			
 			$propertyHistory[] = date('F j, Y, g:i a') . ': We Inserted the property with Default title :  ' . $submitTitle . ' and received id:' . $propertyId;
 		}
@@ -1229,7 +1253,7 @@ public function mlsimportSaasPrepareToImportPerItem($property, $itemIdArray, $ti
 		// Memory before checking existing property
 		$memBeforeCheck = memory_get_usage(true);
 
-		$keep = $this->check_if_delete_when_status_on_manual_import($propertyId,$mlsImportItemStatus,$mlsImportItemStatusDelete);
+		$keep = $this->check_if_delete_when_status_on_manual_import($propertyId,$mlsImportItemStatus);
 
 
 		if(!$keep){
@@ -1244,13 +1268,11 @@ public function mlsimportSaasPrepareToImportPerItem($property, $itemIdArray, $ti
 			$memAfterDelete = memory_get_usage(true);
 			
 			$this->writeImportLogs($log, $tipImport);
-		} else {	
-			update_post_meta($propertyId, 'mlsImportItemStatusDelete', $mlsImportItemStatusDelete);
-			
+		} else {
 			// Memory before updating
 			$memBeforeUpdate = memory_get_usage(true);
-			
-			$propertyHistory = $this->updateExistingProperty($propertyId,$mlsImportItemStatusDelete, $content, $listingPostType, $newAuthor, $status, $mlsImportItemStatus, $propertyHistory, $tipImport, $ListingKey);
+
+			$propertyHistory = $this->updateExistingProperty($propertyId, $content, $listingPostType, $newAuthor, $status, $mlsImportItemStatus, $propertyHistory, $tipImport, $ListingKey);
 			
 			// Memory after updating
 			$memAfterUpdate = memory_get_usage(true);
@@ -1416,18 +1438,9 @@ public function mlsimportSaasPrepareToImportPerItem($property, $itemIdArray, $ti
  * Check for property status against MLS item delete status to see if we keep or delete the listing.
  * @param int $property_id
  * @param string|array $mlsImportItemStatus
- * @param string|array $mlsImportItemStatusDelete
  * @return bool True to keep, false to delete
  */
-public function check_if_delete_when_status($property_id, $mlsImportItemStatus, $mlsImportItemStatusDelete) {
-    // Normalize status arrays/strings to lowercase
-    $mlsImportItemStatus = is_array($mlsImportItemStatus)
-        ? array_map('strtolower', $mlsImportItemStatus)
-        : strtolower($mlsImportItemStatus);
-
-    $mlsImportItemStatusDelete = is_array($mlsImportItemStatusDelete)
-        ? array_map('strtolower', $mlsImportItemStatusDelete)
-        : strtolower($mlsImportItemStatusDelete);
+public function check_if_delete_when_status($property_id, $mlsImportItemStatus, $mlsImportItemStatusDelete = null, $mlsImportItemStatusProtect = null) {
 
     // Get post_status based on post type/taxonomy
     $post_status = '';
@@ -1445,39 +1458,28 @@ public function check_if_delete_when_status($property_id, $mlsImportItemStatus, 
         $post_status = strtolower(get_post_meta($property_id, 'inspiry_property_label', true));
     }
 
-
-    // Keep if status matches "keep" status
-    /* deactivated becausee we should check only delete stautuses not import statuse
- 	if ((is_array($mlsImportItemStatus) && in_array($post_status, $mlsImportItemStatus, true)) ||
-        (!is_array($mlsImportItemStatus) && $post_status === $mlsImportItemStatus)) {
-        return true;
-    }
-	*/
-
-    // Delete if status matches "delete" status
-    if (!empty($mlsImportItemStatusDelete)) {
-        if ((is_array($mlsImportItemStatusDelete) && in_array($post_status, $mlsImportItemStatusDelete, true)) ||
-            (!is_array($mlsImportItemStatusDelete) && $post_status === $mlsImportItemStatusDelete)) {
-            return false;
+    // Protected statuses: keep if property status matches
+    if (!empty($mlsImportItemStatusProtect)) {
+        $mlsImportItemStatusProtect = is_array($mlsImportItemStatusProtect)
+            ? array_map('strtolower', $mlsImportItemStatusProtect)
+            : array(strtolower($mlsImportItemStatusProtect));
+        if (in_array($post_status, $mlsImportItemStatusProtect, true)) {
+            return true;
         }
     }
 
-    // Default: keep
-    return true;
+    // Default: delete if not protected
+    return false;
 }
 
 
 
 
-public function check_if_delete_when_status_on_manual_import($property_id, $mlsImportItemStatus, $mlsImportItemStatusDelete) {
+public function check_if_delete_when_status_on_manual_import($property_id, $mlsImportItemStatus) {
     // Normalize status arrays/strings to lowercase
     $mlsImportItemStatus = is_array($mlsImportItemStatus)
         ? array_map('strtolower', $mlsImportItemStatus)
         : strtolower($mlsImportItemStatus);
-
-    $mlsImportItemStatusDelete = is_array($mlsImportItemStatusDelete)
-        ? array_map('strtolower', $mlsImportItemStatusDelete)
-        : strtolower($mlsImportItemStatusDelete);
 
     // Get post_status based on post type/taxonomy
     $post_status = '';
@@ -1518,12 +1520,7 @@ public function check_if_delete_when_status_on_manual_import($property_id, $mlsI
         * Check if we should keep or delete the listing when still in MLS.
 	    * true we keep 
         */
-       public function check_if_delete_when_status_when_in_mls($property_id,$mlsimport_item_standardstatus) {
-           // Get the inserted item and its MLS standard status
-
-        
-
-           // Default to false
+       public function check_if_delete_when_status_when_in_mls($property_id, $mlsimport_item_standardstatus, $mlsimport_item_standardstatusprotect = null) {
            $post_status = '';
 
            // Check for post status based on post type/taxonomy
@@ -1531,17 +1528,27 @@ public function check_if_delete_when_status_on_manual_import($property_id, $mlsI
                // WPResidence
                $terms = get_the_terms($property_id, 'property_status');
                if (!empty($terms) && is_array($terms)) {
-                   $post_status = $terms[0]->name;
+                   $post_status = strtolower($terms[0]->name);
                }
            } elseif (post_type_exists('property') && taxonomy_exists('property_label')) {
                // Houzez
                $terms = get_the_terms($property_id, 'property_label');
                if (!empty($terms) && is_array($terms)) {
-                   $post_status = $terms[0]->name;
+                   $post_status = strtolower($terms[0]->name);
                }
            } else {
                // RealHomes
-               $post_status = get_post_meta($property_id, 'inspiry_property_label', true);
+               $post_status = strtolower(get_post_meta($property_id, 'inspiry_property_label', true));
+           }
+
+           // Protected statuses: keep if property status matches
+           if (!empty($mlsimport_item_standardstatusprotect)) {
+               $mlsimport_item_standardstatusprotect = is_array($mlsimport_item_standardstatusprotect)
+                   ? array_map('strtolower', $mlsimport_item_standardstatusprotect)
+                   : array(strtolower($mlsimport_item_standardstatusprotect));
+               if (in_array($post_status, $mlsimport_item_standardstatusprotect, true)) {
+                   return true;
+               }
            }
 
            // Early return if MLS status empty
@@ -1549,11 +1556,12 @@ public function check_if_delete_when_status_on_manual_import($property_id, $mlsI
                return true; // default: keep if no status set
            }
 
-           // If it's an array, check for post status in it; otherwise, compare string
+           // Normalize standard statuses to lowercase for comparison
            if (is_array($mlsimport_item_standardstatus)) {
+               $mlsimport_item_standardstatus = array_map('strtolower', $mlsimport_item_standardstatus);
                return in_array($post_status, $mlsimport_item_standardstatus, true);
            }
-           return $post_status === $mlsimport_item_standardstatus;
+           return $post_status === strtolower($mlsimport_item_standardstatus);
        }
 
 
@@ -1576,7 +1584,7 @@ public function check_if_delete_when_status_on_manual_import($property_id, $mlsI
 	 * @param string $ListingKey The listing key.
 	 * @return array Updated property history.
 	 */
-	private function updateExistingProperty($propertyId,$mlsImportItemStatusDelete, $content, $listingPostType, $newAuthor, $status, $mlsImportItemStatus, &$propertyHistory, $tipImport, $ListingKey) {
+	private function updateExistingProperty($propertyId, $content, $listingPostType, $newAuthor, $status, $mlsImportItemStatus, &$propertyHistory, $tipImport, $ListingKey) {
 		
 		
 		$post = [
@@ -1806,8 +1814,18 @@ private function processPropertyDetails($property, $propertyId, $tipImport, &$pr
 		$media_attachments=array();
 
         $mediaCount = count($property['Media']);
-        
 
+		// Detect if media has changed for existing properties
+		$shouldRefreshMedia = false;
+		if ($isInsert === 'no') {
+			$shouldRefreshMedia = $this->hasMediaChanged($propertyId, $property['Media']);
+			if ($shouldRefreshMedia) {
+				$this->writeImportLogs('Media changed for property ' . $propertyId . ', refreshing ' . $mediaCount . ' images', $tipImport);
+				$this->deleteExistingMlsAttachments($propertyId);
+			} else {
+				$this->writeImportLogs('Media unchanged for property ' . $propertyId . ', skipping image refresh', $tipImport);
+			}
+		}
 
 		// Sort media by Order field if it exists
 		if (isset($property['Media'][0]['Order'])) {
@@ -1815,22 +1833,16 @@ private function processPropertyDetails($property, $propertyId, $tipImport, &$pr
 			array_multisort($order, SORT_ASC, $property['Media']);
 		}
 
-
-
         // Process in chunks of 5
         $mediaChunks = array_chunk($property['Media'], 5,true);
         $mediaHistoryParts = [];
-        
+
         // Clear original array to free memory
         $originalMedia = $property['Media'];
-
-
-
 
 		// Find featured image in single loop
 		$featuredImageKey = null;
 		$orderOneKey = null;
-
 
 		// First priority: Look for PreferredPhotoYN = 1
 		foreach ($property['Media'] as $key => $mediaItem) {
@@ -1840,12 +1852,12 @@ private function processPropertyDetails($property, $propertyId, $tipImport, &$pr
 				break;
 			}
 
-			 
+
 			// Priority 2: Store Order = 1 key for potential use
 			if ($orderOneKey === null && isset($mediaItem['Order']) && $mediaItem['Order'] == 1) {
 				$orderOneKey = $key;
 			}
-			
+
 		}
 
 		if ($featuredImageKey === null && $orderOneKey !== null) {
@@ -1865,25 +1877,25 @@ private function processPropertyDetails($property, $propertyId, $tipImport, &$pr
 
         unset($property['Media']);
 
-		if ($isInsert !== 'no') {
+		if ($isInsert !== 'no' || $shouldRefreshMedia) {
 			delete_post_meta($propertyId, 'fave_property_images');
 			delete_post_meta($propertyId, 'REAL_HOMES_property_images');
 			delete_post_meta($propertyId, 'wpestate_property_gallery');
 		}
 
-        
+
         foreach ($mediaChunks as $index => $mediaChunk) {
-            $media_attachments = $this->mlsimportSassAttachMediaToPost($propertyId, $mediaChunk, $isInsert,$media_attachments,$featuredImageKey);
+            $media_attachments = $this->mlsimportSassAttachMediaToPost($propertyId, $mediaChunk, $isInsert,$media_attachments,$featuredImageKey, $shouldRefreshMedia);
            // $mediaHistoryParts[] = $chunkHistory;
-            
+
             // Free memory
             unset($mediaChunk);
             //unset($chunkHistory);
             gc_collect_cycles();
-            
+
             // Incremental progress report
         }
-        
+
 
 		$mlsimport->admin->env_data->enviroment_image_save_gallery($propertyId, $media_attachments);
 	
@@ -1955,11 +1967,68 @@ private function processPropertyDetails($property, $propertyId, $tipImport, &$pr
     
     // Final memory stats
     $memEnd = memory_get_usage(true);
-    
+
     return $newTitle;
 }
 
 
+/**
+ * Check if incoming MLS media differs from existing MLS-imported attachments.
+ *
+ * Compares incoming MediaURL values against the GUIDs of existing attachments
+ * that have the is_mlsimport meta flag. Uses ID-only queries for memory efficiency.
+ *
+ * @param int   $propertyId    The property post ID.
+ * @param array $incomingMedia Array of media items, each with a 'MediaURL' key.
+ * @return bool True if images need refresh, false if unchanged.
+ */
+private function hasMediaChanged($propertyId, $incomingMedia) {
+    $existing = get_posts([
+        'post_type'   => 'attachment',
+        'post_parent' => $propertyId,
+        'post_status' => 'inherit',
+        'meta_key'    => 'is_mlsimport',
+        'meta_value'  => 1,
+        'fields'      => 'ids',
+        'numberposts' => -1,
+    ]);
+
+    $existingUrls = array_map(function ($id) {
+        return get_post_field('guid', $id);
+    }, $existing);
+
+    $incomingUrls = array_filter(array_column($incomingMedia, 'MediaURL'));
+
+    sort($existingUrls);
+    sort($incomingUrls);
+
+    return $existingUrls !== $incomingUrls;
+}
+
+
+/**
+ * Delete all MLS-imported attachments for a property.
+ *
+ * Only deletes attachments that have the is_mlsimport post meta set to 1.
+ * Manually uploaded attachments are preserved.
+ *
+ * @param int $propertyId The property post ID.
+ */
+private function deleteExistingMlsAttachments($propertyId) {
+    $mlsAttachments = get_posts([
+        'post_type'   => 'attachment',
+        'post_parent' => $propertyId,
+        'post_status' => 'inherit',
+        'meta_key'    => 'is_mlsimport',
+        'meta_value'  => 1,
+        'fields'      => 'ids',
+        'numberposts' => -1,
+    ]);
+
+    foreach ($mlsAttachments as $attachId) {
+        wp_delete_post($attachId, true);
+    }
+}
 
 
 

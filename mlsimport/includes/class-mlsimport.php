@@ -220,6 +220,7 @@ class Mlsimport {
                 $this->loader->add_action( 'wp_ajax_mlsimport_delete_cache', $this->admin, 'mlsimport_delete_cache' );
                 $this->loader->add_action( 'wp_ajax_mlsimport_clear_fields_data', $this->admin, 'mlsimport_clear_fields_data' );
                 $this->loader->add_action( 'wp_ajax_mlsimport_delete_properties', $this->admin, 'mlsimport_delete_properties' );
+                $this->loader->add_action( 'wp_ajax_mlsimport_get_taxonomy_terms', $this->admin, 'mlsimport_get_taxonomy_terms' );
         }
 
 	/**

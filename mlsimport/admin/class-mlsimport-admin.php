@@ -598,42 +598,39 @@ class Mlsimport_Admin {
 		$MLSimport_item_inserted = get_post_meta( $post->ID, 'MLSimport_item_inserted', true );
 		$MLSimport_item_updated = get_post_meta( $post->ID, 'MLSimport_item_updated', true );
 		$listing_key = get_post_meta( $post->ID, 'ListingKey', true );
-		$mlsImportItemStatusDelete = get_post_meta($post->ID, 'mlsImportItemStatusDelete', true);
 
-
+		// Get the import task ID to retrieve protected statuses
+		$import_task_id = !empty( $MLSimport_item_inserted ) ? $MLSimport_item_inserted : ( !empty( $MLSimport_item_updated ) ? $MLSimport_item_updated : null );
+		$mlsImportItemStatusProtect = $import_task_id ? get_post_meta( $import_task_id, 'mlsimport_item_standardstatusprotect', true ) : null;
 
 		// Check if the ListingKey exists
 		if ( !empty( $listing_key ) ) {
-			echo 'ListingKey: ' . $listing_key . '<br>';
+			echo 'ListingKey: ' . esc_html( $listing_key ) . '<br>';
 		}
 
 		// Check if MLSimport_item_inserted exists
 		if ( !empty( $MLSimport_item_inserted ) ) {
-			echo 'Added via MLS item id: ' . $MLSimport_item_inserted . ' - ' . get_the_title( $MLSimport_item_inserted ) . '<br>';
+			echo 'Added via MLS item id: ' . esc_html( $MLSimport_item_inserted ) . ' - ' . esc_html( get_the_title( $MLSimport_item_inserted ) ) . '<br>';
 		}
 
 		// Check if MLSimport_item_updated exists
 		if ( !empty( $MLSimport_item_updated ) ) {
-			echo 'Updated via MLS item id: ' . $MLSimport_item_updated . ' - ' . get_the_title( $MLSimport_item_updated ) . '<br>';
+			echo 'Updated via MLS item id: ' . esc_html( $MLSimport_item_updated ) . ' - ' . esc_html( get_the_title( $MLSimport_item_updated ) ) . '<br>';
 		}
 
-
-		if(!empty($mlsImportItemStatusDelete)) {
-			if(is_array($mlsImportItemStatusDelete)) {
-				
-				echo 'When not in MLS Delete if status: ' .  implode(',' ,$mlsImportItemStatusDelete) . '<br>';
+		if(!empty($mlsImportItemStatusProtect)) {
+			if(is_array($mlsImportItemStatusProtect)) {
+				echo 'Protected statuses: ' .  esc_html( implode(', ', $mlsImportItemStatusProtect) ) . '<br>';
 			} else {
-
-				echo 'When not in MLS if status: ' .  esc_html($mlsImportItemStatusDelete) . '<br>';
-
+				echo 'Protected statuses: ' .  esc_html($mlsImportItemStatusProtect) . '<br>';
 			}
-			
 		}
 
 		foreach ( $options['mls-fields-admin'] as $key => $value ) {
 			if ( 1 === intval($options['mls-fields-admin'][ $key ] ) ) {
+				$display_label = $key;
 				if ( isset( $options['mls-fields-label'][ $key ] ) &&  '' !== $options['mls-fields-label'][ $key ] ) {
-					$key = $options['mls-fields-label'][ $key ];
+					$display_label = $options['mls-fields-label'][ $key ];
 				}
 
 				if ( 'ListingKey' !== $key   ) {
@@ -643,7 +640,7 @@ class Mlsimport_Admin {
 				}
 				?>
 
-				<strong><?php echo esc_html($key);?>:</strong>
+				<strong><?php echo esc_html($display_label);?>:</strong>
 				<?php echo  esc_html( get_post_meta( $post->ID, $meta_key, true ) ); ?> </br>
 				<?php
 			}
@@ -704,87 +701,101 @@ class Mlsimport_Admin {
 	 *
 	 * delete properties
 	 */
+	function mlsimport_get_taxonomy_terms() {
+		check_ajax_referer( 'mlsimport_tool_actions', 'security' );
+		if ( ! current_user_can( 'administrator' ) ) {
+			wp_send_json_error( 'Unauthorized' );
+		}
+
+		$taxonomy = sanitize_text_field( wp_unslash( $_POST['taxonomy'] ) );
+		if ( ! taxonomy_exists( $taxonomy ) ) {
+			wp_send_json_error( 'Invalid taxonomy' );
+		}
+
+		$terms = get_terms( array( 'taxonomy' => $taxonomy, 'hide_empty' => false, 'orderby' => 'name' ) );
+		$result = array();
+		if ( ! is_wp_error( $terms ) ) {
+			foreach ( $terms as $term ) {
+				$result[] = array(
+					'slug'  => $term->slug,
+					'name'  => $term->name,
+					'count' => $term->count,
+				);
+			}
+		}
+		wp_send_json_success( $result );
+	}
+
 	function mlsimport_delete_properties() {
-		$error = false;
 		global $mlsimport;
 
 		check_ajax_referer( 'mlsimport_tool_actions', 'security' );
 
+		if ( ! current_user_can( 'administrator' ) ) {
+			wp_send_json_error( 'Unauthorized' );
+		}
 
-		if ( current_user_can( 'administrator' ) ) :
-			$mlsimport_delete_category      = sanitize_text_field( wp_unslash( $_POST['mlsimport_delete_category'] ) ) ;
-			$mlsimport_delete_category_term = sanitize_title( sanitize_text_field( wp_unslash( $_POST['mlsimport_delete_category_term']) ) );
-			$mlsimport_delete_timeout       = intval( $_POST['mlsimport_delete_timeout'] );
+		$taxonomy = sanitize_text_field( wp_unslash( $_POST['mlsimport_delete_category'] ) );
+		$terms    = array();
 
-			if ( '' ===  $mlsimport_delete_category  ) {
-				$error_message = esc_html__('Category cannot be blank','mlsimport');
-				$error         = true;
+		if ( isset( $_POST['mlsimport_delete_category_term'] ) && is_array( $_POST['mlsimport_delete_category_term'] ) ) {
+			foreach ( $_POST['mlsimport_delete_category_term'] as $term ) {
+				$terms[] = sanitize_text_field( wp_unslash( $term ) );
 			}
+		}
 
-			if ( '' ===  $mlsimport_delete_category_term  ) {
-				$error_message = esc_html__('Category Term cannot be blank','mlsimport');
-				$error         = true;
-			}
+		if ( '' === $taxonomy ) {
+			wp_send_json_error( esc_html__( 'Please select a taxonomy', 'mlsimport' ) );
+		}
 
-			$category = get_term_by( 'slug', $mlsimport_delete_category_term, $mlsimport_delete_category );
+		if ( empty( $terms ) ) {
+			wp_send_json_error( esc_html__( 'Please select at least one term', 'mlsimport' ) );
+		}
 
-			if ( $error ) {
-				print wp_json_encode(
-					array(
-						'message' => esc_html($error_message),
-					)
-				);
-			} else {
-				$mlsimport_delete_category_term_array = array();
+		$post_type = $mlsimport->admin->env_data->get_property_post_type();
 
-				$mlsimport_delete_category_term_array[] = $mlsimport_delete_category_term;
-				$tax_array                              = array(
-					'taxonomy' => $mlsimport_delete_category,
+		$args = array(
+			'post_type'      => $post_type,
+			'post_status'    => 'any',
+			'posts_per_page' => 20,
+			'tax_query'      => array(
+				array(
+					'taxonomy' => $taxonomy,
 					'field'    => 'slug',
-					'terms'    => $mlsimport_delete_category_term_array,
-				);
+					'terms'    => $terms,
+				),
+			),
+			'fields'         => 'ids',
+		);
 
-				$args = array(
-					'post_type'      => array( 'estate_property', 'property' ),
-					'post_status'    => 'any',
-					'paged'          => 1,
-					'posts_per_page' => -1,
-					'tax_query'      => array(
-						$tax_array,
-					),
-					'fields'         => 'ids',
-				);
+		$prop_selection = new WP_Query( $args );
+		$deleted        = 0;
 
-				$prop_selection = new WP_Query( $args );
+		foreach ( $prop_selection->posts as $delete_id ) {
+			$mlsimport->admin->theme_importer->mlsimportSaasDeletePropertyViaMysql( $delete_id, ' delete from tools ' );
+			++$deleted;
+		}
 
-				foreach ( $prop_selection->posts as $key => $delete_get_id ) {
-					if ( 0 !== $mlsimport_delete_timeout  ) {
-						set_timeout( $mlsimport_delete_timeout );
-					}
+		$remaining = $prop_selection->found_posts - $deleted;
+		$done      = ( $remaining <= 0 );
 
-					$mlsimport->admin->theme_importer->mlsimportSaasDeletePropertyViaMysql( $delete_get_id, ' delete from tools ' );
+		// Update term counts only when all deletions are complete
+		if ( $done ) {
+			$all_taxonomies = get_object_taxonomies( $post_type );
+			foreach ( $all_taxonomies as $tax_name ) {
+				$all_terms = get_terms( array( 'taxonomy' => $tax_name, 'hide_empty' => false, 'fields' => 'ids' ) );
+				if ( ! is_wp_error( $all_terms ) && ! empty( $all_terms ) ) {
+					wp_update_term_count_now( $all_terms, $tax_name );
 				}
-
-
-		
-				
-
-
-
-				wp_update_term_count_now( array( $category->term_id ), $mlsimport_delete_category );
-
-				print wp_json_encode(
-					array(
-						'$category' => $category->term_id,
-						'arguments' => $args,
-						'posts'     => $prop_selection->posts,
-						'found'     => $prop_selection->found_posts,
-						'message'   => 'Done...',
-					)
-				);
 			}
-		endif;
-		die();
+		}
+
+		wp_send_json_success( array(
+			'deleted'   => $deleted,
+			'remaining' => max( 0, $remaining ),
+			'total'     => $prop_selection->found_posts,
+			'done'      => $done,
+		) );
 	}
 
 
@@ -981,7 +992,7 @@ class Mlsimport_Admin {
   
 
 		$answer = $this->theme_importer->globalApiRequestSaas( 'clients', $values, 'PATCH' );
-
+			
 
 
 
@@ -1154,8 +1165,8 @@ class Mlsimport_Admin {
 			'mlsimport_item_propertytype',
 			'mlsimport_item_standardstatus_check',
 			'mlsimport_item_standardstatus',
-			'mlsimport_item_standardstatusdelete_check',
-			'mlsimport_item_standardstatusdelete',
+			'mlsimport_item_standardstatusprotect_check',
+			'mlsimport_item_standardstatusprotect',
 
 			'mlsimport_item_internetentirelistingdisplayyn',
 			'mlsimport_item_internetaddressdisplayyn',
@@ -1173,6 +1184,7 @@ class Mlsimport_Admin {
                        'mlsimport_item_exclude_listofficekey',
                        'mlsimport_item_exclude_listagentmlsid',
                        'mlsimport_item_exclude_listagentkey',
+                       'mlsimport_item_customparameters',
                        'mlsimport_item_mlsareamajor',
                        'mlsimport_item_subdivisionname',
                );
@@ -1196,6 +1208,7 @@ class Mlsimport_Admin {
                         'mlsimport_item_propertytype',
                         'mlsimport_item_standardstatus',
                         'mlsimport_item_listingid',
+                        'mlsimport_item_customparameters',
                         'mlsimport_item_mlsareamajor',
                         'mlsimport_item_subdivisionname',
 
@@ -1252,6 +1265,7 @@ class Mlsimport_Admin {
                                                                         : 0;
 
                $mlsRequest = $this->mlsimport_make_listing_requests($postId);
+			//  print_r($mlsRequest);
 
                $hasError = isset($mlsRequest['success']) && !$mlsRequest['success'];
                if ($hasError) {
@@ -1466,6 +1480,9 @@ class Mlsimport_Admin {
 
 
 			foreach ($fieldImport as $key => $field):
+				if (!empty($field['hidden'])) {
+					continue;
+				}
 				$nameCheck = strtolower('mlsimport_item_' . $key . '_check');
 				$name = strtolower('mlsimport_item_' . $key);
 
@@ -1500,7 +1517,6 @@ class Mlsimport_Admin {
                                                                                                                               'ListOfficeKey',
                                                                                                                               'ListOfficeMlsId',
                                                                                                                               'StandardStatus',
-																'StandardStatusDelete',
 																'ListingId',
 																'extraCity',
 																'extraCounty',
@@ -1508,6 +1524,7 @@ class Mlsimport_Admin {
                                                                 'Exclude_ListOfficeMlsId',
                                                                 'Exclude_ListAgentKey',
                                                                 'Exclude_ListAgentMlsId',
+                                                                'CustomParameters',
                                                                 'MLSAreaMajor',
                                                                 'SubdivisionName',
                                                         ];
@@ -1570,9 +1587,7 @@ class Mlsimport_Admin {
                                                                                 })));
 
                                                                                 $is_selected = false;
-                                                                                if ($key === "StandardStatusDelete" && $value == null) {
-                                                                                        $is_selected = true;
-                                                                                } elseif (is_array($value)) {
+                                                                                if (is_array($value)) {
                                                                                         $is_selected = count(array_intersect($comparison_values, $value)) > 0;
                                                                                 } else {
                                                                                         $is_selected = in_array($value, $comparison_values, true);
@@ -1676,7 +1691,7 @@ class Mlsimport_Admin {
            print esc_html($last_date) . '. ';
 
            // Make request to MLS API
-           $mlsrequest = $this->mlsimport_make_listing_requests( $item_id, $last_date );
+           $mlsrequest = $this->mlsimport_make_listing_requests( $item_id, $last_date, '', '', true );
 
            $found_items = 0;
            if ( isset( $mlsrequest['results'] ) ) {
@@ -1697,7 +1712,7 @@ class Mlsimport_Admin {
                );
 
                // Potentially large array, log memory before/after
-               $attachments_to_move = (array) $this->mlsimport_saas_generate_import_requests_per_item( $item_id_array, $last_date );
+               $attachments_to_move = (array) $this->mlsimport_saas_generate_import_requests_per_item( $item_id_array, $last_date, true );
 
                // Store in post meta (beware if array is huge)
                update_post_meta( $item_id, 'mlsimport_spawn_status_cron_job', 'started' );
@@ -1790,14 +1805,16 @@ public function mlsimport_saas_start_doing_reconciliation() {
             ++$counter;
             // IN MLS
             if (isset($listingKey_in_MLS[$listingkey])) {
-               
+
                 if (!empty($mlsimportItemId) && isset($mlsimport_preload_all_mls_item_status_meta[$mlsimportItemId])) {
                     $mlsimport_item_standardstatus = $mlsimport_preload_all_mls_item_status_meta[$mlsimportItemId]['mlsimport_item_standardstatus'] ?? null;
+                    $mlsimport_item_standardstatusprotect = $mlsimport_preload_all_mls_item_status_meta[$mlsimportItemId]['mlsimport_item_standardstatusprotect'] ?? null;
                 } else {
                     $mlsimport_item_standardstatus = null;
+                    $mlsimport_item_standardstatusprotect = null;
                 }
-                
-                $keep_when_in_mls = $mlsimport->admin->theme_importer->check_if_delete_when_status_when_in_mls($property_id,$mlsimport_item_standardstatus);
+
+                $keep_when_in_mls = $mlsimport->admin->theme_importer->check_if_delete_when_status_when_in_mls($property_id, $mlsimport_item_standardstatus, $mlsimport_item_standardstatusprotect);
                 if (!$keep_when_in_mls) {
                     ++$to_delete;
                   	$mlsimport->admin->theme_importer->mlsimportSaasDeletePropertyViaMysql($property_id, $listingkey);
@@ -1807,12 +1824,12 @@ public function mlsimport_saas_start_doing_reconciliation() {
 
                 if (!empty($mlsimportItemId) && isset($mlsimport_preload_all_mls_item_status_meta[$mlsimportItemId])) {
                     $mlsimport_item_standardstatus = $mlsimport_preload_all_mls_item_status_meta[$mlsimportItemId]['mlsimport_item_standardstatus'] ?? null;
-                    $mlsimport_item_standardstatusdelete = $mlsimport_preload_all_mls_item_status_meta[$mlsimportItemId]['mlsimport_item_standardstatusdelete'] ?? null;
+                    $mlsimport_item_standardstatusprotect = $mlsimport_preload_all_mls_item_status_meta[$mlsimportItemId]['mlsimport_item_standardstatusprotect'] ?? null;
                 } else {
                     $mlsimport_item_standardstatus = null;
-                    $mlsimport_item_standardstatusdelete = null;
-                }  
-                $keep = $mlsimport->admin->theme_importer->check_if_delete_when_status($property_id, $mlsimport_item_standardstatus, $mlsimport_item_standardstatusdelete);
+                    $mlsimport_item_standardstatusprotect = null;
+                }
+                $keep = $mlsimport->admin->theme_importer->check_if_delete_when_status($property_id, $mlsimport_item_standardstatus, null, $mlsimport_item_standardstatusprotect);
                 if (!$keep) {
                     ++$to_delete;
    					$mlsimport->admin->theme_importer->mlsimportSaasDeletePropertyViaMysql($property_id, $listingkey);
@@ -1820,7 +1837,7 @@ public function mlsimport_saas_start_doing_reconciliation() {
             }
 
             // Memory housekeeping
-            unset($listingkey, $property_id, $mlsimportItemId, $mlsImportItemStatus, $mlsImportItemStatusDelete, $keep_when_in_mls, $keep);
+            unset($listingkey, $property_id, $mlsimportItemId, $mlsImportItemStatus, $mlsimport_item_standardstatusprotect, $keep_when_in_mls, $keep);
             if ($counter % 250 == 0) {
                 gc_collect_cycles();
             }
@@ -1847,18 +1864,17 @@ public function mlsimport_saas_start_doing_reconciliation() {
 
 /**
  * Preload all status meta for ALL mlsimport_item posts in ONE QUERY.
- * Returns: [mlsimport_item_id => ['mlsimport_item_standardstatus' => ..., 'mlsimport_item_standardstatusdelete' => ...], ...]
+ * Returns: [mlsimport_item_id => ['mlsimport_item_standardstatus' => ..., 'mlsimport_item_standardstatusprotect' => ...], ...]
  */
 function mlsimport_preload_all_mls_item_status_meta() {
     global $wpdb;
 
-    // Only 1 query: join posts and postmeta, grab both metas
     $sql = "
         SELECT p.ID as post_id, pm.meta_key, pm.meta_value
         FROM {$wpdb->posts} p
         LEFT JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
         WHERE p.post_type = 'mlsimport_item'
-        AND pm.meta_key IN ('mlsimport_item_standardstatus', 'mlsimport_item_standardstatusdelete')
+        AND pm.meta_key IN ('mlsimport_item_standardstatus', 'mlsimport_item_standardstatusprotect')
     ";
 
     $rows = $wpdb->get_results($sql);
@@ -1868,7 +1884,7 @@ function mlsimport_preload_all_mls_item_status_meta() {
         if (!isset($meta[$row->post_id])) {
             $meta[$row->post_id] = [
                 'mlsimport_item_standardstatus' => null,
-                'mlsimport_item_standardstatusdelete' => null
+                'mlsimport_item_standardstatusprotect' => null
             ];
         }
         $meta[$row->post_id][$row->meta_key] = maybe_unserialize($row->meta_value);
@@ -1922,14 +1938,14 @@ function mlsimport_preload_all_mls_item_status_meta() {
 	 *
 	 *
 	 * */
-	public function mlsimport_make_listing_requests( $item_id, $last_date = '', $skip = '', $top = '' ) {
+	public function mlsimport_make_listing_requests( $item_id, $last_date = '', $skip = '', $top = '', $is_hourly_sync = false ) {
 		$options = get_option( $this->plugin_name . '_admin_options' );
 		$mls_id  = '';
 		if ( isset( $options['mlsimport_mls_name'] ) ) {
 			$mls_id = sanitize_text_field( trim( $options['mlsimport_mls_name'] ) );
 		}
 
-		$arguments = $this->mlsimport_saas_make_listing_requests_arguments( $item_id, $last_date, $skip, $top );
+		$arguments = $this->mlsimport_saas_make_listing_requests_arguments( $item_id, $last_date, $skip, $top, $is_hourly_sync );
 
 
 		if (
@@ -1976,7 +1992,7 @@ function mlsimport_preload_all_mls_item_status_meta() {
 	 *
 	 * */
 
-	public function mlsimport_saas_make_listing_requests_arguments( $item_id, $last_date = '', $skip = '', $top = '' ) {
+	public function mlsimport_saas_make_listing_requests_arguments( $item_id, $last_date = '', $skip = '', $top = '', $is_hourly_sync = false ) {
 
 		$options = get_option( $this->plugin_name . '_admin_options' );
 		if ( isset( $options['mlsimport_mls_name'] ) ) {
@@ -1994,6 +2010,9 @@ function mlsimport_preload_all_mls_item_status_meta() {
 		$values             = array();
 		$values['mls_id']   = $mls_id;
 		$values['theme_id'] = $theme_id;
+		if ( $is_hourly_sync ) {
+			$values['hourly_sync'] = 1;
+		}
 
 		if ( '' !==  $top  ) {
 			$values['top']  = $top;
@@ -2077,6 +2096,8 @@ function mlsimport_preload_all_mls_item_status_meta() {
 		$values = $this->mls_import_saas_add_to_parms_input( 'Exclude_ListAgentKey', $item_id, 'exclude_list_agentkey', $values );
 		// add Exclude_ListAgentMlsId
 		$values = $this->mls_import_saas_add_to_parms_input( 'Exclude_ListAgentMlsId', $item_id, 'exclude_list_agentmlsid', $values );
+		// add CustomParameters
+		$values = $this->mls_import_saas_add_to_parms_input( 'CustomParameters', $item_id, 'custom_parameters', $values );
 
 
 		// if we have realtorca
@@ -2235,27 +2256,14 @@ function mlsimport_preload_all_mls_item_status_meta() {
 
 
 		$standardstatus_array = array();
-		$standardstatus_delete_array=array();
 		if ( isset( $metadata_api_call['PropertyEnums']['StandardStatus'] ) && is_array( $metadata_api_call['PropertyEnums']['StandardStatus'] ) ) {
 			$standardstatus_array 		= array_keys( $metadata_api_call['PropertyEnums']['StandardStatus'] );
-			$standardstatus_delete_array= array_keys( $metadata_api_call['PropertyEnums']['StandardStatus'] );
 		}
 
 		// if we do not have standart status
 		if ( empty( $standardstatus_array ) ) {
 			$standardstatus_array 			= $mlsstatus_array;
-			$standardstatus_delete_array	= $mlsstatus_array;
-			
 		}
-
-
-		$permited_status=array('active','active under contract','coming soon','activeundercontract','comingsoon','pending');
-		$permited_status_lower = array_map('strtolower', $permited_status);
-
-		// Filter out permitted statuses from array1 values
-	//	$standardstatus_delete_array = array_filter($standardstatus_delete_array, function ($value) use ($permited_status_lower) {
-	//		return !in_array(strtolower($value), $permited_status_lower);
-//		}); 
 
 	
 
@@ -2339,12 +2347,12 @@ function mlsimport_preload_all_mls_item_status_meta() {
 				'multiple'    => 'yes',
 				'values'      => $standardstatus_array,
 			),
-			'StandardStatusDelete'                 => array(
-				'label'       => esc_html__( 'Delete Statuses', 'mlsimport' ),
-				'description' => __( 'Properties with these statuses will be deleted from your website after they are removed from MLS database. If you edit the field after importing, the changes will NOT apply to listings that have already been imported.', 'mlsimport' ),
+			'StandardStatusProtect'                => array(
+				'label'       => esc_html__( 'Protected Statuses', 'mlsimport' ),
+				'description' => __( 'Properties with these statuses will NEVER be deleted from your website during reconciliation, even if they are no longer found in the MLS. Use this to protect Closed, Expired, or other non-active listings from automatic deletion.', 'mlsimport' ),
 				'type'        => 'select',
 				'multiple'    => 'yes',
-				'values'      => $standardstatus_delete_array,
+				'values'      => $standardstatus_array,
 			),
 
 			'InternetEntireListingDisplayYN' => array(
@@ -2426,6 +2434,12 @@ function mlsimport_preload_all_mls_item_status_meta() {
 			'Exclude_ListAgentKey'                      => array(
 				'label'       => esc_html__( 'Exclude listings with ListAgentKey ', 'mlsimport' ),
 				'description' => esc_html__( 'Exclude listings that belong to one or more ListAgentKey ', 'mlsimport'),
+				'type'        => 'input',
+				'multiple'    => 'no',
+			),
+			'CustomParameters'                      => array(
+				'label'       => esc_html__( 'Custom parameters', 'mlsimport' ),
+				'description' => esc_html__( 'Add raw query fragment parameters (for example: $filter=WaterfrontYN eq true). They will be forwarded to the RESO API request.', 'mlsimport' ),
 				'type'        => 'input',
 				'multiple'    => 'no',
 			),
@@ -2597,7 +2611,7 @@ function mlsimport_preload_all_mls_item_status_meta() {
 	 *
 	 * Generate import Requests per item
 	 */
-	public function mlsimport_saas_generate_import_requests_per_item( $item_id_array, $last_date = '' ) {
+	public function mlsimport_saas_generate_import_requests_per_item( $item_id_array, $last_date = '', $is_hourly_sync = false ) {
 		$import_step = 25;
 
 		$prop_id   = $item_id_array['item_id'];
@@ -2629,7 +2643,7 @@ function mlsimport_preload_all_mls_item_status_meta() {
                         $batch_step = min( $import_step, $how_many - $skip );
 
                         // Build the request arguments using the remaining count.
-                        $search_url_step = $this->mlsimport_saas_make_listing_requests_arguments( $prop_id, $last_date, $skip, $batch_step );
+                        $search_url_step = $this->mlsimport_saas_make_listing_requests_arguments( $prop_id, $last_date, $skip, $batch_step, $is_hourly_sync );
 
                         // If the API returned an error, propagate it immediately.
                         if ( isset( $search_url_step['success'] ) && false === $search_url_step['success'] ) {
@@ -2666,7 +2680,7 @@ function mlsimport_preload_all_mls_item_status_meta() {
 		// Retrieve all meta data in one go to reduce database queries
 		$mlsimport_item_option_data = array(
 			'mlsimport_item_standardstatus'  		=> get_post_meta( $mlsimportItemId, 'mlsimport_item_standardstatus', true ),
-			'mlsimport_item_standardstatusdelete'  	=> get_post_meta( $mlsimportItemId, 'mlsimport_item_standardstatusdelete', true ),
+			'mlsimport_item_standardstatusprotect'  => get_post_meta( $mlsimportItemId, 'mlsimport_item_standardstatusprotect', true ),
 			'mlsimport_item_property_user'   		=> get_post_meta( $mlsimportItemId, 'mlsimport_item_property_user', true ),
 			'mlsimport_item_agent'           		=> get_post_meta( $mlsimportItemId, 'mlsimport_item_agent', true ),
 			'mlsimport_item_property_status' 		=> get_post_meta( $mlsimportItemId, 'mlsimport_item_property_status', true ),

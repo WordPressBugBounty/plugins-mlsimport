@@ -73,7 +73,7 @@ foreach ($settings_list as $key => $setting) {
         }
 
     if($key ==='mlsimport_password'){
-        echo '<button  class="button button-primary mlsimport-save-account">'.esc_html('Save account','mlsimport').'</button>';
+        echo '<button  class="button button-primary mlsimport-save-account">'.esc_html__('Save account','mlsimport').'</button>';
                 echo '<a href="https://mlsimport.com/mls-import-plugin-pricing" class="button button-primary mlsimport-save-account"  style="margin-left:15px;" target="_blank">'. esc_html__('Create My Account', 'mlsimport').'</a>';
         }
 
@@ -82,7 +82,7 @@ foreach ($settings_list as $key => $setting) {
 }
 
 echo '<input type="hidden" name="mlsimport_admin_options[force_rand]" value="' . esc_attr(wp_rand()) . '">';
-echo '<button  class="button button-primary mlsimport-save-mls-data">'.esc_html('Save MLS','mlsimport').'</button>';
+echo '<button  class="button button-primary mlsimport-save-mls-data">'.esc_html__('Save MLS','mlsimport').'</button>';
 ?>
 
 <script>

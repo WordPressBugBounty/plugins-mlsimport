@@ -546,8 +546,8 @@ function render_mls_field_table_row($field_key, $field_value, $options, $plugin_
                       $options['mls-fields-map-postmeta'][$field_key] : '';
     
     // Get taxonomy value
-    $taxonomy_value = isset($options['mls-fields-map-taxonomy'][$field_key]) ? 
-                     $options['mls-fields-map-taxonomy'][$field_key] : '';
+    $taxonomy_value = isset($options['mls-fields-map-taxonomy'][$field_key]) ?
+                     $options['mls-fields-map-taxonomy'][$field_key] : null;
 
 
     // Get taxonomy value
@@ -655,8 +655,8 @@ function get_taxonomy_dropdown_html($field_key, $selected, $plugin_name, $theme_
     if (!empty($theme_schema) && isset($theme_schema[$field_key]) && 
         isset($theme_schema[$field_key]['type']) && $theme_schema[$field_key]['type'] === 'taxonomy' && 
         isset($theme_schema[$field_key]['name'])) {
-        // Use schema's taxonomy value if no existing selection
-        if (empty($selected)) {
+        // Use schema's taxonomy value only if never set (null means no saved selection)
+        if ($selected === null) {
             $selected = $theme_schema[$field_key]['name'];
         }
     }

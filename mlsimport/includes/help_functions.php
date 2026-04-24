@@ -2921,11 +2921,15 @@ function mlsimport_populate_columns_params_display( $postID ) {
                 'Exclude_ListOfficeMlsId',
                 'Exclude_ListAgentKey',
                 'Exclude_ListAgentMlsId',
+                'CustomParameters',
                 'MLSAreaMajor',
                 'SubdivisionName',
 
         );
 	foreach ( $field_import as $key => $field ) :
+		if ( ! empty( $field['hidden'] ) ) {
+			continue;
+		}
 		$display_value = '';
 		$name_check    = strtolower( 'mlsimport_item_' . $key . '_check' );
 		$name          = strtolower( 'mlsimport_item_' . $key );

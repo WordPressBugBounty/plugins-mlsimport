@@ -289,50 +289,139 @@ jQuery( document ).ready(
 		* delete properties
 		*/
 
-		jQuery( '#mlsimport-delete-prop' ).on(
-			'click',
-			function () {
-				var ajaxurl = mlsimport_vars.ajax_url;
+		// Load taxonomy terms when taxonomy is selected
+		jQuery( '#mlsimport_delete_category' ).on( 'change', function () {
+			var taxonomy = jQuery( this ).val();
+			var $termSelect = jQuery( '#mlsimport_delete_category_term' );
+			var nonce = jQuery( '#mlsimport_tool_actions' ).val();
 
-				var mlsimport_delete_category      = jQuery( '#mlsimport_delete_category' ).val();
-				var mlsimport_delete_category_term = jQuery( '#mlsimport_delete_category_term' ).val();
-				var mlsimport_delete_timeout       = jQuery( '#mlsimport_delete_timeout' ).val();
-				var nonce 						   = jQuery('#mlsimport_tool_actions').val();
+			$termSelect.empty().prop( 'disabled', true );
 
-				if (mlsimport_delete_category === '') {
-					jQuery( '#mlsimport-delete-notification' ).text( 'Please add the category ' );
-					return;
-				}
-				if (mlsimport_delete_category_term === '' ) {
-					jQuery( '#mlsimport-delete-notification' ).text( 'Please add the category term ' );
-					return;
-				}
-
-				jQuery( '#mlsimport-delete-notification' ).text( 'Deleting...If you have many properties this may take a while' );
-				jQuery.ajax(
-					{
-						type: 'POST',
-						url: ajaxurl,
-						dataType:'json',
-						data: {
-							'action'                            :   'mlsimport_delete_properties',
-							'mlsimport_delete_category'         :    mlsimport_delete_category,
-							'mlsimport_delete_category_term'    :   mlsimport_delete_category_term,
-							'mlsimport_delete_timeout'          :   mlsimport_delete_timeout,
-							'security'							:	nonce
-						},
-						success: function (data) {
-							console.log( data );
-							jQuery( '#mlsimport-delete-notification' ).text( data.message );
-
-						},
-						error: function (errorThrown) {
-							console.log( errorThrown );
-						}
-					}
-				);// end ajax
+			if ( ! taxonomy ) {
+				$termSelect.append( '<option value="" disabled>Select a taxonomy first</option>' );
+				return;
 			}
-		);
+
+			$termSelect.append( '<option value="" disabled>Loading...</option>' );
+
+			jQuery.ajax( {
+				type: 'POST',
+				url: mlsimport_vars.ajax_url,
+				dataType: 'json',
+				data: {
+					action: 'mlsimport_get_taxonomy_terms',
+					taxonomy: taxonomy,
+					security: nonce
+				},
+				success: function ( response ) {
+					$termSelect.empty();
+					if ( response.success && response.data.length ) {
+						jQuery.each( response.data, function ( i, term ) {
+							$termSelect.append(
+								'<option value="' + term.slug + '">' + term.name + ' (' + term.count + ')</option>'
+							);
+						} );
+						$termSelect.prop( 'disabled', false );
+					} else {
+						$termSelect.append( '<option value="" disabled>No terms found</option>' );
+					}
+				},
+				error: function () {
+					$termSelect.empty().append( '<option value="" disabled>Error loading terms</option>' );
+				}
+			} );
+		} );
+
+		// Batched delete
+		window.mlsimportDeleteStopped = false;
+
+		function mlsimportDeleteBatch( taxonomy, terms, nonce, totalDeleted ) {
+			if ( window.mlsimportDeleteStopped ) {
+				jQuery( '#mlsimport-delete-notification' ).text( 'Stopped. Deleted ' + totalDeleted + ' properties.' );
+				mlsimportDeleteResetUI();
+				return;
+			}
+
+			jQuery.ajax( {
+				type: 'POST',
+				url: mlsimport_vars.ajax_url,
+				dataType: 'json',
+				data: {
+					action: 'mlsimport_delete_properties',
+					mlsimport_delete_category: taxonomy,
+					'mlsimport_delete_category_term[]': terms,
+					security: nonce
+				},
+				success: function ( response ) {
+					if ( ! response.success ) {
+						jQuery( '#mlsimport-delete-notification' ).text( response.data || 'Error' );
+						mlsimportDeleteResetUI();
+						return;
+					}
+
+					var data = response.data;
+					totalDeleted += data.deleted;
+					var totalProperties = totalDeleted + data.remaining;
+					var pct = totalProperties > 0 ? Math.round( ( totalDeleted / totalProperties ) * 100 ) : 100;
+
+					jQuery( '#mlsimport-delete-progress-bar' ).css( 'width', pct + '%' );
+					jQuery( '#mlsimport-delete-progress-text' ).text( totalDeleted + ' / ' + totalProperties + ' deleted' );
+					jQuery( '#mlsimport-delete-notification' ).text( 'Deleting... ' + totalDeleted + ' deleted so far.' );
+
+					if ( data.done ) {
+						jQuery( '#mlsimport-delete-notification' ).text( 'Done! Deleted ' + totalDeleted + ' properties.' );
+						jQuery( '#mlsimport-delete-progress-bar' ).css( 'width', '100%' );
+						mlsimportDeleteResetUI();
+					} else {
+						mlsimportDeleteBatch( taxonomy, terms, nonce, totalDeleted );
+					}
+				},
+				error: function ( xhr ) {
+					console.log( xhr );
+					jQuery( '#mlsimport-delete-notification' ).text( 'Error during deletion. Deleted ' + totalDeleted + ' so far.' );
+					mlsimportDeleteResetUI();
+				}
+			} );
+		}
+
+		function mlsimportDeleteResetUI() {
+			jQuery( '#mlsimport-delete-prop' ).show();
+			jQuery( '#mlsimport-delete-stop' ).hide();
+		}
+
+		jQuery( '#mlsimport-delete-prop' ).on( 'click', function () {
+			var taxonomy = jQuery( '#mlsimport_delete_category' ).val();
+			var terms = jQuery( '#mlsimport_delete_category_term' ).val();
+			var nonce = jQuery( '#mlsimport_tool_actions' ).val();
+
+			if ( ! taxonomy ) {
+				jQuery( '#mlsimport-delete-notification' ).text( 'Please select a taxonomy.' );
+				return;
+			}
+			if ( ! terms || ! terms.length ) {
+				jQuery( '#mlsimport-delete-notification' ).text( 'Please select at least one term.' );
+				return;
+			}
+
+			if ( ! confirm( 'Are you sure you want to delete all properties matching the selected terms? This cannot be undone.' ) ) {
+				return;
+			}
+
+			window.mlsimportDeleteStopped = false;
+			jQuery( '#mlsimport-delete-prop' ).hide();
+			jQuery( '#mlsimport-delete-stop' ).show();
+			jQuery( '#mlsimport-delete-progress' ).show();
+			jQuery( '#mlsimport-delete-progress-bar' ).css( 'width', '0%' );
+			jQuery( '#mlsimport-delete-progress-text' ).text( 'Starting...' );
+			jQuery( '#mlsimport-delete-notification' ).text( 'Deleting...' );
+
+			mlsimportDeleteBatch( taxonomy, terms, nonce, 0 );
+		} );
+
+		jQuery( '#mlsimport-delete-stop' ).on( 'click', function () {
+			window.mlsimportDeleteStopped = true;
+			jQuery( '#mlsimport-delete-notification' ).text( 'Stopping after current batch...' );
+		} );
 
 		/**
 		* Stop import

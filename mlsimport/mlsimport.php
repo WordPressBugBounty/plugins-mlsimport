@@ -3,7 +3,7 @@
  * Plugin Name:       MlsImport
  * Plugin URI:        https://mlsimport.com/
  * Description:       MLS Import - The MLSImport plugin facilitates the connection to your real estate MLS database, allowing you to download and synchronize real estate property data from the MLS.
- * Version:           6.1.10
+ * Version:           6.2.0
  * Requires at least: 5.2
  * Requires PHP:      7.4
  * License: GPLv3
@@ -20,7 +20,7 @@ if ( ! defined( 'WPINC' ) ) {
 }
 
 
-define( 'MLSIMPORT_VERSION', '6.1.10');
+define( 'MLSIMPORT_VERSION', '6.2.0');
 define( 'MLSIMPORT_CLUBLINK', 'mlsimport.com' );
 define( 'MLSIMPORT_CLUBLINKSSL', 'https' );
 define( 'MLSIMPORT_CRON_STEP', 20 );
@@ -70,7 +70,67 @@ function mlsimport_deactivate() {
 register_activation_hook( __FILE__, 'mlsimport_activate' );
 register_deactivation_hook( __FILE__, 'mlsimport_deactivate' );
 
+/**
+ * Show one-time modal about the switch from Delete Statuses to Protected Statuses.
+ */
+add_action( 'admin_footer', 'mlsimport_protected_statuses_upgrade_modal' );
+function mlsimport_protected_statuses_upgrade_modal() {
+    if ( get_option( 'mlsimport_dismiss_protected_status_notice' ) ) {
+        return;
+    }
+    // Only show for sites that had a version before 6.2 (not fresh installs)
+    $show_modal = get_option( 'mlsimport_show_protected_status_modal' );
+    if ( ! $show_modal ) {
+        return;
+    }
+    $nonce = wp_create_nonce( 'mlsimport_dismiss_protected_notice' );
+    $import_tasks_url = admin_url( 'edit.php?post_type=mlsimport_item' );
+    ?>
+    <div id="mlsimport-protected-status-modal" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:999999;display:flex;align-items:center;justify-content:center;">
+        <div style="background:#fff;max-width:520px;width:90%;border-radius:8px;padding:30px;box-shadow:0 4px 20px rgba(0,0,0,0.3);">
+            <h2 style="margin-top:0;color:#d63638;">MLSImport - Important Change</h2>
+            <p><strong>"Delete Statuses"</strong> have been removed. The plugin now uses <strong>Protected Statuses</strong> only.</p>
+            <p>Properties with a Protected Status will be kept during reconciliation. All other properties no longer found in MLS <strong>will be deleted</strong>.</p>
+            <p style="background:#fff3cd;border-left:4px solid #dba617;padding:10px 14px;"><strong>Action required:</strong> Go to each of your <a href="<?php echo esc_url( $import_tasks_url ); ?>">Import Tasks</a> and set the Protected Statuses field to the statuses you want to keep (e.g. Active, Pending, Coming Soon).</p>
+            <button id="mlsimport-acknowledge-btn" class="button button-primary" style="margin-top:10px;font-size:14px;padding:6px 24px;">I acknowledge</button>
+        </div>
+    </div>
+    <script>
+    document.getElementById('mlsimport-acknowledge-btn').addEventListener('click', function() {
+        var btn = this;
+        btn.disabled = true;
+        btn.textContent = 'Saving...';
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', ajaxurl);
+        xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+        xhr.onload = function() {
+            document.getElementById('mlsimport-protected-status-modal').style.display = 'none';
+        };
+        xhr.send('action=mlsimport_dismiss_protected_notice&_wpnonce=<?php echo esc_js( $nonce ); ?>');
+    });
+    </script>
+    <?php
+}
+add_action( 'wp_ajax_mlsimport_dismiss_protected_notice', 'mlsimport_handle_dismiss_protected_notice' );
+function mlsimport_handle_dismiss_protected_notice() {
+    check_ajax_referer( 'mlsimport_dismiss_protected_notice' );
+    update_option( 'mlsimport_dismiss_protected_status_notice', true );
+    delete_option( 'mlsimport_show_protected_status_modal' );
+    wp_send_json_success();
+}
 
+/**
+ * Track installed version and flag upgrade modals.
+ * Fresh installs get current version immediately, so no upgrade modal.
+ * Upgrades from < 6.2 flag the protected status modal.
+ */
+$mlsimport_prev_version = get_option( 'mlsimport_installed_version', '' );
+if ( $mlsimport_prev_version !== MLSIMPORT_VERSION ) {
+    if ( ! empty( $mlsimport_prev_version ) && version_compare( $mlsimport_prev_version, '6.2', '<' ) ) {
+        update_option( 'mlsimport_show_protected_status_modal', true );
+    }
+    update_option( 'mlsimport_installed_version', MLSIMPORT_VERSION );
+}
 
 /**
  * The core plugin class that is used to define internationalization,
