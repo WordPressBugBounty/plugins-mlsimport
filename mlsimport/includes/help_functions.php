@@ -2830,9 +2830,21 @@ function mlsimport_sanitize_multi_dimensional_array($data){
 
 function mlsimport_saas_reconciliation_event_function() {
 
-	global $mlsimport;
+	global $mlsimport, $wpdb;
 	$token   = $mlsimport->admin->mlsimport_saas_get_mls_api_token_from_transient();
 	$options = get_option( 'mlsimport_admin_options' );
+
+	// Only run reconciliation if at least one import task has a title.
+	$has_titled_task = $wpdb->get_var(
+		"SELECT ID FROM {$wpdb->posts}
+		 WHERE post_type = 'mlsimport_item'
+		   AND post_status != 'trash'
+		   AND post_title != ''
+		 LIMIT 1"
+	);
+	if ( ! $has_titled_task ) {
+		return;
+	}
 
 	if ( isset( $options['mlsimport_mls_name'] ) && '' !==  $options['mlsimport_mls_name']  ) {
 		$mlsimport->admin->mlsimport_saas_start_doing_reconciliation();

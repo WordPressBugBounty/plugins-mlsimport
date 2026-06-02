@@ -99,6 +99,41 @@ class ThemeImport {
 	 * @return array The API response data.
 	 */
 
+	/**
+	 * Fire-and-forget POST to the SaaS API. Refreshes the JWT token (blocking — a
+	 * required separate request); returns false without sending if the token is
+	 * unavailable. Otherwise issues wp_remote_post() with blocking=false, timeout=0.01
+	 * and returns true. The response is never inspected.
+	 *
+	 * @param string $method     The API method/path to call.
+	 * @param array  $valuesArray The request body data.
+	 * @return bool True if dispatched, false if token unavailable.
+	 */
+	public static function globalApiRequestSaasFireAndForget( string $method, array $valuesArray ): bool {
+		if ( ! self::validateAndRefreshToken() ) {
+			return false;
+		}
+
+		$token = self::getApiToken();
+
+		wp_remote_post(
+			MLSIMPORT_API_URL . $method,
+			[
+				'method'   => 'POST',
+				'timeout'  => 0.01,
+				'blocking' => false,
+				'headers'  => [
+					'Authorization' => 'Bearer ' . $token,
+					'Content-Type'  => 'application/json',
+				],
+				'body'     => wp_json_encode( $valuesArray ),
+			]
+		);
+
+		return true;
+	}
+
+
 	public static function globalApiRequestSaas($method, $valuesArray, $type = 'GET') {
 			global $mlsimport;
 			 // Skip validation for token and mls requests
@@ -215,6 +250,7 @@ class ThemeImport {
 		$password = isset($options['mlsimport_password']) ? $options['mlsimport_password'] : '';
 		
 		if (empty($username) || empty($password)) {
+			mlsimport_telemetry_bump( 'token_failures' );
 			return false;
 		}
 		
@@ -238,13 +274,15 @@ class ThemeImport {
 		$response = wp_remote_post($url, $args);
 		
 		if (is_wp_error($response)) {
+			mlsimport_telemetry_bump( 'token_failures' );
 			return false;
 		}
-		
+
 		$body = wp_remote_retrieve_body($response);
 		$data = json_decode($body, true);
-		
+
 		if (!isset($data['success']) || !$data['success'] || !isset($data['token']) || !isset($data['expires'])) {
+			mlsimport_telemetry_bump( 'token_failures' );
 			return false;
 		}
 		
@@ -255,8 +293,10 @@ class ThemeImport {
 		set_transient('mlsimport_saas_token', $data['token'], $expires_in);
 
 		update_option('mlsimport_token_expiry', intval($data['expires']));
-		
-		
+
+		// First successful SaaS account connection (lifecycle telemetry).
+		mlsimport_telemetry_set_once( 'account_connected_at', time() );
+
 		return true;
 	}
 
@@ -792,13 +832,12 @@ private function cleanUpMemory($intensive = false) {
 	 * @return array The property data with prepared meta.
 	 */
 	public function mlsimportSaasPrepareMetaForProperty($property) {
-		if (isset($property['extra_meta']['BathroomsTotalDecimal']) && floatval($property['extra_meta']['BathroomsTotalDecimal']) > 0) {
-			$bathrooms = floatval($property['extra_meta']['BathroomsTotalDecimal']);
-			$property['meta']['property_bathrooms'] = $bathrooms;
-			$property['meta']['fave_property_bathrooms'] = $bathrooms;
-			$property['meta']['REAL_HOMES_property_bathrooms'] = $bathrooms;
-		}
-
+		$bathroomsRaw = $property['extra_meta']['BathroomsTotalDecimal'] ?? '';
+		$bathrooms    = ( '' === $bathroomsRaw || null === $bathroomsRaw ) ? '' : floatval($bathroomsRaw);
+		$property['meta']['property_bathrooms'] = $bathrooms;
+		$property['meta']['fave_property_bathrooms'] = $bathrooms;
+		$property['meta']['REAL_HOMES_property_bathrooms'] = $bathrooms;
+	
 		// PostalCode is commonly provided in normalized meta (property_zip) rather than extra_meta.
 		// Mirror it into extra_meta when missing so field mappings (postmeta/taxonomy) can process it.
 		if (!isset($property['extra_meta']) || !is_array($property['extra_meta'])) {
@@ -1003,6 +1042,7 @@ private function cleanUpMemory($intensive = false) {
 	 */
 	public function deleteProperty($deleteId, $ListingKey) {
 		if ($deleteId > 0) {
+			mlsimport_record_activity( 'deleted', $deleteId, get_post_meta($deleteId,'ListingKey',true), intval(get_post_meta($deleteId,'MLSimport_item_inserted',true)), 'import' );
 			$args = [
 				'numberposts' => -1,
 				'post_type' => 'attachment',
@@ -1018,6 +1058,7 @@ private function cleanUpMemory($intensive = false) {
 			}
 
 			wp_delete_post($deleteId);
+			mlsimport_telemetry_bump( 'deleted' );
 			$logEntry = 'Property with id ' . $deleteId . ' and ' . $ListingKey . ' was deleted on ' . current_time('Y-m-d\TH:i') . PHP_EOL;
 			$this->writeImportLogs($logEntry, 'delete');
 		}
@@ -1134,9 +1175,12 @@ private function cleanUpMemory($intensive = false) {
                                return;
                        }
 
+                       mlsimport_record_activity( 'deleted', $deleteId, $ListingKey, intval(get_post_meta($deleteId,'MLSimport_item_inserted',true)), 'reconciliation' );
+
                        global $wpdb;
                        $wpdb->query($wpdb->prepare("DELETE FROM $wpdb->postmeta WHERE `post_id` = %d", $deleteId));
                        $wpdb->query($wpdb->prepare("DELETE FROM $wpdb->posts WHERE `post_parent` = %d OR `ID` = %d", $deleteId, $deleteId));
+                       mlsimport_telemetry_bump( 'deleted' );
 
                        $logEntry = 'MYSQL DELETE -> Property with id ' . $deleteId . ' (' . $postType . ') (status ' . $deleteIdStatus . ') and ' . $ListingKey . ' was deleted on ' . current_time('Y-m-d\TH:i') . PHP_EOL;
                        $this->writeImportLogs($logEntry, 'delete');
@@ -1225,6 +1269,8 @@ public function mlsimportSaasPrepareToImportPerItem($property, $itemIdArray, $ti
 	// Memory before insert/update
 	$memBeforeInsert = memory_get_usage(true);
 
+	$activityAction = '';
+
 	if ($isInsert === 'yes') {
 		$post = [
 			'post_title' 	=> $submitTitle,
@@ -1241,8 +1287,9 @@ public function mlsimportSaasPrepareToImportPerItem($property, $itemIdArray, $ti
 		} else {
 			update_post_meta($propertyId, 'ListingKey', $ListingKey);
 			update_post_meta($propertyId, 'MLSimport_item_inserted', $itemIdArray['item_id'],);
-			
+			$activityAction = 'added';
 			$propertyHistory[] = date('F j, Y, g:i a') . ': We Inserted the property with Default title :  ' . $submitTitle . ' and received id:' . $propertyId;
+			mlsimport_telemetry_bump( 'imported' );
 		}
 
 		clean_post_cache($propertyId);
@@ -1273,7 +1320,8 @@ public function mlsimportSaasPrepareToImportPerItem($property, $itemIdArray, $ti
 			$memBeforeUpdate = memory_get_usage(true);
 
 			$propertyHistory = $this->updateExistingProperty($propertyId, $content, $listingPostType, $newAuthor, $status, $mlsImportItemStatus, $propertyHistory, $tipImport, $ListingKey);
-			
+			$activityAction = 'edited';
+
 			// Memory after updating
 			$memAfterUpdate = memory_get_usage(true);
 		}
@@ -1291,6 +1339,10 @@ public function mlsimportSaasPrepareToImportPerItem($property, $itemIdArray, $ti
 	$memBeforeDetails = memory_get_usage(true);
 
 	$newTitle = $this->processPropertyDetails($property, $propertyId, $tipImport, $propertyHistory, $newAgent, $itemIdArray,$isInsert);
+
+	if ( $activityAction !== '' ) {
+		mlsimport_record_activity( $activityAction, $propertyId, $ListingKey, isset($itemIdArray['item_id']) ? intval($itemIdArray['item_id']) : 0, $tipImport );
+	}
 
 	// Memory after processing details
 	$memAfterDetails = memory_get_usage(true);
@@ -1603,6 +1655,7 @@ public function check_if_delete_when_status_on_manual_import($property_id, $mlsI
 		} else {
 			$submitTitle = get_the_title($propertyId);
 			$propertyHistory[] = gmdate('F j, Y, g:i a') . ': Property with title: ' . $submitTitle . ', id:' . $propertyId . ', ListingKey:' . $ListingKey . ', Status:' . $status . ' will be edited';
+			mlsimport_telemetry_bump( 'updated' );
 		}
 		clean_post_cache( $propertyId );
 		
@@ -1748,9 +1801,9 @@ private function processPropertyDetails($property, $propertyId, $tipImport, &$pr
     if (isset($property['meta']) && is_array($property['meta'])) {
         $memBeforeMeta = memory_get_usage(true);
         $metaCount = count($property['meta']);
-        
+
         // Use direct SQL for batch meta updates if many fields
-        if ($metaCount > 20 && method_exists($wpdb, 'prepare')) {
+        if ($metaCount > 0 && method_exists($wpdb, 'prepare')) {
             $meta_values = [];
             foreach ($property['meta'] as $metaName => $metaValue) {
                 if (is_array($metaValue)) {
@@ -1761,14 +1814,14 @@ private function processPropertyDetails($property, $propertyId, $tipImport, &$pr
 
                 // Build history separately
                 $propertyHistory[] = 'Updated Meta ' . $metaName . ' with meta_value ' . $metaValue;
-                
+
                 // First delete existing
                 $wpdb->delete(
                     $wpdb->postmeta,
                     ['post_id' => $propertyId, 'meta_key' => $metaName],
                     ['%d', '%s']
                 );
-                
+
                 // Collect for batch insert
                 $meta_values[] = $wpdb->prepare(
                     "(%d, %s, %s)",
@@ -1777,13 +1830,14 @@ private function processPropertyDetails($property, $propertyId, $tipImport, &$pr
                     $metaValue
                 );
             }
-            
+
             // Batch insert all meta at once
             if (!empty($meta_values)) {
-                $wpdb->query("INSERT INTO {$wpdb->postmeta} (post_id, meta_key, meta_value) VALUES " . 
+                $wpdb->query("INSERT INTO {$wpdb->postmeta} (post_id, meta_key, meta_value) VALUES " .
                              implode(", ", $meta_values));
             }
         } else {
+			// Dead code - left intentianaly 
             // Standard approach for fewer meta fields
             foreach ($property['meta'] as $metaName => $metaValue) {
                 if (is_array($metaValue)) {
@@ -1795,7 +1849,7 @@ private function processPropertyDetails($property, $propertyId, $tipImport, &$pr
                 $propertyHistory[] = 'Updated Meta ' . $metaName . ' with meta_value ' . $metaValue;
             }
         }
-        
+
         $memAfterMeta = memory_get_usage(true);
             //     " MB, Diff: " . round(($memAfterMeta - $memBeforeMeta) / 1048576, 2) . " MB");
     }

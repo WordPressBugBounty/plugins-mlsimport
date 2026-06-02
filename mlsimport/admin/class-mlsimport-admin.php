@@ -208,6 +208,31 @@ class Mlsimport_Admin {
 				}
 		}
 
+		// Searchable City/County multi-select — only on the Import Task edit screen.
+		$screen    = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+		$post_type = $screen ? (string) $screen->post_type : '';
+		if ( $this->mlsimport_is_import_task_edit_screen( (string) $hook_suffix, $post_type ) ) {
+			wp_enqueue_script( 'mlsimport-searchable-select', plugin_dir_url( __FILE__ ) . 'js/mlsimport-searchable-select.js', array(), MLSIMPORT_VERSION, true );
+		}
+
+		// Deactivation exit survey — only needed on the Plugins screen.
+		if ( 'plugins.php' === $hook_suffix ) {
+			wp_enqueue_script( 'mlsimport-deactivation-survey', plugin_dir_url( __FILE__ ) . 'js/mlsimport-deactivation-survey.js', array( 'jquery' ), MLSIMPORT_VERSION, true );
+			wp_localize_script( 'mlsimport-deactivation-survey', 'mlsimport_deact_survey', array(
+				'ajax_url'        => admin_url( 'admin-ajax.php' ),
+				'nonce'           => wp_create_nonce( 'mlsimport_exit_survey' ),
+				'plugin_basename' => plugin_basename( MLSIMPORT_PLUGIN_PATH . 'mlsimport.php' ),
+				'options'         => $this->get_exit_survey_options(),
+				'i18n'            => array(
+					'title'             => esc_html__( 'Before you go — quick question', 'mlsimport' ),
+					'intro'             => esc_html__( 'Why are you deactivating MLS Import? Your answer helps us improve.', 'mlsimport' ),
+					'other_placeholder' => esc_html__( 'Tell us more (optional)', 'mlsimport' ),
+					'submit'            => esc_html__( 'Submit & Deactivate', 'mlsimport' ),
+					'skip'              => esc_html__( 'Skip & Deactivate', 'mlsimport' ),
+				),
+			) );
+		}
+
 	}
 
 
@@ -232,6 +257,24 @@ class Mlsimport_Admin {
 			MLSIMPORT_PLUGIN_URL . '/img/mlsimport_menu.png',
 			22
 		);
+
+		add_submenu_page(
+			'mlsimport_plugin_options',
+			esc_html__( 'Import History', 'mlsimport' ),
+			esc_html__( 'Import History', 'mlsimport' ),
+			'administrator',
+			'mlsimport_history',
+			array( $this, 'display_history_page' )
+		);
+	}
+
+	/**
+	 * Renders the Import History admin page.
+	 *
+	 * @return void
+	 */
+	public function display_history_page() {
+		include_once plugin_dir_path( __FILE__ ) . 'partials/mlsimport-history.php';
 	}
 
 
@@ -391,6 +434,15 @@ class Mlsimport_Admin {
 
 			'mlsimport_realtorca_client_secret'   => array(
 				'name'    => esc_html__( 'MLSImport Realtor.ca Secret', 'mlsimport' ),
+				'details' => 'to be added',
+			),
+			'mlsimport_brightmls_client_id'       => array(
+				'name'    => esc_html__( 'MLSImport BrightMLS Client id', 'mlsimport' ),
+				'details' => 'to be added',
+			),
+
+			'mlsimport_brightmls_client_secret'   => array(
+				'name'    => esc_html__( 'MLSImport BrightMLS Secret', 'mlsimport' ),
 				'details' => 'to be added',
 			),
 
@@ -922,6 +974,16 @@ class Mlsimport_Admin {
 			$mlsimport_realtorca_client_secret = sanitize_text_field( trim( $options['mlsimport_realtorca_client_secret'] ) );
 		}
 
+		// brightmls data
+		$mlsimport_brightmls_client_id = '';
+		if ( isset( $options['mlsimport_brightmls_client_id'] ) ) {
+			$mlsimport_brightmls_client_id = sanitize_text_field( trim( $options['mlsimport_brightmls_client_id'] ) );
+		}
+		$mlsimport_brightmls_client_secret = '';
+		if ( isset( $options['mlsimport_brightmls_client_secret'] ) ) {
+			$mlsimport_brightmls_client_secret = sanitize_text_field( trim( $options['mlsimport_brightmls_client_secret'] ) );
+		}
+
 
 
 
@@ -929,7 +991,11 @@ class Mlsimport_Admin {
 
 
                 if ( trim( $mls_token ) === '' ) {
-                        if ( $mls_id_int > 900 && $mls_id_int < 3000 ) { // Trestle
+                        if ( $this->mlsimport_is_brightmls_provider( $mls_id_int ) ) { // BrightMLS
+                                if ( trim( $mlsimport_brightmls_client_id ) === '' || trim( $mlsimport_brightmls_client_secret ) === '' ) {
+                                        return;
+                                }
+                        } elseif ( $mls_id_int > 900 && $mls_id_int < 3000 ) { // Trestle
                                 if ( trim( $mlsimport_tresle_client_id ) === '' || trim( $mlsimport_tresle_client_secret ) === '' ) {
                                         return;
                                 }
@@ -985,6 +1051,9 @@ class Mlsimport_Admin {
                 $values['mlsimport_realtorca_client_id']     = $mlsimport_realtorca_client_id;
                 $values['mlsimport_realtorca_client_secret'] = $mlsimport_realtorca_client_secret;
 
+                $values['mlsimport_brightmls_client_id']     = $mlsimport_brightmls_client_id;
+                $values['mlsimport_brightmls_client_secret'] = $mlsimport_brightmls_client_secret;
+
 
 
 
@@ -999,6 +1068,7 @@ class Mlsimport_Admin {
 		if ( isset( $answer['success'] ) && true ===  $answer['success']  ) {
 			if ( isset( $answer['tested'] ) &&  true === $answer['tested'] ) {
 				update_option( 'mlsimport_connection_test', 'yes' );
+				mlsimport_telemetry_set_once( 'mls_connected_at', time() );
 			} else {
 				delete_option( 'mlsimport_connection_test' );
 				delete_option( 'mlsimport_mls_metadata_populated' );
@@ -1012,7 +1082,154 @@ class Mlsimport_Admin {
 	}
 
         private function mlsimport_is_connectmls_provider( $mls_id_int ) {
-                return $mls_id_int >= 8000 && $mls_id_int < 9000;
+                return $mls_id_int >= 8000 && $mls_id_int < 9000 && 8001 !== (int) $mls_id_int;
+        }
+
+        private function mlsimport_is_brightmls_provider( int $mls_id_int ): bool {
+                return 8001 === $mls_id_int;
+        }
+
+        /**
+         * AJAX handler for the plugin-deactivation exit survey.
+         *
+         * Thin wrapper: it verifies the nonce and capability, sanitizes input,
+         * delegates the real work to mlsimport_exit_survey_record(), and POSTs
+         * the result to the SaaS API. The POST is fire-and-forget — a failed or
+         * not-yet-deployed endpoint must never stop the admin from deactivating.
+         */
+        public function mlsimport_exit_survey_submit() {
+                check_ajax_referer( 'mlsimport_exit_survey', 'security' );
+                if ( ! current_user_can( 'administrator' ) ) {
+                        wp_send_json_error( 'Unauthorized' );
+                }
+
+                $input = array(
+                        'reason'  => sanitize_text_field( wp_unslash( $_POST['reason'] ?? '' ) ),
+                        'details' => sanitize_textarea_field( wp_unslash( $_POST['details'] ?? '' ) ),
+                );
+
+                // Only record a recognized reason; an unknown value is dropped
+                // silently rather than blocking the user or storing junk.
+                if ( $this->mlsimport_exit_survey_is_valid_reason( $input['reason'] ) ) {
+                        $payload = $this->mlsimport_exit_survey_record( $input );
+                        try {
+                                ThemeImport::globalApiRequestSaas( 'user-activity', $payload, 'POST' );
+                        } catch ( \Throwable $e ) {
+                                // Swallow: deactivation proceeds regardless of transport failure.
+                        }
+                }
+
+                wp_send_json_success();
+        }
+
+        /**
+         * Whether a submitted exit-survey reason is one of the known options.
+         *
+         * Pure predicate — no WordPress functions, no translation.
+         */
+        private function mlsimport_exit_survey_is_valid_reason( string $reason ): bool {
+                return in_array( $reason, $this->mlsimport_exit_survey_reasons(), true );
+        }
+
+        /**
+         * Whether the current admin request is the Import Task (mlsimport_item)
+         * post edit screen. Used to scope the Select2 asset enqueue so the
+         * searchable-select library does not load across all of wp-admin.
+         *
+         * @param string $hook_suffix Current admin page hook suffix.
+         * @param string $post_type   Post type of the screen being rendered.
+         */
+        private function mlsimport_is_import_task_edit_screen( string $hook_suffix, string $post_type ): bool {
+                return 'mlsimport_item' === $post_type
+                        && in_array( $hook_suffix, array( 'post.php', 'post-new.php' ), true );
+        }
+
+        /**
+         * Extra CSS class for an Import Task select field. City and County lists
+         * can hold 300+ entries, so they are upgraded to a searchable multi-select
+         * (Select2) via this marker class; every other field keeps the plain select.
+         *
+         * @param string $field_key Field key from the $field_import definition.
+         * @return string Leading-space class string, or '' when not searchable.
+         */
+        private function mlsimport_searchable_select_class( string $field_key ): string {
+                return in_array( $field_key, array( 'City', 'CountyOrParish' ), true )
+                        ? ' mlsimport-searchable-select'
+                        : '';
+        }
+
+        /**
+         * Exit-survey testable core: resolve identity and count, build payload.
+         *
+         * Calls no dying functions — the AJAX wrapper handles nonce/capability
+         * and wp_send_json_*. Always returns the payload to transmit.
+         *
+         * @param array $input Sanitized survey input (reason, details).
+         */
+        private function mlsimport_exit_survey_record( array $input ): array {
+                $opts = get_option( 'mlsimport_admin_options', array() );
+                if ( empty( $opts['mlsimport_install_uuid'] ) ) {
+                        $opts['mlsimport_install_uuid'] = wp_generate_uuid4();
+                        update_option( 'mlsimport_admin_options', $opts );
+                }
+
+                $count = (int) get_option( 'mlsimport_deactivation_count', 0 ) + 1;
+                update_option( 'mlsimport_deactivation_count', $count );
+
+                $reason  = (string) ( $input['reason'] ?? '' );
+                $options = $this->get_exit_survey_options();
+
+                return array(
+                        'event_type'         => 'exit_survey',
+                        'reason'             => $reason,
+                        'reason_label'       => $options[ $reason ] ?? '',
+                        'details'            => (string) ( $input['details'] ?? '' ),
+                        'account'            => (string) ( $opts['mlsimport_username'] ?? '' ),
+                        'install_uuid'       => $opts['mlsimport_install_uuid'],
+                        'deactivation_count' => $count,
+                        'environment'        => wp_get_environment_type(),
+                        'site_url'           => home_url(),
+                        'admin_email'        => (string) get_option( 'admin_email' ),
+                        'timestamp'          => time(),
+                );
+        }
+
+        /**
+         * The known exit-survey reason keys — the single source of truth.
+         *
+         * Pure: keys only, no labels, no translation. The label map
+         * (get_exit_survey_options) builds on top of this for the modal.
+         *
+         * @return string[]
+         */
+        private function mlsimport_exit_survey_reasons(): array {
+                return array(
+                        'built_website',
+                        'no_leads',
+                        'technical_issues',
+                        'too_expensive',
+                        'switched_tool',
+                        'other',
+                );
+        }
+
+        /**
+         * Exit-survey reason key => display label, for the modal and payload.
+         *
+         * Uses translation, so it is not exercised by the pure unit suite —
+         * is_valid_reason() relies on mlsimport_exit_survey_reasons() instead.
+         *
+         * @return array<string,string>
+         */
+        private function get_exit_survey_options(): array {
+                return array(
+                        'built_website'    => esc_html__( "Built the website, don't need ongoing sync", 'mlsimport' ),
+                        'no_leads'         => esc_html__( 'Not getting leads from my site', 'mlsimport' ),
+                        'technical_issues' => esc_html__( "Technical issues I couldn't fix", 'mlsimport' ),
+                        'too_expensive'    => esc_html__( 'Too expensive', 'mlsimport' ),
+                        'switched_tool'    => esc_html__( 'Switched to another tool', 'mlsimport' ),
+                        'other'            => esc_html__( 'Other', 'mlsimport' ),
+                );
         }
 
 
@@ -1560,9 +1777,21 @@ class Mlsimport_Admin {
 
 					
 
+							// City/County lists can hold 300+ entries — render a filter
+							// input above the full native multi-select listbox.
+							$searchableClass   = $this->mlsimport_searchable_select_class($key);
+							$isSearchable      = '' !== $searchableClass;
+							$searchPlaceholder = $isSearchable
+								? esc_html__('Type to search…', 'mlsimport')
+								: '';
+
 							// Additional conditions can be placed here.
 							?>
-                                                        <select class="mlsimport-select mlsimport-2025-select" id="<?php echo esc_attr($name); ?>" name="<?php echo esc_attr($name); ?>" <?php echo esc_attr($multiple); ?>>
+							<?php if ($isSearchable): ?>
+								<div class="mlsimport-selected-chips" aria-live="polite"></div>
+								<input type="text" class="mlsimport-select-search" placeholder="<?php echo esc_attr($searchPlaceholder); ?>" aria-label="<?php echo esc_attr($searchPlaceholder); ?>" autocomplete="off">
+							<?php endif; ?>
+                                                        <select class="mlsimport-select mlsimport-2025-select<?php echo esc_attr($searchableClass); ?>" id="<?php echo esc_attr($name); ?>" name="<?php echo esc_attr($name); ?>"<?php echo $isSearchable ? ' size="12"' : ''; ?> <?php echo esc_attr($multiple); ?>>
                                                                 <?php foreach ($field['values'] as $selectKey): ?>
 
                                                                         <?php if ('' !== $selectKey): ?>
@@ -1680,30 +1909,40 @@ class Mlsimport_Admin {
         * Optimized for memory: logs memory, unsets large arrays, and triggers garbage collection.
         *
         * @param int $item_id
-        * @return void
+        * @return int Number of listings found in the MLS feed, or 0 on failure.
         */
-       public function mlsimport_saas_start_cron_links_per_item( $item_id ) {
+       public function mlsimport_saas_start_cron_links_per_item( int $item_id ): int {
            // Log memory before start
+
+           $found_items = 0;
+
+           // Auto-sync only maintains tasks the realtor has imported at least once
+           // by hand. A task created and forgotten has no 'mlsimport_spawn_status'
+           // meta, so the cron skips it instead of pulling the whole MLS feed.
+           if ( '' === get_post_meta( $item_id, 'mlsimport_spawn_status', true ) ) {
+               return 0;
+           }
 
            $last_date = $this->mlsimport_saas_get_last_date( $item_id );
            print 'MLSitem id: ' . $item_id . ' - ';
-           esc_html_e('date to consider: ','mlsimport'); 
+           esc_html_e('date to consider: ','mlsimport');
            print esc_html($last_date) . '. ';
 
            // Make request to MLS API
            $mlsrequest = $this->mlsimport_make_listing_requests( $item_id, $last_date, '', '', true );
 
-           $found_items = 0;
            if ( isset( $mlsrequest['results'] ) ) {
                $found_items = intval( $mlsrequest['results'] );
            } else {
                delete_transient( 'mlsimport_saas_token' );
+               mlsimport_telemetry_set( 'last_sync_failed', time() );
+               mlsimport_telemetry_set( 'last_sync_failed_code', (string) ( $mlsrequest['error_code'] ?? 'unknown' ) );
            }
            print esc_html__('We found ','mlsimport') . esc_html( $found_items ) . ' listings.</br>' . PHP_EOL;
 
            // Only process if items found
            if ( $found_items > 0 ) {
-			
+
                $item_id_array = array(
                    'item_id'       => $item_id,
                    'how_many'      => 0,
@@ -1735,6 +1974,8 @@ class Mlsimport_Admin {
                unset($attachments_to_move, $attachments_to_send, $mlsrequest, $item_id_array);
                gc_collect_cycles();
            }
+
+           return $found_items;
        }
 
 
@@ -1975,6 +2216,14 @@ function mlsimport_preload_all_mls_item_status_meta() {
 		//print '----------------------------'.PHP_EOL;
 		$answer                    = $this->theme_importer->globalApiRequestCurlSaas( 'listings', $arguments, 'POST' );
 		$answer['potential_leght'] = $potential_leght;
+
+		// Record the pre-filter MLS feed count for telemetry. Every import path
+		// — manual, hourly cron, and onboarding — routes through this method, so
+		// recording here is the single rule that keeps the metric complete.
+		if ( isset( $answer['results'] ) ) {
+			mlsimport_telemetry_set( 'last_feed_found', (int) $answer['results'] );
+		}
+
 		return ( $answer );
 	}
 
@@ -2101,7 +2350,7 @@ function mlsimport_preload_all_mls_item_status_meta() {
 
 
 		// if we have realtorca
-		if ($mls_id >= 7000 && $last_date!=='') {
+		if ($mls_id >= 7000 && $mls_id < 8000 && $last_date!=='') {
 			$dateTime_realtorca = new DateTime($last_date, new DateTimeZone('UTC'));
 			// Format with seconds and UTC timezone marker
 			$last_date = $dateTime_realtorca->format('Y-m-d\TH:i:s.000\Z');
@@ -2321,7 +2570,7 @@ function mlsimport_preload_all_mls_item_status_meta() {
 
 			'PostalCode'                     => array(
 				'label'       => esc_html__( 'Select Postal Code', 'mlsimport' ),
-				'description' => esc_html__( 'Select the PostalCode from where to import listings. Works with only one PostalCode.', 'mlsimport' ),
+				'description' => esc_html__( 'Enter one or more postal codes to import listings from, separated by commas (e.g. 12345, 23456).', 'mlsimport' ),
 				'type'        => 'input',
 				'multiple'    => 'no',
 			),

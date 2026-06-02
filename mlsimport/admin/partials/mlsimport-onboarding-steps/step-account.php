@@ -28,6 +28,8 @@ $settings_list = array(
 	'mlsimport_paragon_client_secret'   => array('name' => esc_html__('MLSImport Paragon Client Secret', 'mlsimport')),
 	'mlsimport_realtorca_client_id'     => array('name' => esc_html__('MLSImport Realtor.ca Client id', 'mlsimport')),
 	'mlsimport_realtorca_client_secret' => array('name' => esc_html__('MLSImport Realtor.ca Client Secret', 'mlsimport')),
+	'mlsimport_brightmls_client_id'     => array('name' => esc_html__('Your BrightMLS Client ID - provided by your MLS', 'mlsimport')),
+	'mlsimport_brightmls_client_secret' => array('name' => esc_html__('Your BrightMLS Client Secret - provided by your MLS', 'mlsimport')),
 	'mlsimport_theme_used'              => array('type' => 'select', 'name' => esc_html__('Your Wordpress Theme', 'mlsimport')),
 );
 

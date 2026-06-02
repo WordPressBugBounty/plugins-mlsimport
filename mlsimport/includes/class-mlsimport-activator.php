@@ -36,5 +36,6 @@ class Mlsimport_Activator {
 	 */
 	public static function activate() {
 			delete_transient( 'mlsimport_plugin_data_schema' );
+			mlsimport_create_activity_table();
 	}
 }

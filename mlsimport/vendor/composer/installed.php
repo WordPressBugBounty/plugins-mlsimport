@@ -3,7 +3,7 @@
         'name' => 'mlsimport/mlsimport-plugin',
         'pretty_version' => 'dev-master',
         'version' => 'dev-master',
-        'reference' => 'f12449545ceadafa3f59d77da90468d74fd5be48',
+        'reference' => 'c702e82b0099790fdcdf63b228704f04843ad0f5',
         'type' => 'library',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -13,7 +13,7 @@
         'mlsimport/mlsimport-plugin' => array(
             'pretty_version' => 'dev-master',
             'version' => 'dev-master',
-            'reference' => 'f12449545ceadafa3f59d77da90468d74fd5be48',
+            'reference' => 'c702e82b0099790fdcdf63b228704f04843ad0f5',
             'type' => 'library',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),

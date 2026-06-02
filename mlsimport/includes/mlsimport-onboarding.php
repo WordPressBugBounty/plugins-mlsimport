@@ -298,7 +298,10 @@ function mlsimport_save_step_data($step, $data) {
     
     // Update user data
     $user_data[$step] = $sanitized_data;
-    
+
+    // Record onboarding-step completion (lifecycle telemetry).
+    mlsimport_telemetry_mark_onboarding_step( $step );
+
     // Save user data
     return update_option('mlsimport_onboarding_user_data', $user_data);
 }

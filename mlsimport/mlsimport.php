@@ -3,7 +3,7 @@
  * Plugin Name:       MlsImport
  * Plugin URI:        https://mlsimport.com/
  * Description:       MLS Import - The MLSImport plugin facilitates the connection to your real estate MLS database, allowing you to download and synchronize real estate property data from the MLS.
- * Version:           6.2.0
+ * Version:           6.3.1
  * Requires at least: 5.2
  * Requires PHP:      7.4
  * License: GPLv3
@@ -20,7 +20,7 @@ if ( ! defined( 'WPINC' ) ) {
 }
 
 
-define( 'MLSIMPORT_VERSION', '6.2.0');
+define( 'MLSIMPORT_VERSION', '6.3.1');
 define( 'MLSIMPORT_CLUBLINK', 'mlsimport.com' );
 define( 'MLSIMPORT_CLUBLINKSSL', 'https' );
 define( 'MLSIMPORT_CRON_STEP', 20 );
@@ -50,6 +50,7 @@ if ( ! defined( 'MLSIMPORT_HIDE_SETUP_NOTICE' ) ) {
 function mlsimport_activate() {
 	require_once plugin_dir_path( __FILE__ ) . 'includes/class-mlsimport-activator.php';
 	Mlsimport_Activator::activate();
+	mlsimport_telemetry_set_once( 'installed_at', time() );
 }
 
 
@@ -62,6 +63,7 @@ function mlsimport_deactivate() {
 	require_once plugin_dir_path( __FILE__ ) . 'includes/class-mlsimport-deactivator.php';
 	wp_clear_scheduled_hook( 'event_mls_import_auto' );
 	wp_clear_scheduled_hook( 'mlsimport_reconciliation_event' );
+	wp_clear_scheduled_hook( 'mlsimport_daily_telemetry_event' );
 	Mlsimport_Deactivator::deactivate();
 }
 
@@ -156,6 +158,8 @@ require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-onboarding.php';
 
 require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-field-selector-functions.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-progressive-save.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-telemetry.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-activity-log.php';
 
 if ( ! wp_next_scheduled( 'event_mls_import_auto' ) ) {
 	wp_schedule_event( time(), 'hourly', 'event_mls_import_auto' );
@@ -204,6 +208,10 @@ function mlsimport_saas_event_mls_import_auto_function() {
         return;
     }
 
+    // Record sync attempt in telemetry
+    mlsimport_telemetry_bump( 'syncs' );
+    mlsimport_telemetry_set( 'last_sync_attempt', time() );
+
     // 3. Set batch size for processing and initialize loop variables
     $batch_size = 100;
     $paged = 1;
@@ -242,7 +250,8 @@ function mlsimport_saas_event_mls_import_auto_function() {
             $logs = 'Loop custom post: ' . $prop_id . PHP_EOL;
             mlsimport_debuglogs_per_plugin($logs);
 
-            // Call processing function for this item
+            // Call processing function for this item. The feed count it pulls
+            // is recorded inside mlsimport_make_listing_requests() (last_feed_found).
             $mlsimport->admin->mlsimport_saas_start_cron_links_per_item($prop_id);
 
             $total_processed++;
@@ -262,6 +271,8 @@ function mlsimport_saas_event_mls_import_auto_function() {
 
     } while (true);
 
+    mlsimport_telemetry_set( 'last_sync_success', time() );
+
     //error_log('[AutoCron] Done, total processed: ' . $total_processed . ', end memory: ' . (memory_get_usage(true) / 1024 / 1024) . ' MB');
 }
 
@@ -279,6 +290,12 @@ if ( ! wp_next_scheduled( 'mlsimport_reconciliation_event' ) ) {
 }
 
 add_action( 'mlsimport_reconciliation_event', 'mlsimport_saas_reconciliation_event_function' );
+
+if ( ! wp_next_scheduled( 'mlsimport_daily_telemetry_event' ) ) {
+	wp_schedule_event( time(), 'daily', 'mlsimport_daily_telemetry_event' );
+}
+
+add_action( 'mlsimport_daily_telemetry_event', 'mlsimport_telemetry_run_daily' );
 
 
 /*

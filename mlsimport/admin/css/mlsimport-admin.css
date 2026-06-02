@@ -820,3 +820,343 @@ input[type=checkbox].mlsimport_select_import_all {
         border-radius: 5px;
         transition: width 0.3s;
 }
+
+/* Deactivation exit survey modal */
+#mlsimport-exit-survey-modal {
+        position: fixed;
+        inset: 0;
+        z-index: 100000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+}
+#mlsimport-exit-survey-modal.mlsimport-es-hidden {
+        display: none;
+}
+.mlsimport-es-backdrop {
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.6);
+}
+.mlsimport-es-card {
+        position: relative;
+        background: #fff;
+        border-radius: 6px;
+        padding: 26px 28px;
+        width: 460px;
+        max-width: 92vw;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+}
+.mlsimport-es-title {
+        margin: 0 0 6px;
+        font-size: 18px;
+}
+.mlsimport-es-intro {
+        margin: 0 0 16px;
+        color: #555;
+}
+.mlsimport-es-option {
+        display: block;
+        padding: 8px 10px;
+        margin: 4px 0;
+        border: 1px solid #e0e0e0;
+        border-radius: 4px;
+        cursor: pointer;
+}
+.mlsimport-es-option:hover {
+        background: #f6f6f6;
+}
+.mlsimport-es-other {
+        width: 100%;
+        margin-top: 10px;
+        box-sizing: border-box;
+}
+.mlsimport-es-actions {
+        margin-top: 18px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+}
+.mlsimport-es-skip {
+        color: #777;
+        text-decoration: underline;
+}
+.mlsimport-es-hidden {
+        display: none;
+}
+
+/* -------------------------------------------------------
+   Activity log — sync-status banner (Task 02 / Build 2)
+   ------------------------------------------------------- */
+
+.mlsimport-activity-banner {
+        padding: 12px 14px;
+}
+
+.mlsimport-activity-banner__counts {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px 14px;
+        margin: 0 0 10px;
+}
+
+.mlsimport-activity-banner__title {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        font-size: 14px;
+        font-weight: 700;
+        color: #1d2327;
+}
+
+.mlsimport-activity-banner__title::before {
+        content: "";
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: #2271b1;
+}
+
+.mlsimport-activity-banner__period {
+        font-weight: 500;
+        font-size: 11px;
+        color: #646970;
+        text-transform: uppercase;
+        letter-spacing: .05em;
+}
+
+.mlsimport-activity-banner__totals {
+        display: inline-flex;
+        flex-wrap: wrap;
+        gap: 6px;
+}
+
+.mlsimport-activity-stat {
+        display: inline-flex;
+        align-items: baseline;
+        gap: 4px;
+        padding: 3px 11px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 500;
+        line-height: 1.5;
+}
+
+.mlsimport-activity-stat strong {
+        font-size: 13px;
+        font-weight: 700;
+}
+
+.mlsimport-activity-stat--added   { background: #ecfdf5; color: #047857; }
+.mlsimport-activity-stat--edited  { background: #fffbeb; color: #b45309; }
+.mlsimport-activity-stat--deleted { background: #fef2f2; color: #b91c1c; }
+
+.mlsimport-activity-banner__breakdown {
+        margin: 0 0 10px;
+        padding: 0;
+        list-style: none;
+        max-width: 580px;
+        border: 1px solid #e0e0e0;
+        border-radius: 6px;
+        overflow: hidden;
+}
+
+.mlsimport-activity-banner__breakdown li {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin: 0;
+        padding: 7px 12px;
+        font-size: 13px;
+        background: #fff;
+}
+
+.mlsimport-activity-banner__breakdown li:nth-child(even) {
+        background: #f6f7f7;
+}
+
+.mlsimport-activity-banner__task {
+        font-weight: 600;
+        color: #1d2327;
+}
+
+.mlsimport-activity-banner__chips {
+        display: inline-flex;
+        gap: 5px;
+}
+
+.mlsimport-activity-chip {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 600;
+        line-height: 1.6;
+        white-space: nowrap;
+        color: #ffffff;
+}
+
+.mlsimport-activity-chip--added   { background: #10B981; }
+.mlsimport-activity-chip--edited  { background: #F59E0B; color: #1a1a1a; }
+.mlsimport-activity-chip--deleted { background: #EF4444; }
+
+.mlsimport-activity-chip.is-zero {
+        background: #f0f0f1;
+        color: #8c8f94;
+}
+
+.mlsimport-activity-banner__actions {
+        margin: 0;
+}
+
+.mlsimport-activity-banner__link {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 5px 13px;
+        background: #2271b1;
+        color: #ffffff !important;
+        text-decoration: none !important;
+        font-size: 13px;
+        font-weight: 600;
+        border-radius: 4px;
+}
+
+.mlsimport-activity-banner__link:hover,
+.mlsimport-activity-banner__link:focus {
+        background: #135e96;
+        color: #ffffff !important;
+}
+
+/* -------------------------------------------------------
+   Import History — filter form (styled like the activity banner)
+   Uses core .notice .notice-info for the card chrome (white box,
+   blue left border); the rules below handle layout + controls.
+   ------------------------------------------------------- */
+
+.mlsimport-history-filters {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px 12px;
+        padding: 12px 14px;
+        margin: 16px 0;
+}
+
+.mlsimport-history-filters label {
+        font-size: 13px;
+        font-weight: 600;
+        color: #1d2327;
+}
+
+.mlsimport-history-filters input[type="search"],
+.mlsimport-history-filters select {
+        height: 32px;
+        border-radius: 4px;
+        border-color: #e0e0e0;
+}
+
+.mlsimport-history-filters .button {
+        background: #2271b1;
+        border-color: #2271b1;
+        color: #ffffff;
+        border-radius: 4px;
+        height: 32px;
+        padding: 0 14px;
+        font-weight: 600;
+}
+
+.mlsimport-history-filters .button:hover,
+.mlsimport-history-filters .button:focus {
+        background: #135e96;
+        border-color: #135e96;
+        color: #ffffff;
+}
+
+/* -------------------------------------------------------
+   Activity log — action column badges (Task 02 / Build 2)
+   ------------------------------------------------------- */
+
+.mlsimport-activity-action {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 600;
+        line-height: 1.6;
+        text-transform: capitalize;
+        white-space: nowrap;
+}
+
+.mlsimport-activity-action--added {
+        background-color: #10B981;
+        color: #ffffff;
+}
+
+.mlsimport-activity-action--edited {
+        background-color: #F59E0B;
+        color: #1a1a1a;
+}
+
+.mlsimport-activity-action--deleted {
+        background-color: #EF4444;
+        color: #ffffff;
+}
+
+/* Searchable City/County multi-select — filter input above the native list. */
+.mlsimport-2025-select.mlsimport-searchable-select,
+.mlsimport-select-search {
+        max-width: 450px;
+}
+.mlsimport-select-search {
+        display: block;
+        width: 100%;
+        box-sizing: border-box;
+        margin-bottom: 6px;
+        padding: 6px 12px;
+        border: 1px solid #DCDFE4;
+        border-radius: 8px;
+        box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.08);
+}
+.mlsimport-selected-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        max-width: 450px;
+        margin: 6px 0;
+}
+.mlsimport-selected-chips:empty {
+        display: none;
+}
+.mlsimport-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 2px 4px 2px 10px;
+        background: #909090;
+        color: #ffffff;
+        border-radius: 12px;
+        font-size: 12px;
+        line-height: 1.8;
+}
+.mlsimport-chip-remove {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 16px;
+        height: 16px;
+        padding: 0;
+        border: 0;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.25);
+        color: #ffffff;
+        font-size: 14px;
+        line-height: 1;
+        cursor: pointer;
+}
+.mlsimport-chip-remove:hover {
+        background: rgba(255, 255, 255, 0.45);
+}

@@ -2,9 +2,9 @@
 Contributors: mlsimport
 Tags: Multiple Listing Services, MLS Integration, MLS, Real Estate, Real Estate properties, MLS Data Download, Real Estate Data, MLS Integration, Property Listings, Data Synchronization, MLS Connectivity, Real Estate Software,  Real Estate Listings, MLS API, Data Import, Real Estate Solutions, Property Search, Real Estate Agents, MLS Access,  MLS Automation, Property Database, MLS Services, Real Estate Professionals, MLS Plugin
 Requires at least: 5.2
-Tested up to: 6.7.1
+Tested up to: 7.0
 Requires PHP: 7.4
-Stable Tag: 6.2.0
+Stable Tag: 6.3.1
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 MlsImport is an MLS Wordpress plugin that lets you download and synchronize real estate data from various MLSs (Multiple Listing Services). It works by calling  MLSimport API/your MLS API, reading the data from your Multiple Listing Association, and transforming it into a WordPress-like format. You will need a valid access token from your MLS to use this plugin and an MLSImport account. Currently, the plugin only works for <a href="https://wpresidence.net/" target="_blank">WPResidence</a>, Houzes, Real Homes, and <a href="https://wpestate.org/" target="_blank">WpEstate Wordpress Themes</a>. 
@@ -79,10 +79,23 @@ You control how many listings you want to import and have special filters availa
 
 == Use of 3rd party services ==
 This plugin will connect via REST API to mlsimport.com and https://requests.mlsimport.com to get real estate data from your MLS. It will send your connection details and reply with real estate prepared to be imported into your website. 
+Automated daily diagnostic report (telemetry): once per day, installations connected to a valid MLSImport account send an automated diagnostic "heartbeat" to the MLSImport service (https://requests.mlsimport.com). It helps us monitor the health of your installation and lets our support team detect problems — such as a stopped cron job, a failing MLS connection, or imports that produce no listings — before they affect your site. The report contains: an anonymous installation ID, your MLSImport account name and site URL, plugin / PHP / WordPress versions and the active theme, counts of listings imported / updated / deleted over the last 7 days, sync and MLS-feed health, the number of active listings and basic data-completeness percentages, your import-task settings, the dates of recent MLSImport admin-page activity, and onboarding progress. It does not collect any information about your site's visitors. Installations that are not connected to an MLSImport account send no telemetry.
+
 Read the terms and conditions of using MLSimport APIs here : https://mlsimport.com/terms-conditions/
 
 
 == Changelog ==
+= 6.3.1 =
+* Import History: added search by Listing ID or ListingKey.
+* Activity banner: now always visible to administrators (not only when there was activity in the last 24 hours); clearer "property/properties" wording and a "Task Name:" label in the per-task breakdown.
+* Bright MLS support — added Bright MLS as a dedicated provider  with its own Client ID / Client Secret credential fields, correct credential gating in the admin and onboarding "Account" step, and a per-MLS field-correlation map that aliases RESO field names to Bright's own names (e.g. CountyOrParish to County) when building the request URL.
+* Multi-select location filters — new searchable, type-to-filter dropdown component; City, County and Postal Code (ZIP) can now take multiple values (sent to the backend as RESO "or" groups), including multi-ZIP support in import tasks.
+* Daily telemetry / diagnostic heartbeat — connected installs send one structured health heartbeat per UTC day to the SaaS user-activity endpoint. Payload covers an anonymous install ID, account/site, plugin/PHP/WordPress versions and active theme, 7-day import/update/delete counts, sync and feed health, active-listing count and data-completeness %, task settings, recent admin activity dates, and onboarding progress. No visitor data is collected, and nothing is sent if the site is not connected to an MLSImport account. Privacy disclosure added to the 3rd-party services section.
+* Activity log & History view — new wp_mlsimport_activity database table (with a versioned dbDelta upgrade path) logging every listing import / update / delete with listing ID, key, title, URL and source import task; new History admin page with a list-table view of recent activity.
+* Dashboard top banner — new banner on the admin pages surfacing import counts / status at a glance.
+* Deactivation survey — on plugin deactivation, a survey modal collects feedback on why the user is leaving.
+* Fixes & maintenance — ThemeImport image/gallery handling fix for WPResidence 5.0 (#532, later partly reverted); Composer autoload / installed.json regeneration cleanup; Tested up to WordPress 7.0.
+
 = 6.1.4 =
 Fix for ABOR on stale delete
 

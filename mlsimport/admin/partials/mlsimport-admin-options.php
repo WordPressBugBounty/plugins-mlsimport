@@ -99,6 +99,16 @@ if ( ! defined( 'ABSPATH' ) ) {
 			'details' => 'to be added',
 		),
 
+		'mlsimport_brightmls_client_id'       => array(
+			'name'    => esc_html__( 'Your BrightMLS Client ID - provided by your MLS', 'mlsimport' ),
+			'details' => 'to be added',
+		),
+
+		'mlsimport_brightmls_client_secret'   => array(
+			'name'    => esc_html__( 'Your BrightMLS Client Secret - provided by your MLS', 'mlsimport' ),
+			'details' => 'to be added',
+		),
+
 		'mlsimport_theme_used'              => array(
 			'type'    => 'select',
 			'name'    => esc_html__( 'Your Wordpress Theme', 'mlsimport'),
