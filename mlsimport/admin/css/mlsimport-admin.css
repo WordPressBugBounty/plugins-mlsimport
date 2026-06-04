@@ -246,6 +246,7 @@ input.mlsimport_select_import_admin_all{
 #mlsimport-start_item{
     display: inline-block;
     margin: 0px 10px 30px 0px;
+    line-height: normal;
 }
 
 .mlsimport_hidden_field_button {
@@ -956,7 +957,7 @@ input[type=checkbox].mlsimport_select_import_all {
         margin: 0 0 10px;
         padding: 0;
         list-style: none;
-        max-width: 580px;
+        max-width: 900px;
         border: 1px solid #e0e0e0;
         border-radius: 6px;
         overflow: hidden;
@@ -964,7 +965,7 @@ input[type=checkbox].mlsimport_select_import_all {
 
 .mlsimport-activity-banner__breakdown li {
         display: flex;
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
         align-items: center;
         justify-content: space-between;
         gap: 8px;
@@ -979,12 +980,19 @@ input[type=checkbox].mlsimport_select_import_all {
 }
 
 .mlsimport-activity-banner__task {
+        flex: 1 1 auto;
+        min-width: 0;
         font-weight: 600;
         color: #1d2327;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
 }
 
 .mlsimport-activity-banner__chips {
         display: inline-flex;
+        flex: 0 0 auto;
+        flex-wrap: nowrap;
         gap: 5px;
 }
 

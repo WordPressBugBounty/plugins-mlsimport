@@ -1746,7 +1746,41 @@ private function processPropertyDetails($property, $propertyId, $tipImport, &$pr
                 }
             }
         }
-        
+
+        // Theme-agnostic override. The local hardcoded schema above is the
+        // WPResidence mapping, so its default-taxonomy slugs do NOT match the
+        // taxonomies the server built when a different theme (e.g. Houzez) was
+        // used — the slug-based overrides then silently miss. For the core
+        // fields that also arrive with a top-level copy, locate the field's
+        // value inside the server-built taxonomies and redirect THAT taxonomy to
+        // the user's mapped one. Result: "map field -> Category" moves the value
+        // out of the server default and into the chosen taxonomy, on any theme.
+        $core_field_value_sources = array(
+            'StandardStatus' => 'StandardStatus',
+            'PropertyType'   => 'adr_type',
+            'City'           => 'adr_city',
+            'CountyOrParish' => 'adr_county',
+        );
+        if (isset($options['mls-fields-map-taxonomy']) && is_array($options['mls-fields-map-taxonomy'])) {
+            foreach ($core_field_value_sources as $reso_field => $top_level_key) {
+                $mapped_tax = isset($options['mls-fields-map-taxonomy'][$reso_field]) ? $options['mls-fields-map-taxonomy'][$reso_field] : '';
+                if ($mapped_tax === '' || !isset($property[$top_level_key]) || '' === $property[$top_level_key]) {
+                    continue;
+                }
+                $field_value = trim((string) $property[$top_level_key]);
+                foreach ($property['taxonomies'] as $server_tax => $server_terms) {
+                    if ($server_tax === $mapped_tax) {
+                        continue;
+                    }
+                    $term_list = is_array($server_terms) ? $server_terms : array($server_terms);
+                    $term_list = array_map('trim', array_map('strval', $term_list));
+                    if (in_array($field_value, $term_list, true)) {
+                        $taxonomy_overrides[$server_tax] = $mapped_tax;
+                    }
+                }
+            }
+        }
+
         // Disable term counting temporarily (major memory saver)
         wp_defer_term_counting(true);
         

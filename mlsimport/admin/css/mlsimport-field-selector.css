@@ -237,6 +237,7 @@
 }
 .mlsimport-field-name .field-name{
     display: inline-block;
+    width: auto;
 }
 
 .field-name {

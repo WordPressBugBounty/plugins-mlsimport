@@ -154,7 +154,14 @@ function mlsimport_ajax_save_field_chunk() {
         wp_send_json_error('Invalid security token');
         return;
     }
-    
+
+    // Capability check — the settings page is gated by 'administrator'; a nonce
+    // is not authorization.
+    if ( ! current_user_can( 'administrator' ) ) {
+        wp_send_json_error( 'Insufficient permissions' );
+        return;
+    }
+
     // Check if fields were provided
     if (!isset($_POST['fields']) || !is_array($_POST['fields'])) {
         wp_send_json_error('No field data provided');
@@ -264,6 +271,12 @@ function mlsimport_ajax_save_bulk_import() {
         wp_send_json_error('Invalid security token');
     }
 
+    // Capability check — the settings page is gated by 'administrator'; a nonce
+    // is not authorization.
+    if ( ! current_user_can( 'administrator' ) ) {
+        wp_send_json_error( 'Insufficient permissions' );
+    }
+
     if (!isset($_POST['fields']) || !is_array($_POST['fields'])) {
         wp_send_json_error('No field data provided');
     }
@@ -295,6 +308,12 @@ function mlsimport_ajax_save_bulk_import() {
 function mlsimport_ajax_save_bulk_admin() {
     if (!isset($_POST['security']) || !wp_verify_nonce($_POST['security'], 'mlsimport_field_selector_nonce')) {
         wp_send_json_error('Invalid security token');
+    }
+
+    // Capability check — the settings page is gated by 'administrator'; a nonce
+    // is not authorization.
+    if ( ! current_user_can( 'administrator' ) ) {
+        wp_send_json_error( 'Insufficient permissions' );
     }
 
     if (!isset($_POST['fields']) || !is_array($_POST['fields'])) {
@@ -352,7 +371,13 @@ function mlsimport_ajax_check_initial_save_needed() {
     if ( ! isset( $_POST['security'] ) || ! wp_verify_nonce( $_POST['security'], 'mlsimport_field_selector_nonce' ) ) {
         wp_send_json_error( 'Invalid security token' );
     }
-    
+
+    // Capability check — this returns the full options blob; restrict it to
+    // administrators (the capability gating the settings page).
+    if ( ! current_user_can( 'administrator' ) ) {
+        wp_send_json_error( 'Insufficient permissions' );
+    }
+
     // Check if option exists and has content
     $options = get_option( 'mlsimport_admin_fields_select' );
     $mlsimport_mls_metadata_mls_data = get_option( 'mlsimport_mls_metadata_mls_data', '' );
@@ -473,6 +498,12 @@ function mlsimport_ajax_save_field_option() {
         wp_send_json_error( 'Invalid security token' );
     }
 
+    // Capability check — the settings page is gated by 'administrator'; a nonce
+    // is not authorization.
+    if ( ! current_user_can( 'administrator' ) ) {
+        wp_send_json_error( 'Insufficient permissions' );
+    }
+
     // Check if field key and option type were provided
     if ( ! isset( $_POST['field_key'] ) || ! isset( $_POST['option_type'] ) ) {
         //error_log( '[mlsimport] Missing field key or option type' );
@@ -574,6 +605,12 @@ function mlsimport_ajax_save_field_position() {
         wp_send_json_error('Invalid security token');
     }
 
+    // Capability check — the settings page is gated by 'administrator'; a nonce
+    // is not authorization.
+    if ( ! current_user_can( 'administrator' ) ) {
+        wp_send_json_error( 'Insufficient permissions' );
+    }
+
     // Validate required fields
     if (!isset($_POST['moving_index'], $_POST['target_index'], $_POST['position'])) {
         wp_send_json_error('Missing parameters');
@@ -593,72 +630,26 @@ function mlsimport_ajax_save_field_position() {
 
 
 
-    // Normalize field_order to ensure correct index order
+    // Validate the requested indexes against the current order.
     $order_map = $options['field_order'];
-
-    asort($order_map); // Sort by index
+    asort($order_map); // Sort by index.
     $ordered_keys = array_keys($order_map);
- 
-    // Safety checks
     if (!isset($ordered_keys[$moving_index]) || !isset($ordered_keys[$target_index])) {
         wp_send_json_error('Invalid indexes');
     }
 
-    $moving_key = $ordered_keys[$moving_index];
-    $target_key = $ordered_keys[$target_index];
-
-    // Remove moving key
-    array_splice($ordered_keys, $moving_index, 1);
-
-    // Adjust target index if needed
-    if ($position === 'after' && $moving_index < $target_index) {
-        $target_index--;
-    }
-
-    // Calculate new position
-    $insert_index = ($position === 'before') ? $target_index : $target_index + 1;
-
-    // Insert the field key at the new position
-    array_splice($ordered_keys, $insert_index, 0, $moving_key);
-
-    // Rebuild the new order map
-    $new_order = [];
-    foreach ($ordered_keys as $i => $key) {
-        $new_order[$key] = $i;
-    }
-
-    // Save new field order
-    $options['field_order'] = $new_order;
-
-    // Apply order to all related field maps
-    $targets = [
-        'mls-fields',
-        'mls-fields-map-taxonomy',
-        'mls-fields-map-postmeta',
-        'mls-fields-map-admin',
-        'mls-fields-map-label',
-    ];
-
-    foreach ($targets as $target) {
-        if (!empty($options[$target]) && is_array($options[$target])) {
-            $reordered = [];
-
-            foreach ($new_order as $field_key => $index) {
-                if (isset($options[$target][$field_key])) {
-                    $reordered[$field_key] = $options[$target][$field_key];
-                }
-            }
-
-            // Preserve any extra keys not in field_order
-            foreach ($options[$target] as $key => $value) {
-                if (!isset($reordered[$key])) {
-                    $reordered[$key] = $value;
-                }
-            }
-
-            $options[$target] = $reordered;
-        }
-    }
+    // Compute the new field order, then reorder EVERY parallel field array via
+    // the shared helper. The previous inline loop named non-existent target
+    // keys ('mls-fields-map-admin' / 'mls-fields-map-label'), so the admin and
+    // label arrays were left in stale order. mlsimport_sort_all_fields_by_order()
+    // uses the correct key list.
+    $options['field_order'] = mlsimport_compute_field_order_after_move(
+        $options['field_order'],
+        $moving_index,
+        $target_index,
+        $position
+    );
+    $options = mlsimport_sort_all_fields_by_order($options);
 
     // Save the updated options
     $saved = update_option('mlsimport_admin_fields_select', $options);

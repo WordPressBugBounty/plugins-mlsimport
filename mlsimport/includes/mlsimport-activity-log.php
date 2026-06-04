@@ -316,7 +316,19 @@ function mlsimport_render_activity_banner(): void {
 				<span class="mlsimport-activity-stat mlsimport-activity-stat--deleted"><strong><?php echo esc_html( number_format_i18n( $total_deleted ) ); ?></strong> <?php echo esc_html( _n( 'property', 'properties', $total_deleted, 'mlsimport' ) ); ?> <?php echo esc_html__( 'deleted', 'mlsimport' ); ?></span>
 			</span>
 		</div>
-		<?php if ( ! empty( $by_item ) ) : ?>
+		<?php
+		if ( ! empty( $by_item ) ) :
+			// Show only the 5 most active tasks (by total added + edited + deleted).
+			usort(
+				$by_item,
+				function ( $a, $b ) {
+					$a_total = (int) $a['added'] + (int) $a['edited'] + (int) $a['deleted'];
+					$b_total = (int) $b['added'] + (int) $b['edited'] + (int) $b['deleted'];
+					return $b_total <=> $a_total;
+				}
+			);
+			$by_item = array_slice( $by_item, 0, 5 );
+			?>
 		<ul class="mlsimport-activity-banner__breakdown">
 			<?php
 			foreach ( $by_item as $item ) :

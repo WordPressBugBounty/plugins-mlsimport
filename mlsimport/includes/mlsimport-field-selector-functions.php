@@ -171,6 +171,52 @@ function mlsimport_sort_all_fields_by_order(array $options): array {
 
 
 /**
+ * Computes a new field_order map after moving one field relative to another.
+ *
+ * PURE PHP — no WordPress functions (unit-testable). Extracted from
+ * mlsimport_ajax_save_field_position() so the index math can be tested in
+ * isolation and the handler can delegate array reordering to
+ * mlsimport_sort_all_fields_by_order() instead of a duplicated (buggy) loop.
+ *
+ * @param array  $field_order  key => int-index map (order defined by the values).
+ * @param int    $moving_index 0-based position (in the asort()ed order) to move.
+ * @param int    $target_index 0-based position to move relative to.
+ * @param string $position     'before' or 'after' the target.
+ * @return array               New key => int-index map, contiguous 0..n-1.
+ */
+function mlsimport_compute_field_order_after_move( array $field_order, int $moving_index, int $target_index, string $position ): array {
+	asort( $field_order ); // Order by stored index.
+	$ordered_keys = array_keys( $field_order );
+
+	// Out-of-range indexes: return the order unchanged (renumbered contiguously).
+	if ( ! isset( $ordered_keys[ $moving_index ] ) || ! isset( $ordered_keys[ $target_index ] ) ) {
+		return array_flip( array_values( $ordered_keys ) );
+	}
+
+	$moving_key = $ordered_keys[ $moving_index ];
+
+	// Remove the moving key from the list.
+	array_splice( $ordered_keys, $moving_index, 1 );
+
+	// Compensate target index for the just-removed element when moving downward.
+	if ( 'after' === $position && $moving_index < $target_index ) {
+		$target_index--;
+	}
+
+	$insert_index = ( 'before' === $position ) ? $target_index : $target_index + 1;
+
+	array_splice( $ordered_keys, $insert_index, 0, $moving_key );
+
+	// Rebuild a contiguous key => index map.
+	$new_order = array();
+	foreach ( $ordered_keys as $i => $key ) {
+		$new_order[ $key ] = $i;
+	}
+
+	return $new_order;
+}
+
+/**
  * Main function to render the MLS field selection interface.
  *
  * @param    array     $fields          The array of MLS fields to display.
