@@ -1419,6 +1419,7 @@ class Mlsimport_Admin {
 
 		$blank_keys = array(
 			'mlsimport_item_standardstatus',
+			'mlsimport_item_standardstatusprotect',
 			'mlsimport_item_city',
 			'mlsimport_item_countyorparish',
 			'mlsimport_item_propertysubtype',

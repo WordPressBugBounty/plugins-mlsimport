@@ -1,0 +1,4 @@
+[2026-06-10T16:30:39.508Z] [error] Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID
+[2026-06-10T16:30:39.515Z] [log] JQMIGRATE: Migrate is installed, version 3.4.1
+[2026-06-10T16:30:39.563Z] [error] Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID
+[2026-06-10T16:30:39.563Z] [error] Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID

@@ -707,11 +707,33 @@ private function cleanUpMemory($intensive = false) {
 							'object_id' => $propertyId,
 							'term_taxonomy_id' => $termTaxonomyId
 						]);
-						// Increment the term count
-						$wpdb->query($wpdb->prepare(
-							"UPDATE $wpdb->term_taxonomy SET count = count + 1 WHERE term_taxonomy_id = %d",
-							$termTaxonomyId
-						));
+						// Location taxonomies (browse-by-city/area widgets) use a publish-aware
+						// recompute so the displayed count matches the publish-only archive.
+						// A blind +1 is not idempotent (re-imports inflate it) and ignores
+						// post status, so a new city could show a count while its archive is
+						// empty. These terms are low-cardinality (tens of listings), so the
+						// COUNT is cheap. High-cardinality grouping taxonomies keep the O(1)
+						// increment to avoid scanning thousands of rows per import.
+						$location_taxonomies = array('property_city', 'property_area', 'property_state', 'property_neighborhood');
+						if (in_array($taxonomy, $location_taxonomies, true)) {
+							// Mirrors WordPress' _update_post_term_count callback in SQL.
+							$wpdb->query($wpdb->prepare(
+								"UPDATE $wpdb->term_taxonomy tt
+								SET count = (
+									SELECT COUNT(*) FROM $wpdb->term_relationships tr
+									INNER JOIN $wpdb->posts p ON p.ID = tr.object_id
+									WHERE tr.term_taxonomy_id = tt.term_taxonomy_id
+										AND p.post_status = 'publish'
+								)
+								WHERE tt.term_taxonomy_id = %d",
+								$termTaxonomyId
+							));
+						} else {
+							$wpdb->query($wpdb->prepare(
+								"UPDATE $wpdb->term_taxonomy SET count = count + 1 WHERE term_taxonomy_id = %d",
+								$termTaxonomyId
+							));
+						}
 					} else {
 						$taxLog[] = 'Error: term_taxonomy_id is null';
 					}
@@ -832,7 +854,13 @@ private function cleanUpMemory($intensive = false) {
 	 * @return array The property data with prepared meta.
 	 */
 	public function mlsimportSaasPrepareMetaForProperty($property) {
-		$bathroomsRaw = $property['extra_meta']['BathroomsTotalDecimal'] ?? '';
+		// BathroomsTotalDecimal is not provided by every MLS (e.g. BrightMLS sends only
+		// BathroomsTotalInteger / BathroomsFull). Fall back so the theme Overview value
+		// is not wiped to empty.
+		$bathroomsRaw = $property['extra_meta']['BathroomsTotalDecimal']
+			?? $property['extra_meta']['BathroomsTotalInteger']
+			?? $property['extra_meta']['BathroomsFull']
+			?? '';
 		$bathrooms    = ( '' === $bathroomsRaw || null === $bathroomsRaw ) ? '' : floatval($bathroomsRaw);
 		$property['meta']['property_bathrooms'] = $bathrooms;
 		$property['meta']['fave_property_bathrooms'] = $bathrooms;
@@ -1300,7 +1328,7 @@ public function mlsimportSaasPrepareToImportPerItem($property, $itemIdArray, $ti
 		// Memory before checking existing property
 		$memBeforeCheck = memory_get_usage(true);
 
-		$keep = $this->check_if_delete_when_status_on_manual_import($propertyId,$mlsImportItemStatus);
+		$keep = $this->shouldKeepExistingListing($status, $mlsImportItemStatus);
 
 
 		if(!$keep){
@@ -1562,6 +1590,24 @@ public function check_if_delete_when_status_on_manual_import($property_id, $mlsI
 
     // Default: keep
     return false;
+}
+
+
+/**
+ * Decide whether to keep an existing listing the (filtered) feed returned again.
+ *
+ * Uses the live MLS status — the SAME basis shouldInsertProperty() uses to
+ * decide an insert. The old code compared the stored property_status taxonomy
+ * term instead, which can be empty, remapped, or theme-labeled; when it did not
+ * equal the RESO status, keep said "delete" while insert said "yes", producing
+ * an add/delete/add cycle on every sync. See issue #152.
+ *
+ * @param string       $status              Live MLS StandardStatus (lowercased).
+ * @param array|string $mlsImportItemStatus Task's selected RESO statuses (lowercased).
+ * @return bool True to keep/update, false to delete.
+ */
+public function shouldKeepExistingListing($status, $mlsImportItemStatus): bool {
+    return is_array($mlsImportItemStatus) && in_array($status, $mlsImportItemStatus, true);
 }
 
 
@@ -1985,8 +2031,13 @@ private function processPropertyDetails($property, $propertyId, $tipImport, &$pr
         }
 
 
-		$mlsimport->admin->env_data->enviroment_image_save_gallery($propertyId, $media_attachments);
-	
+		// Only rewrite the gallery when we actually (re)built the attachment list
+		// (insert or media refresh). On the unchanged-media path $media_attachments
+		// is empty, and overwriting would wipe the existing gallery.
+		if ($isInsert !== 'no' || $shouldRefreshMedia) {
+			$mlsimport->admin->env_data->enviroment_image_save_gallery($propertyId, $media_attachments);
+		}
+
         // Combine all chunks
        // $mediaHistory = implode('</br>', $mediaHistoryParts);
        // $propertyHistory = array_merge($propertyHistory, (array)$mediaHistory);
