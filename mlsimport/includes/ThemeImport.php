@@ -1299,6 +1299,18 @@ public function mlsimportSaasPrepareToImportPerItem($property, $itemIdArray, $ti
 
 	$activityAction = '';
 
+	// Incoming MLS modification time (unix). The hourly delta sync uses a
+	// rolling 2-hour overlap window, so the SAME listing is returned on
+	// several consecutive runs. We compare this against the last value we
+	// recorded (mlsimport_synced_mod) to count a listing as "edited" only
+	// when it actually changed since our last import — not on every re-touch.
+	$incomingMod = isset($property['extra_meta']['ModificationTimestamp'])
+		? strtotime((string) $property['extra_meta']['ModificationTimestamp'])
+		: 0;
+	if (false === $incomingMod) {
+		$incomingMod = 0;
+	}
+
 	if ($isInsert === 'yes') {
 		$post = [
 			'post_title' 	=> $submitTitle,
@@ -1316,6 +1328,7 @@ public function mlsimportSaasPrepareToImportPerItem($property, $itemIdArray, $ti
 			update_post_meta($propertyId, 'ListingKey', $ListingKey);
 			update_post_meta($propertyId, 'MLSimport_item_inserted', $itemIdArray['item_id'],);
 			$activityAction = 'added';
+			update_post_meta($propertyId, 'mlsimport_synced_mod', $incomingMod);
 			$propertyHistory[] = date('F j, Y, g:i a') . ': We Inserted the property with Default title :  ' . $submitTitle . ' and received id:' . $propertyId;
 			mlsimport_telemetry_bump( 'imported' );
 		}
@@ -1348,7 +1361,17 @@ public function mlsimportSaasPrepareToImportPerItem($property, $itemIdArray, $ti
 			$memBeforeUpdate = memory_get_usage(true);
 
 			$propertyHistory = $this->updateExistingProperty($propertyId, $content, $listingPostType, $newAuthor, $status, $mlsImportItemStatus, $propertyHistory, $tipImport, $ListingKey);
-			$activityAction = 'edited';
+
+			// Count as "edited" only when the listing actually changed since our
+			// last import. A missing incoming timestamp (0) means we can't tell,
+			// so fall back to recording the edit.
+			$storedMod = (int) get_post_meta($propertyId, 'mlsimport_synced_mod', true);
+			if (0 === $incomingMod || $incomingMod > $storedMod) {
+				$activityAction = 'edited';
+				if ($incomingMod > 0) {
+					update_post_meta($propertyId, 'mlsimport_synced_mod', $incomingMod);
+				}
+			}
 
 			// Memory after updating
 			$memAfterUpdate = memory_get_usage(true);
@@ -1522,15 +1545,21 @@ public function mlsimportSaasPrepareToImportPerItem($property, $itemIdArray, $ti
  */
 public function check_if_delete_when_status($property_id, $mlsImportItemStatus, $mlsImportItemStatusDelete = null, $mlsImportItemStatusProtect = null) {
 
-    // Get post_status based on post type/taxonomy
+    // Get post_status based on post type/taxonomy. The status taxonomy is
+    // resolved from the user's StandardStatus field mapping (theme default as
+    // fallback): a task can map status onto a different taxonomy than the
+    // hardcoded default, and reading the wrong one returns an empty status that
+    // wrongly deletes live listings during reconciliation.
     $post_status = '';
+    $mlsimport_status_tax_map = ( $mlsimport_fields_opt = get_option('mlsimport_admin_fields_select') ) && isset($mlsimport_fields_opt['mls-fields-map-taxonomy'])
+        ? $mlsimport_fields_opt['mls-fields-map-taxonomy'] : array();
     if (post_type_exists('estate_property')) {
-        $terms = get_the_terms($property_id, 'property_status');
+        $terms = get_the_terms($property_id, mlsimport_status_taxonomy($mlsimport_status_tax_map, 'property_status'));
         if (!empty($terms) && is_array($terms)) {
             $post_status = strtolower($terms[0]->name);
         }
     } elseif (post_type_exists('property') && taxonomy_exists('property_label')) {
-        $terms = get_the_terms($property_id, 'property_label');
+        $terms = get_the_terms($property_id, mlsimport_status_taxonomy($mlsimport_status_tax_map, 'property_label'));
         if (!empty($terms) && is_array($terms)) {
             $post_status = strtolower($terms[0]->name);
         }
@@ -1561,15 +1590,21 @@ public function check_if_delete_when_status_on_manual_import($property_id, $mlsI
         ? array_map('strtolower', $mlsImportItemStatus)
         : strtolower($mlsImportItemStatus);
 
-    // Get post_status based on post type/taxonomy
+    // Get post_status based on post type/taxonomy. The status taxonomy is
+    // resolved from the user's StandardStatus field mapping (theme default as
+    // fallback): a task can map status onto a different taxonomy than the
+    // hardcoded default, and reading the wrong one returns an empty status that
+    // wrongly deletes live listings during reconciliation.
     $post_status = '';
+    $mlsimport_status_tax_map = ( $mlsimport_fields_opt = get_option('mlsimport_admin_fields_select') ) && isset($mlsimport_fields_opt['mls-fields-map-taxonomy'])
+        ? $mlsimport_fields_opt['mls-fields-map-taxonomy'] : array();
     if (post_type_exists('estate_property')) {
-        $terms = get_the_terms($property_id, 'property_status');
+        $terms = get_the_terms($property_id, mlsimport_status_taxonomy($mlsimport_status_tax_map, 'property_status'));
         if (!empty($terms) && is_array($terms)) {
             $post_status = strtolower($terms[0]->name);
         }
     } elseif (post_type_exists('property') && taxonomy_exists('property_label')) {
-        $terms = get_the_terms($property_id, 'property_label');
+        $terms = get_the_terms($property_id, mlsimport_status_taxonomy($mlsimport_status_tax_map, 'property_label'));
         if (!empty($terms) && is_array($terms)) {
             $post_status = strtolower($terms[0]->name);
         }
@@ -1621,16 +1656,21 @@ public function shouldKeepExistingListing($status, $mlsImportItemStatus): bool {
        public function check_if_delete_when_status_when_in_mls($property_id, $mlsimport_item_standardstatus, $mlsimport_item_standardstatusprotect = null) {
            $post_status = '';
 
+           // Resolve the status taxonomy from the user's StandardStatus field
+           // mapping (theme default as fallback) — see note in check_if_delete_when_status().
+           $mlsimport_status_tax_map = ( $mlsimport_fields_opt = get_option('mlsimport_admin_fields_select') ) && isset($mlsimport_fields_opt['mls-fields-map-taxonomy'])
+               ? $mlsimport_fields_opt['mls-fields-map-taxonomy'] : array();
+
            // Check for post status based on post type/taxonomy
            if (post_type_exists('estate_property')) {
                // WPResidence
-               $terms = get_the_terms($property_id, 'property_status');
+               $terms = get_the_terms($property_id, mlsimport_status_taxonomy($mlsimport_status_tax_map, 'property_status'));
                if (!empty($terms) && is_array($terms)) {
                    $post_status = strtolower($terms[0]->name);
                }
            } elseif (post_type_exists('property') && taxonomy_exists('property_label')) {
                // Houzez
-               $terms = get_the_terms($property_id, 'property_label');
+               $terms = get_the_terms($property_id, mlsimport_status_taxonomy($mlsimport_status_tax_map, 'property_label'));
                if (!empty($terms) && is_array($terms)) {
                    $post_status = strtolower($terms[0]->name);
                }
