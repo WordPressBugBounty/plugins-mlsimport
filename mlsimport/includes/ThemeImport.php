@@ -1260,7 +1260,7 @@ public function mlsimportSaasPrepareToImportPerItem($property, $itemIdArray, $ti
 	$propertyStatus 			= $mlsimportItemOptionData['mlsimport_item_property_status'];
 
 	if (is_array($mlsImportItemStatus)) {
-		$mlsImportItemStatus = array_map('strtolower', $mlsImportItemStatus);
+		$mlsImportItemStatus = array_map('mlsimport_normalize_status_enum', $mlsImportItemStatus);
 	}
 
 	if (!isset($property['ListingKey']) || empty($property['ListingKey'])) {
@@ -1281,7 +1281,7 @@ public function mlsimportSaasPrepareToImportPerItem($property, $itemIdArray, $ti
 	// Memory after property ID lookup
 	$memAfterRetrieve = memory_get_usage(true);
 	
-	$status 			= isset($property['StandardStatus']) ? strtolower($property['StandardStatus']) : strtolower($property['extra_meta']['MlsStatus']);
+	$status 			= isset($property['StandardStatus']) ? mlsimport_normalize_status_enum($property['StandardStatus']) : mlsimport_normalize_status_enum($property['extra_meta']['MlsStatus']);
 	
 	$this->writeImportLogs('FIxing: on inserting ' .$status.'-->'.json_encode($mlsImportItemStatus). PHP_EOL, $tipImport);
 
@@ -1556,22 +1556,22 @@ public function check_if_delete_when_status($property_id, $mlsImportItemStatus, 
     if (post_type_exists('estate_property')) {
         $terms = get_the_terms($property_id, mlsimport_status_taxonomy($mlsimport_status_tax_map, 'property_status'));
         if (!empty($terms) && is_array($terms)) {
-            $post_status = strtolower($terms[0]->name);
+            $post_status = mlsimport_normalize_status_enum($terms[0]->name);
         }
     } elseif (post_type_exists('property') && taxonomy_exists('property_label')) {
         $terms = get_the_terms($property_id, mlsimport_status_taxonomy($mlsimport_status_tax_map, 'property_label'));
         if (!empty($terms) && is_array($terms)) {
-            $post_status = strtolower($terms[0]->name);
+            $post_status = mlsimport_normalize_status_enum($terms[0]->name);
         }
     } else {
-        $post_status = strtolower(get_post_meta($property_id, 'inspiry_property_label', true));
+        $post_status = mlsimport_normalize_status_enum(get_post_meta($property_id, 'inspiry_property_label', true));
     }
 
     // Protected statuses: keep if property status matches
     if (!empty($mlsImportItemStatusProtect)) {
         $mlsImportItemStatusProtect = is_array($mlsImportItemStatusProtect)
-            ? array_map('strtolower', $mlsImportItemStatusProtect)
-            : array(strtolower($mlsImportItemStatusProtect));
+            ? array_map('mlsimport_normalize_status_enum', $mlsImportItemStatusProtect)
+            : array(mlsimport_normalize_status_enum($mlsImportItemStatusProtect));
         if (in_array($post_status, $mlsImportItemStatusProtect, true)) {
             return true;
         }
@@ -1585,10 +1585,11 @@ public function check_if_delete_when_status($property_id, $mlsImportItemStatus, 
 
 
 public function check_if_delete_when_status_on_manual_import($property_id, $mlsImportItemStatus) {
-    // Normalize status arrays/strings to lowercase
+    // Normalize status arrays/strings to a space-free comparison key so
+    // Trestle PrettyEnums labels match the raw enum config values.
     $mlsImportItemStatus = is_array($mlsImportItemStatus)
-        ? array_map('strtolower', $mlsImportItemStatus)
-        : strtolower($mlsImportItemStatus);
+        ? array_map('mlsimport_normalize_status_enum', $mlsImportItemStatus)
+        : mlsimport_normalize_status_enum($mlsImportItemStatus);
 
     // Get post_status based on post type/taxonomy. The status taxonomy is
     // resolved from the user's StandardStatus field mapping (theme default as
@@ -1601,15 +1602,15 @@ public function check_if_delete_when_status_on_manual_import($property_id, $mlsI
     if (post_type_exists('estate_property')) {
         $terms = get_the_terms($property_id, mlsimport_status_taxonomy($mlsimport_status_tax_map, 'property_status'));
         if (!empty($terms) && is_array($terms)) {
-            $post_status = strtolower($terms[0]->name);
+            $post_status = mlsimport_normalize_status_enum($terms[0]->name);
         }
     } elseif (post_type_exists('property') && taxonomy_exists('property_label')) {
         $terms = get_the_terms($property_id, mlsimport_status_taxonomy($mlsimport_status_tax_map, 'property_label'));
         if (!empty($terms) && is_array($terms)) {
-            $post_status = strtolower($terms[0]->name);
+            $post_status = mlsimport_normalize_status_enum($terms[0]->name);
         }
     } else {
-        $post_status = strtolower(get_post_meta($property_id, 'inspiry_property_label', true));
+        $post_status = mlsimport_normalize_status_enum(get_post_meta($property_id, 'inspiry_property_label', true));
     }
 
 
@@ -1666,24 +1667,24 @@ public function shouldKeepExistingListing($status, $mlsImportItemStatus): bool {
                // WPResidence
                $terms = get_the_terms($property_id, mlsimport_status_taxonomy($mlsimport_status_tax_map, 'property_status'));
                if (!empty($terms) && is_array($terms)) {
-                   $post_status = strtolower($terms[0]->name);
+                   $post_status = mlsimport_normalize_status_enum($terms[0]->name);
                }
            } elseif (post_type_exists('property') && taxonomy_exists('property_label')) {
                // Houzez
                $terms = get_the_terms($property_id, mlsimport_status_taxonomy($mlsimport_status_tax_map, 'property_label'));
                if (!empty($terms) && is_array($terms)) {
-                   $post_status = strtolower($terms[0]->name);
+                   $post_status = mlsimport_normalize_status_enum($terms[0]->name);
                }
            } else {
                // RealHomes
-               $post_status = strtolower(get_post_meta($property_id, 'inspiry_property_label', true));
+               $post_status = mlsimport_normalize_status_enum(get_post_meta($property_id, 'inspiry_property_label', true));
            }
 
            // Protected statuses: keep if property status matches
            if (!empty($mlsimport_item_standardstatusprotect)) {
                $mlsimport_item_standardstatusprotect = is_array($mlsimport_item_standardstatusprotect)
-                   ? array_map('strtolower', $mlsimport_item_standardstatusprotect)
-                   : array(strtolower($mlsimport_item_standardstatusprotect));
+                   ? array_map('mlsimport_normalize_status_enum', $mlsimport_item_standardstatusprotect)
+                   : array(mlsimport_normalize_status_enum($mlsimport_item_standardstatusprotect));
                if (in_array($post_status, $mlsimport_item_standardstatusprotect, true)) {
                    return true;
                }
@@ -1694,12 +1695,12 @@ public function shouldKeepExistingListing($status, $mlsImportItemStatus): bool {
                return true; // default: keep if no status set
            }
 
-           // Normalize standard statuses to lowercase for comparison
+           // Normalize standard statuses to a space-free key for comparison
            if (is_array($mlsimport_item_standardstatus)) {
-               $mlsimport_item_standardstatus = array_map('strtolower', $mlsimport_item_standardstatus);
+               $mlsimport_item_standardstatus = array_map('mlsimport_normalize_status_enum', $mlsimport_item_standardstatus);
                return in_array($post_status, $mlsimport_item_standardstatus, true);
            }
-           return $post_status === strtolower($mlsimport_item_standardstatus);
+           return $post_status === mlsimport_normalize_status_enum($mlsimport_item_standardstatus);
        }
 
 
