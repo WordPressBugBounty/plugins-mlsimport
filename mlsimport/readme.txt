@@ -4,7 +4,7 @@ Tags: Multiple Listing Services, MLS Integration, MLS, Real Estate, Real Estate 
 Requires at least: 5.2
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable Tag: 6.3.7
+Stable Tag: 6.3.8
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 MlsImport is an MLS Wordpress plugin that lets you download and synchronize real estate data from various MLSs (Multiple Listing Services). It works by calling  MLSimport API/your MLS API, reading the data from your Multiple Listing Association, and transforming it into a WordPress-like format. You will need a valid access token from your MLS to use this plugin and an MLSImport account. Currently, the plugin only works for <a href="https://wpresidence.net/" target="_blank">WPResidence</a>, Houzes, Real Homes, and <a href="https://wpestate.org/" target="_blank">WpEstate Wordpress Themes</a>. 
@@ -85,6 +85,10 @@ Read the terms and conditions of using MLSimport APIs here : https://mlsimport.c
 
 
 == Changelog ==
+= 6.3.8 =
+* New MLS integration — PropTx / AMPRE (TRREB, the Toronto Regional Real Estate Board). Added PropTx as a dedicated RESO Web API provider with Bearer-token credentials, correct credential gating in the admin and onboarding "Account" step, incremental sync via the AMPRE ModificationTimestamp filter, and media handling tuned for AMPRE's multi-size photo variants so listings import with a working featured image and gallery.
+* Activity banner counts — the top dashboard banner and per-task breakdown now count unique properties instead of raw events. Re-importing the same listings (for example add / delete / re-add cycles during testing or a status flip) no longer inflates the "added / edited / deleted" totals; a task that touched 10 listings now shows 10, not one per event.
+
 = 6.3.7 =
 * Fixed a fatal error on install/activation caused by the Composer autoloader trying to load development-only packages (PHPUnit, myclabs/deep-copy) that are not shipped with the plugin. The vendor autoloader is now regenerated in production mode (composer install --no-dev), so it loads only the required runtime dependency.
 

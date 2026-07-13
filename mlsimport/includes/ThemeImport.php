@@ -951,7 +951,11 @@ private function cleanUpMemory($intensive = false) {
 			
 	
 					$attachId = wp_insert_attachment($attachment, $file);
-					if (is_wp_error($attachId)) {
+					// wp_insert_attachment() returns 0 (int) on failure, not a
+					// WP_Error, so is_wp_error() alone lets a failed insert through
+					// and records a 0 — which poisons the gallery and makes the
+					// featured-image fallback set_post_thumbnail($id, 0) a no-op.
+					if (is_wp_error($attachId) || ! $attachId) {
 					} else {
 						$mediaHistory[] = 'Media - Added ' . $file . ' as attachment ' . $attachId;
 						$media_attachments[]=$attachId;
@@ -2077,6 +2081,14 @@ private function processPropertyDetails($property, $propertyId, $tipImport, &$pr
 		// is empty, and overwriting would wipe the existing gallery.
 		if ($isInsert !== 'no' || $shouldRefreshMedia) {
 			$mlsimport->admin->env_data->enviroment_image_save_gallery($propertyId, $media_attachments);
+
+			// Guarantee a featured image. When the feed has no preferred photo
+			// (PreferredPhotoYN) and no Order == 1 image — as with AMPRE/PropTx,
+			// whose PreferredPhotoYN is empty and Order is not 1-based — fall back
+			// to the first attached image so the property always has a thumbnail.
+			if ( ! empty( $media_attachments ) && ! has_post_thumbnail( $propertyId ) ) {
+				set_post_thumbnail( $propertyId, reset( $media_attachments ) );
+			}
 		}
 
         // Combine all chunks
@@ -2208,6 +2220,11 @@ private function deleteExistingMlsAttachments($propertyId) {
     foreach ($mlsAttachments as $attachId) {
         wp_delete_post($attachId, true);
     }
+
+    // The old featured image is one of the attachments we just deleted, so the
+    // stale _thumbnail_id now points at nothing. Clear it — otherwise
+    // has_post_thumbnail() stays true and the fresh featured image is never set.
+    delete_post_thumbnail($propertyId);
 }
 
 

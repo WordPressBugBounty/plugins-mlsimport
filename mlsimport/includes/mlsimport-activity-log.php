@@ -180,8 +180,12 @@ function mlsimport_get_activity_summary( int $hours = 24 ): array {
 
 	$table = mlsimport_activity_table_name();
 
+	// COUNT(DISTINCT listing_key), not COUNT(*): the same MLS listing re-imported
+	// (added→deleted→re-added over test runs) writes one activity row per event but
+	// keeps a stable listing_key, so the banner must count unique properties — not
+	// events — or it reports "50 added" for the same 10 listings.
 	$sql  = $wpdb->prepare(
-		"SELECT import_item_id, action, COUNT(*) AS cnt, MAX(import_item_title) AS import_item_title FROM {$table} WHERE created_at >= %s GROUP BY import_item_id, action",
+		"SELECT import_item_id, action, COUNT(DISTINCT listing_key) AS cnt, MAX(import_item_title) AS import_item_title FROM {$table} WHERE created_at >= %s GROUP BY import_item_id, action",
 		$cutoff
 	);
 	$rows = $wpdb->get_results( $sql );

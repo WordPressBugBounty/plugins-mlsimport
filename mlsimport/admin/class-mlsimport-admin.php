@@ -1029,6 +1029,8 @@ class Mlsimport_Admin {
                                 ) {
                                         return;
                                 }
+                        } elseif ( mlsimport_is_proptx_provider( $mls_id_int ) ) { // PropTx / AMPRE - static bearer token is the only credential
+                                return;
                         }
                 }
 
@@ -2355,6 +2357,11 @@ function mlsimport_preload_all_mls_item_status_meta() {
 			$dateTime_realtorca = new DateTime($last_date, new DateTimeZone('UTC'));
 			// Format with seconds and UTC timezone marker
 			$last_date = $dateTime_realtorca->format('Y-m-d\TH:i:s.000\Z');
+		}
+
+		// PropTx / AMPRE requires a full OData DateTimeOffset literal for the ModificationTimestamp filter.
+		if ( mlsimport_is_proptx_provider( $mls_id ) && $last_date !== '' ) {
+			$last_date = mlsimport_format_odata_modification_time( $last_date );
 		}
 
 		if ( '' !==  $last_date  ) {
