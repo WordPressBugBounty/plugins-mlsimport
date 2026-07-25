@@ -76,6 +76,8 @@ function mlsimport_check_onboarding_status() {
     }
     
     // Check if we're on the plugin activation page
+    // Fires when WP's plugins screen just activated (activate=true) a plugin
+    // (plugin=...) whose path contains 'mlsimport'.
     if (isset($_GET['activate']) && $_GET['activate'] == 'true' && isset($_GET['plugin']) && strpos($_GET['plugin'], 'mlsimport') !== false) {
         // Redirect to onboarding welcome page
         wp_redirect(admin_url('admin.php?page=mlsimport-onboarding'));
@@ -125,9 +127,25 @@ function mlsimport_add_onboarding_menu_item() {
  * @param string $hook The current admin page
  */
 function mlsimport_enqueue_onboarding_assets($hook) {
-    if ($hook != 'admin_page_mlsimport-onboarding' && $hook != 'mlsimport_plugin_options_page_mlsimport-onboarding') {
+    /*
+     * Bail unless we are on the wizard page.
+     *
+     * This deliberately tests the page slug rather than $hook. WordPress does not
+     * build a submenu's hook from its parent SLUG — it uses the sanitized parent
+     * MENU TITLE. The wizard's parent is registered with the title "MLS Import
+     * Settings", so the real hook is 'mls-import-settings_page_mlsimport-onboarding',
+     * which matched neither of the two hook strings previously hardcoded here.
+     * The result was that this function returned immediately on the wizard page:
+     * mlsimport-onboarding.js and the MLS autocomplete data were never enqueued,
+     * so the "search your MLS" field had no autocomplete at all.
+     *
+     * The page slug is what the wizard itself is registered and routed by, and it
+     * does not change when a menu title is edited or a parent is moved.
+     */
+    if ( ! isset( $_GET['page'] ) || 'mlsimport-onboarding' !== $_GET['page'] ) {
         return;
     }
+    // Fetch the list of MLS providers (used to feed the account-step autocomplete).
     $mls_import_list = mlsimport_saas_request_list();
     // Enqueue styles
     wp_enqueue_style(
@@ -169,15 +187,29 @@ function mlsimport_enqueue_onboarding_assets($hook) {
         )
     );
 
-    if ( $hook === 'admin_page_mlsimport-onboarding' &&
-            isset($_GET['page']) && $_GET['page'] === 'mlsimport-onboarding' &&
-            isset($_GET['step']) && $_GET['step'] === 'account') {
-           
-        if (!empty($mls_import_list)) {
+    /*
+     * Only the account step needs the MLS-provider autocomplete data.
+     *
+     * The step is resolved with mlsimport_get_current_step() — the SAME call the
+     * wizard itself uses to decide which step to render — rather than by reading
+     * $_GET['step'] directly. Those are not equivalent: the step falls back to the
+     * saved 'mlsimport_onboarding_current_step' option when the URL has no step
+     * parameter, which is what happens on the two entry points that matter most —
+     * the post-activation redirect and the "Setup Wizard" submenu link, both of
+     * which point at plain admin.php?page=mlsimport-onboarding. On those the
+     * account step renders while $_GET['step'] is unset, so a $_GET-based test
+     * skips the script and the MLS field silently has no autocomplete.
+     *
+     * The hook slug is likewise not re-tested here: this function already returned
+     * early above unless $hook is one of the wizard's two slugs. Re-testing only
+     * 'admin_page_mlsimport-onboarding' dropped the script whenever WordPress
+     * resolved the page under the submenu hook instead.
+     */
+    if ( mlsimport_get_current_step() === 'account' && ! empty( $mls_import_list ) ) {
 
-            $inline_script = 'jQuery(document).ready(function($){ var autofill=' . wp_kses_post($mls_import_list) . '; mlsimport_autocomplte_mls_selection(autofill); });';
-            wp_add_inline_script('mlsimport-onboarding-script', $inline_script);
-        }
+        // Build a ready-handler that primes the MLS-selection autocomplete widget.
+        $inline_script = 'jQuery(document).ready(function($){ var autofill=' . wp_kses_post($mls_import_list) . '; mlsimport_autocomplte_mls_selection(autofill); });';
+        wp_add_inline_script('mlsimport-onboarding-script', $inline_script);
     }
   
     
@@ -287,6 +319,7 @@ function mlsimport_save_step_data($step, $data) {
     $user_data = get_option('mlsimport_onboarding_user_data', array());
     
     // Sanitize data
+    // Walk each posted field; array values are sanitized element-by-element.
     $sanitized_data = array();
     foreach ($data as $key => $value) {
         if (is_array($value)) {
@@ -297,6 +330,7 @@ function mlsimport_save_step_data($step, $data) {
     }
     
     // Update user data
+    // Store this step's sanitized data under its step key in the aggregate option.
     $user_data[$step] = $sanitized_data;
 
     // Record onboarding-step completion (lifecycle telemetry).
@@ -403,6 +437,7 @@ function mlsimport_handle_step_submission() {
     $current_step = mlsimport_get_current_step();
     
     // Process based on step
+    // Each wizard step persists its own fields, then redirects to the next step.
     switch ($current_step) {
         case 'welcome':
             // Nothing to save, just redirect to next step
@@ -417,6 +452,7 @@ function mlsimport_handle_step_submission() {
             $token    = isset($_POST['mlsimport_mls_token']) ? trim($_POST['mlsimport_mls_token']) : '';
         
             // Only save if all fields are non-empty
+            // Requires SaaS username AND password AND MLS id AND MLS token.
             if ($username !== '' && $password !== '' && $mls_id !== '' && $token !== '') {
                 $account_data = array(
                     'username'   => $username,
@@ -678,23 +714,31 @@ function mlsimport_onboarding_admin_notice() {
 /**
  * Handle AJAX test account connection
  *
+ * Verifies the 'mlsimport_onboarding_nonce' nonce; performs no capability
+ * check. Persists the posted SaaS username/password into mlsimport_admin_options,
+ * clears the cached token transient, then reports whether a fresh SaaS token can
+ * be obtained with those credentials.
+ *
  * @since 6.1.0
  */
 function mlsimport_ajax_test_account_connection() {
-    // Check nonce
+    // Check nonce (no current_user_can capability check is performed here).
     if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mlsimport_onboarding_nonce')) {
         wp_send_json_error(array('message' => __('Security check failed', 'mlsimport')));
     }
     
     // Get credentials
+    // Read and sanitize the posted SaaS account username/password.
     $username = isset($_POST['username']) ? sanitize_text_field($_POST['username']) : '';
     $password = isset($_POST['password']) ? sanitize_text_field($_POST['password']) : '';
-    
+
+    // Both credentials are required to attempt a connection.
     if (empty($username) || empty($password)) {
         wp_send_json_error(array('message' => __('Username and password are required', 'mlsimport')));
     }
     
     // Save to temporary storage for test
+    // Write the credentials into the plugin options so the token request uses them.
     $options = get_option('mlsimport_admin_options', array());
     $options['mlsimport_username'] = $username;
     $options['mlsimport_password'] = $password;
@@ -704,9 +748,11 @@ function mlsimport_ajax_test_account_connection() {
     delete_transient('mlsimport_saas_token');
     
     // Test connection using existing methods
+    // Ask the admin class for a token; a non-empty token means the login worked.
     global $mlsimport;
     $token = $mlsimport->admin->mlsimport_saas_get_mls_api_token_from_transient();
-    
+
+    // No token returned -> credentials rejected or the SaaS was unreachable.
     if (empty($token)) {
         wp_send_json_error(array('message' => __('Unable to connect to MLS Import. Please check your credentials.', 'mlsimport')));
     }
@@ -720,33 +766,43 @@ function mlsimport_ajax_test_account_connection() {
 /**
  * Handle AJAX test MLS connection
  *
+ * Verifies the 'mlsimport_onboarding_nonce' nonce; performs no capability
+ * check. Persists the posted MLS id/token into mlsimport_admin_options, runs the
+ * admin class connection check, then reports the resulting
+ * mlsimport_connection_test option value.
+ *
  * @since 6.1.0
  */
 function mlsimport_ajax_test_mls_connection() {
-    // Check nonce
+    // Check nonce (no current_user_can capability check is performed here).
     if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mlsimport_onboarding_nonce')) {
         wp_send_json_error(array('message' => __('Security check failed', 'mlsimport')));
     }
     
     // Get MLS info
+    // Read and sanitize the posted MLS id and (optional) provider token.
     $mls_id = isset($_POST['mls_id']) ? sanitize_text_field($_POST['mls_id']) : '';
     $mls_token = isset($_POST['mls_token']) ? sanitize_text_field($_POST['mls_token']) : '';
-    
+
+    // An MLS selection is mandatory; the token may be blank for some providers.
     if (empty($mls_id)) {
         wp_send_json_error(array('message' => __('MLS selection is required', 'mlsimport')));
     }
     
     // Save to temporary storage for test
+    // Store the MLS id/token in the plugin options so the check uses them.
     $options = get_option('mlsimport_admin_options', array());
     $options['mlsimport_mls_name'] = $mls_id;
     $options['mlsimport_mls_token'] = $mls_token;
     update_option('mlsimport_admin_options', $options);
     
     // Test connection using existing methods
+    // Run the connection check; it writes the 'yes'/'' flag we read back below.
     global $mlsimport;
     $connection_result = $mlsimport->admin->mlsimport_saas_check_mls_connection();
     $is_connected = get_option('mlsimport_connection_test', '');
-    
+
+    // Anything other than 'yes' is treated as a failed MLS connection.
     if ($is_connected !== 'yes') {
         wp_send_json_error(array('message' => __('Unable to connect to MLS. Please check your credentials.', 'mlsimport')));
     }
@@ -760,18 +816,25 @@ function mlsimport_ajax_test_mls_connection() {
 /**
  * Handle AJAX run test import
  *
+ * Verifies the 'mlsimport_onboarding_nonce' nonce; performs no capability
+ * check. Caps the configured import item at 5 listings, builds the import
+ * request set, and enqueues the background async action that performs the
+ * actual import.
+ *
  * @since 6.1.0
  */
 function mlsimport_ajax_run_test_import() {
-    // Check nonce
+    // Check nonce (no current_user_can capability check is performed here).
     if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mlsimport_onboarding_nonce')) {
         wp_send_json_error(array('message' => __('Security check failed', 'mlsimport')));
     }
     
     // Get import ID
+    // The import item id was stashed during the import-config step.
     $user_data = get_option('mlsimport_onboarding_user_data', array());
     $import_id = isset($user_data['import_id']) ? $user_data['import_id'] : 0;
-    
+
+    // Without an import item there is nothing to run.
     if (empty($import_id)) {
         wp_send_json_error(array('message' => __('No import configuration found', 'mlsimport')));
     }
@@ -784,6 +847,7 @@ function mlsimport_ajax_run_test_import() {
     
     try {
         // Set up import parameters
+        // Batch descriptor passed through the import pipeline (capped at 5).
         $item_id_array = array(
             'item_id' => $import_id,
             'how_many' => 5,
@@ -792,16 +856,20 @@ function mlsimport_ajax_run_test_import() {
         );
         
         // Make sure we're starting clean
+        // Clear any prior stop flag and stale attachment-move payload.
         update_option('mlsimport_force_stop_' . $import_id, 'no', false);
         update_post_meta($import_id, 'mlsimport_attach_to_move_' . $import_id, '');
         
         // Get listings
+        // Query the MLS to see how many listings match the item's configuration.
         $mlsrequest = $mlsimport->admin->mlsimport_make_listing_requests($import_id);
-  
+
+        // No matching listings -> nothing to import.
         if (!isset($mlsrequest['results']) || $mlsrequest['results'] == 0) {
             wp_send_json_error(array('message' => __('No listings found with current configuration', 'mlsimport')));
         }
-        
+
+        // Clamp the found count down to the 5-listing test ceiling.
         $found_items = intval($mlsrequest['results']);
         if ($found_items > 5) {
             $found_items = 5;
@@ -810,10 +878,12 @@ function mlsimport_ajax_run_test_import() {
         $item_id_array['max_number'] = $found_items;
         
         // Generate import requests
+        // Build the per-item import request set and stash it on the import post.
         $attachments_to_move = (array)$mlsimport->admin->mlsimport_saas_generate_import_requests_per_item($item_id_array);
         update_post_meta($import_id, 'mlsimport_attach_to_move_' . $import_id, $attachments_to_move);
         
         // Prepare background process arguments
+        // Payload handed to the async worker action.
         $attachments_to_send = array(
             'args' => array(
                 'attachments_to_move' => $import_id,
@@ -822,14 +892,17 @@ function mlsimport_ajax_run_test_import() {
         );
         
        // Start background process
+// Mark the spawn state and record the start in the onboarding log.
 update_post_meta($import_id, 'mlsimport_spawn_status', 'started');
 mlsimport_log_onboarding_event('Starting test import of 5 properties', 'info');
 
 // Use the async action system instead of direct execution
+// Enqueue the worker and nudge WP-Cron so it runs promptly.
 as_enqueue_async_action('mlsimport_background_process_per_item', $attachments_to_send);
 spawn_cron();
 
 // Return success data without checking import count
+// Respond immediately; the import continues asynchronously in the background.
 wp_send_json_success(array(
     'message' => __('Import process started', 'mlsimport'),
     'import_id' => $import_id
@@ -845,25 +918,32 @@ wp_send_json_success(array(
 /**
  * Handle AJAX save step data
  *
+ * Verifies the 'mlsimport_onboarding_nonce' nonce; performs no capability
+ * check. Delegates to mlsimport_save_step_data(), which sanitizes and persists
+ * the posted per-step form data.
+ *
  * @since 6.1.0
  */
 function mlsimport_ajax_save_step_data() {
-    // Check nonce
+    // Check nonce (no current_user_can capability check is performed here).
     if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'mlsimport_onboarding_nonce')) {
         wp_send_json_error(array('message' => __('Security check failed', 'mlsimport')));
     }
     
     // Get step and data
+    // Step id is sanitized; the raw data array is sanitized inside save_step_data().
     $step = isset($_POST['step']) ? sanitize_text_field($_POST['step']) : '';
     $data = isset($_POST['data']) ? $_POST['data'] : array();
-    
+
+    // A step id is required to know where to store the data.
     if (empty($step)) {
         wp_send_json_error(array('message' => __('No step specified', 'mlsimport')));
     }
     
     // Save step data
     $result = mlsimport_save_step_data($step, $data);
-    
+
+    // update_option returns false when the write fails (or value is unchanged).
     if (!$result) {
         wp_send_json_error(array('message' => __('Failed to save data', 'mlsimport')));
     }
@@ -988,6 +1068,7 @@ function mlsimport_display_onboarding_log_summary($num_entries = 10) {
     $output .= '<h4>' . __('Recent Activity', 'mlsimport') . '</h4>';
     $output .= '<ul class="mlsimport-logs">';
     
+    // Build one list item per log line, colour-coded by the severity tag it contains.
     foreach ($lines as $line) {
         // Extract log type for styling
         if (strpos($line, '[INFO]') !== false) {
@@ -997,9 +1078,11 @@ function mlsimport_display_onboarding_log_summary($num_entries = 10) {
         } elseif (strpos($line, '[ERROR]') !== false) {
             $class = 'error';
         } else {
+            // No recognised tag -> no severity class.
             $class = '';
         }
-        
+
+        // esc_html() escapes the raw log line before embedding it in the markup.
         $output .= '<li class="log-item ' . $class . '">' . esc_html($line) . '</li>';
     }
     

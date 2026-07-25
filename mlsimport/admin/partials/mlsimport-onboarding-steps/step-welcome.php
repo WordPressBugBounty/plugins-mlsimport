@@ -2,6 +2,15 @@
 /**
  * Template for the Welcome step of the MLSImport onboarding wizard
  *
+ * First step of the wizard. Renders intro copy, a "Start the Wizard" button,
+ * and a System Requirements Check table (PHP version, memory limit, max
+ * execution time, and active-theme compatibility). This is a display template
+ * with no AJAX action of its own — it computes requirement pass/fail flags in
+ * PHP, then outputs the HTML. Included by mlsimport_render_onboarding_step().
+ *
+ * NOTE: comments here live only inside PHP regions; the inline-HTML below is
+ * left uncommented because HTML comments are part of the rendered output.
+ *
  * @link       https://mlsimport.com/
  * @since      6.1.0
  *
@@ -14,6 +23,7 @@ if (!defined('WPINC')) {
     die;
 }
 
+// Read the running environment values that feed the requirements table.
 // Get server info
 $php_version = phpversion();
 $wp_version = get_bloginfo('version');
@@ -22,8 +32,11 @@ $max_execution_time = ini_get('max_execution_time');
 $upload_max_filesize = ini_get('upload_max_filesize');
 $post_max_size = ini_get('post_max_size');
 
+// Build the requirements list. Each entry holds a display name, detected value,
+// required minimum, a boolean pass/fail status, and help text for failures.
 // Check requirements
 $requirements = array(
+    // PHP version must be at least 7.2.
     'php_version' => array(
         'name' => __('PHP Version', 'mlsimport'),
         'value' => $php_version,
@@ -31,6 +44,7 @@ $requirements = array(
         'status' => version_compare($php_version, '7.2', '>='),
         'help' => __('MLSImport requires PHP 7.2 or higher.', 'mlsimport'),
     ),
+    // Memory passes when the numeric part is >= 256 OR memory is unlimited (-1).
     'memory_limit' => array(
         'name' => __('Memory Limit', 'mlsimport'),
         'value' => $memory_limit,
@@ -38,6 +52,7 @@ $requirements = array(
         'status' => intval($memory_limit) >= 256 || $memory_limit === '-1',
         'help' => __('We recommend setting memory to at least 64MB if not more.', 'mlsimport'),
     ),
+    // Execution time passes when >= 120s OR 0 (no limit).
     'max_execution_time' => array(
         'name' => __('Max Execution Time', 'mlsimport'),
         'value' => $max_execution_time . 's',
@@ -47,9 +62,11 @@ $requirements = array(
     ),
 );
 
+// Read the active theme name so it can be matched against the supported list.
 // Check if theme is supported
 $current_theme = wp_get_theme();
 $theme_name = $current_theme->get('Name');
+// Map of supported theme slugs to their human-facing labels.
 $supported_themes = array(
     'WpResidence' => 'WP Residence',
     'houzez' => 'Houzez',
@@ -57,10 +74,13 @@ $supported_themes = array(
     'Wpestate' => 'WP Estate',
 );
 
+// Tracks whether the active theme matched a supported one, and its label.
 $theme_detected = false;
 $detected_theme_name = '';
 
+// Match on exact (case-insensitive) name OR the slug appearing as a substring.
 foreach ($supported_themes as $theme_key => $theme_label) {
+    // First clause: exact case-insensitive match. Second: slug is a substring.
     if (strtolower($theme_name) === strtolower($theme_key) || strpos(strtolower($theme_name), strtolower($theme_key)) !== false) {
         $theme_detected = true;
         $detected_theme_name = $theme_label;
@@ -68,6 +88,7 @@ foreach ($supported_themes as $theme_key => $theme_label) {
     }
 }
 
+// Append the theme-compatibility entry to the requirements table.
 // Theme requirement
 $requirements['theme'] = array(
     'name' => __('Theme Compatibility', 'mlsimport'),
@@ -79,9 +100,11 @@ $requirements['theme'] = array(
         : __('MLSImport works best with WP Residence, Houzez, Real Homes, or WP Estate themes.', 'mlsimport'),
 );
 
+// Reduce all requirement statuses to a single flag; any failure flips it false.
 // Calculate overall status
 $all_requirements_met = true;
 foreach ($requirements as $req) {
+    // A single failing requirement means the system does not fully pass.
     if (!$req['status']) {
         $all_requirements_met = false;
         break;
@@ -125,20 +148,20 @@ foreach ($requirements as $req) {
                 </tr>
             </thead>
             <tbody>
-                <?php foreach ($requirements as $req_key => $req) : ?>
+                <?php /* One row per requirement: name, value, required, status icon. */ foreach ($requirements as $req_key => $req) : ?>
                     <tr>
                         <td><?php echo esc_html($req['name']); ?></td>
                         <td><?php echo esc_html($req['value']); ?></td>
                         <td><?php echo esc_html($req['required']); ?></td>
                         <td>
-                            <?php if ($req['status']) : ?>
+                            <?php if ($req['status']) : /* passing: green check icon */ ?>
                                 <span class="mlsimport-requirement-status success dashicons dashicons-yes"></span>
-                            <?php else : ?>
+                            <?php else : /* failing: warning icon */ ?>
                                 <span class="mlsimport-requirement-status error dashicons dashicons-warning"></span>
                             <?php endif; ?>
                         </td>
                     </tr>
-                    <?php if (!$req['status']) : ?>
+                    <?php if (!$req['status']) : /* extra help row only when this requirement failed */ ?>
                         <tr class="mlsimport-requirement-help">
                             <td colspan="4"><?php echo esc_html($req['help']); ?></td>
                         </tr>
@@ -147,7 +170,7 @@ foreach ($requirements as $req) {
             </tbody>
         </table>
         
-        <?php if (!$all_requirements_met) : ?>
+        <?php if (!$all_requirements_met) : /* one or more checks failed: caution notice */ ?>
             <div class="mlsimport-warning-message">
                 <p>
                     <?php _e('Some system requirements are not met. You can still proceed, but you might encounter issues during import.', 'mlsimport'); ?>

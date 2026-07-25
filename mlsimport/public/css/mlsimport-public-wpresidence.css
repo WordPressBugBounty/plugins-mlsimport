@@ -1,23 +1,36 @@
+/*
+ * mlsimport-public-wpresidence.css — public stylesheet enqueued when the
+ * WpResidence theme is active. Adjusts imported-listing presentation: single
+ * property detail rows, the map infobox image, listing-card image cropping,
+ * the vertical carousel indicators, the no-crop lightbox (owl) slider, and the
+ * "my listings" flex grid.
+ */
+
+/* Single property detail rows: padding and hard word-break. */
 .single-estate_property .listing_detail {
 	padding: 0px 20px 7px 0px;
 	word-break: break-all;
 }
 
+/* Map infobox image frame: fixed height, clip overflow. */
 .infobox_wrapper_image {
 	overflow: hidden;
 	height: 161px;
 }
 
+/* Let the infobox image exceed the theme's max-height cap. */
 .info_details .infobox_wrapper_image img{
 	max-height:initial!important;
 }
 
 
+/* Listing-card images: full width, floated left. */
 .property_listing img {
 	width: 100%;
 	float: left;
 }
 
+/* Listing-card image wrapper: cropped, floated, black backdrop, capped height. */
 .listing-unit-img-wrapper {
 	position: relative;
 	float: left;
@@ -27,6 +40,7 @@
 	max-height: 219px;
 }
 
+/* Vertical carousel indicator thumbnails: fixed size, clickable, clipped. */
 #carousel-indicators-vertical li {
 	margin-bottom: 3px;
 	position: relative;
@@ -36,10 +50,12 @@
 	overflow: hidden;
 }
 
+/* No-crop lightbox: fixed-height owl carousel item. */
 .ligtbox_no_crop .owl-carousel .owl-item .item {
 	height: 640px!important;
 }
 
+/* No-crop lightbox image: natural width, capped height, vertically centred. */
 .ligtbox_no_crop #owl-demo .item img {
 	display: block;
 	width: auto;
@@ -53,6 +69,7 @@
 	right: 0;
 }
 
+/* "My listings" grid: full-width wrapping flex row. */
 .mylistings {
 	display: flex;
 

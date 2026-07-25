@@ -1,0 +1,288 @@
+/**
+ * mlsimport-search-popups — WPResidence-style dropdown popups for the standalone
+ * search form. Styles the range slider popup (.mlsimport-range — price, living area,
+ * lot size, year built) and the combined Beds & Baths min-tile popup
+ * (.mlsimport-bedsbaths). Enhanced by
+ * mlsimport-search-popups.js; the hidden inputs inside carry the submitted values.
+ * Reuses the listings CSS custom properties (--mli-*) so it matches the search form.
+ */
+
+/* ---- shared dropdown shell ---- */
+/* Positioning context so each popup can absolutely-position under its toggle. */
+.mlsimport-range,
+.mlsimport-bedsbaths {
+	position: relative;
+}
+
+/* Block + nowrap + ellipsis keeps the button one line tall, so a long label (a
+   wide price range) can never grow the field past its neighbours. */
+/* :hover/:focus repeat the resting selector so a theme's `button:hover`/`:focus`
+   reset (Hello Elementor's pink #c36) can't repaint the closed toggle. .is-empty
+   (muted label) and the popup's own state rules are declared later and still win. */
+.mlsimport-range__toggle,
+.mlsimport-range__toggle:hover,
+.mlsimport-range__toggle:focus,
+.mlsimport-bedsbaths__toggle,
+.mlsimport-bedsbaths__toggle:hover,
+.mlsimport-bedsbaths__toggle:focus {
+	display: block;
+	width: 100%;
+	min-height: 40px;
+	margin: 0;
+	padding: 8px 30px 8px 10px;
+	border: 1px solid var(--mli-border, #e2e2e2);
+	border-radius: 6px;
+	background: #fff;
+	font: inherit;
+	/* 13px to match .mlsimport-ms__control and the search inputs — these toggles sit
+	   in the same grid row as both. */
+	font-size: 13px;
+	font-weight: 300;
+	line-height: 22px;
+	color: var(--mli-text, #1a1a1a);
+	text-align: left;
+	/* .is-empty (set by mlsimport-search-popups.js) greys the untouched label so
+	   Price's "Any" matches the multiselect's "Any" in ZIP Code / Area. A chosen
+	   value drops the class and returns to --mli-text. */
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	cursor: pointer;
+	box-sizing: border-box;
+	position: relative;
+}
+
+/* Down-caret glyph drawn from two borders on the toggle's right edge. Kept
+   identical to .mlsimport-ms__caret (multiselect) so every closed search control
+   — Type, Price, Beds & Baths — carries the same caret at the same size. */
+.mlsimport-range__toggle::after,
+.mlsimport-bedsbaths__toggle::after {
+	content: '';
+	position: absolute;
+	right: 12px;
+	top: 50%;
+	width: 5px;
+	height: 5px;
+	border-right: 1.5px solid #8a8a8a;
+	border-bottom: 1.5px solid #8a8a8a;
+	transform: translateY( -65% ) rotate( 45deg );
+	pointer-events: none;
+}
+
+/* The dropdown panel: hidden by default, floated below the toggle when open. */
+.mlsimport-range__popup,
+.mlsimport-bedsbaths__popup {
+	display: none;
+	position: absolute;
+	z-index: 60;
+	left: 0;
+	right: 0;
+	top: calc( 100% + 4px );
+	min-width: 240px;
+	padding: 14px;
+	background: #fff;
+	border: 1px solid var(--mli-border, #e2e2e2);
+	border-radius: 6px;
+	box-shadow: 0 6px 22px rgba( 0, 0, 0, 0.13 );
+	box-sizing: border-box;
+}
+
+/* .is-open (toggled by the JS) reveals the popup. */
+.mlsimport-range.is-open .mlsimport-range__popup,
+.mlsimport-bedsbaths.is-open .mlsimport-bedsbaths__popup {
+	display: block;
+}
+
+/* ---- range: min/max inputs ---- */
+/* Row holding the min display, separator, and max display. */
+.mlsimport-range__fields {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-bottom: 18px;
+}
+
+/* Read-only min/max value display fields. */
+.mlsimport-range__display {
+	width: 100%;
+	min-width: 0;
+	padding: 8px 10px;
+	border: 1px solid var(--mli-border, #e2e2e2);
+	border-radius: 6px;
+	font: inherit;
+	font-size: 14px;
+	color: var(--mli-text, #1a1a1a);
+	text-align: center;
+	box-sizing: border-box;
+}
+
+/* Dash/separator between the two display fields. */
+.mlsimport-range__sep {
+	color: #8a8a8a;
+}
+
+/* ---- range: slider ---- */
+/* Slider track wrapper (positioning context for rail, range, and handles). */
+.mlsimport-range__slider {
+	position: relative;
+	height: 4px;
+	margin: 6px 10px 20px;
+}
+
+/* Full-width grey background track. */
+.mlsimport-range__rail {
+	position: absolute;
+	inset: 0;
+	border-radius: 2px;
+	background: #e2e2e2;
+}
+
+/* Accent-coloured fill between the two handles (positioned by JS). */
+.mlsimport-range__range {
+	position: absolute;
+	top: 0;
+	height: 100%;
+	border-radius: 2px;
+	background: var(--mli-accent);
+}
+
+/* Draggable circular min/max handles. */
+/* 16px against the 4px rail, down from the original 18px. margin-left is half the
+   width (borders included, since box-sizing is border-box here) so the handle stays
+   centred on its value. */
+.mlsimport-range__handle {
+	box-sizing: border-box;
+	position: absolute;
+	top: 50%;
+	width: 16px;
+	height: 16px;
+	margin-left: -8px;
+	border: 2px solid var(--mli-accent);
+	border-radius: 50%;
+	background: #fff;
+	transform: translateY( -50% );
+	cursor: grab;
+	touch-action: none;
+	box-shadow: 0 1px 3px rgba( 0, 0, 0, 0.2 );
+}
+
+/* Grabbing cursor while a handle is being dragged. */
+.mlsimport-range__handle:active {
+	cursor: grabbing;
+}
+
+.mlsimport-range__toggle.is-empty,
+.mlsimport-bedsbaths__toggle.is-empty {
+	color: var(--mli-muted, #6b7785);
+}
+
+/* Keyboard focus ring on a handle. */
+.mlsimport-range__handle:focus {
+	outline: none;
+	box-shadow: 0 0 0 3px rgba( 42, 125, 225, 0.25 );
+}
+
+/* ---- beds & baths: tile rows ---- */
+/* Section heading above each tile row ("Beds" / "Baths"). */
+.mlsimport-bedsbaths__heading {
+	margin: 0 0 8px;
+	font-size: 13px;
+	font-weight: 600;
+	color: var(--mli-text, #1a1a1a);
+}
+
+/* Wrapping row of selectable min-value tiles. */
+.mlsimport-bedsbaths__grid {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin-bottom: 14px;
+}
+
+/* Individual "min" tile (Any, 1+, 2+, …). :hover/:focus repeat the resting
+   selector so a theme's pink `button:hover` reset can't repaint the tile; the
+   :hover accent border and .is-selected fill below are declared later and win. */
+.mlsimport-bedsbaths__item,
+.mlsimport-bedsbaths__item:hover,
+.mlsimport-bedsbaths__item:focus {
+	flex: 1 1 auto;
+	min-width: 44px;
+	padding: 8px 0;
+	border: 1px solid var(--mli-border, #e2e2e2);
+	border-radius: 6px;
+	background: #fff;
+	font: inherit;
+	/* 13px, matching the toggle that opens this popup. */
+	font-size: 13px;
+	font-weight: 300;
+	color: var(--mli-text, #1a1a1a);
+	text-align: center;
+	cursor: pointer;
+}
+
+/* Accent border on hover. */
+.mlsimport-bedsbaths__item:hover {
+	border-color: var(--mli-accent);
+}
+
+/* Selected tile: filled accent background (set by the JS). */
+.mlsimport-bedsbaths__item.is-selected {
+	border-color: var(--mli-accent);
+	background: var(--mli-accent);
+	color: #fff;
+}
+
+/* ---- shared actions ---- */
+/* Footer row holding the reset and done buttons. */
+.mlsimport-range__actions,
+.mlsimport-bedsbaths__actions {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+}
+
+/* Shared button base for reset and done. */
+.mlsimport-range__reset,
+.mlsimport-bedsbaths__reset,
+.mlsimport-range__done,
+.mlsimport-bedsbaths__done {
+	padding: 7px 16px;
+	border: 0;
+	border-radius: 6px;
+	font: inherit;
+	font-size: 13px;
+	cursor: pointer;
+}
+
+/* Reset: plain text-style link, muted colour. :hover/:focus repeat the resting
+   selector so a theme's pink `button:hover` reset can't fill it; the red :hover
+   below is declared later and still wins. */
+.mlsimport-range__reset,
+.mlsimport-range__reset:hover,
+.mlsimport-range__reset:focus,
+.mlsimport-bedsbaths__reset,
+.mlsimport-bedsbaths__reset:hover,
+.mlsimport-bedsbaths__reset:focus {
+	background: none;
+	color: #8a8a8a;
+	padding-left: 0;
+}
+
+/* Reset turns red on hover. */
+.mlsimport-range__reset:hover,
+.mlsimport-bedsbaths__reset:hover {
+	color: #c0392b;
+}
+
+/* Done: solid accent-filled confirm button. :hover/:focus repeat the resting
+   selector so a theme's pink `button:hover`/`:focus` reset can't repaint it. */
+.mlsimport-range__done,
+.mlsimport-range__done:hover,
+.mlsimport-range__done:focus,
+.mlsimport-bedsbaths__done,
+.mlsimport-bedsbaths__done:hover,
+.mlsimport-bedsbaths__done:focus {
+	background: var(--mli-accent);
+	color: #fff;
+}

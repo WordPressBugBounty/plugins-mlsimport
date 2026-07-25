@@ -1,15 +1,31 @@
 <?php 
+/**
+ * Admin partial: "Tools" tab (Administrative Options).
+ *
+ * Renders the plugin's administrative tools: toggles for system logs and property
+ * history, cache/field-data clearing buttons, cron-job guidance, and a
+ * taxonomy-scoped bulk "Delete Properties" tool. Also handles the POST for the two
+ * toggle selects at the top (nonce-verified) before rendering the form.
+ *
+ * @package    mlsimport
+ * @subpackage mlsimport/admin/partials
+ */
+
+// Block direct access outside of WordPress.
 if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Exit if accessed directly
 }
 
-if (isset($_POST['mlsimport_tool_actions']) && 
+// Handle the toggle-form submit: only when the tool-actions nonce is present and valid.
+if (isset($_POST['mlsimport_tool_actions']) &&
 	wp_verify_nonce(  sanitize_text_field( wp_unslash( $_POST['mlsimport_tool_actions'] ) ), 'mlsimport_tool_actions')) {
 
+	// Persist the "disable system logs" choice.
 	if ( isset( $_POST['mlsimport-disable-logs'] ) ) {
 		$disable_logs = intval( $_POST['mlsimport-disable-logs'] );
 		update_option( 'mlsimport_disable_logs', $disable_logs );
 	}
+	// Persist the "disable property history" choice.
 	if ( isset( $_POST['mlsimport-disable-history'] ) ) {
 		$disable_history = intval( $_POST['mlsimport-disable-history'] );
 		update_option( 'mlsimport-disable-history', $disable_history );
@@ -21,24 +37,28 @@ if (isset($_POST['mlsimport_tool_actions']) &&
 <form method="post" name="cleanup_options" action="">
 	<?php
 		global $mlsimport;
+		// Emit the settings API nonce/hidden fields and any registered sections.
 		settings_fields( $this->plugin_name . '_administrative_options' );
 		do_settings_sections( $this->plugin_name . '_administrative_options' );
+		// Load the administrative options and (re)initialise plugin/SaaS state.
 		$options = get_option( $this->plugin_name . '_administrative_options' );
 		$mlsimport->admin->mlsimport_saas_setting_up();
 	 	//mlsimport_saas_event_mls_import_auto_function();
 		//mlsimport_saas_reconciliation_event_function(); 
 	?>
   
-<h1> Administrative Tools</h1>
+<h1> <?php esc_html_e( 'Administrative Tools', 'mlsimport' ); ?></h1>
 
 
 <?php
 
 
 
+// Current "disable logs" value; pre-select the matching <option> below.
 $disable_logs = intval( get_option( 'mlsimport_disable_logs' ) );
 $selected_no  = $selected_yes = '';
 
+// 0 = logs disabled (default) -> select the "disabled" option; otherwise "enabled".
 if ( 0 ===  intval($disable_logs)  ) {
 	$selected_no = ' selected ';
 } else {
@@ -46,9 +66,11 @@ if ( 0 ===  intval($disable_logs)  ) {
 }
 
 
+// Current "disable history" value (defaults to 1); pre-select the matching option.
 $disable_history     = intval( get_option( 'mlsimport-disable-history', 1 ) );
 $selected_history_no = $selected_history_yes = '';
 
+// 0 = history disabled -> select the "disabled" option; otherwise "enabled".
 if ( 0 ===  intval($disable_history)  ) {
 	$selected_history_no = ' selected ';
 } else {
@@ -57,21 +79,21 @@ if ( 0 ===  intval($disable_history)  ) {
 ?>      
 
 <div class="mlsimport_tool_field_item_wrapper">    
-	<h4 style="margin-bottom:0px;"> Disable System Logs (logs should only be enabled during debug process) </h4>  
-	<select name="mlsimport-disable-logs" class="mlsimport-2025-select" id="mlsimport-disable-logs"> 
-		<option value="0" <?php echo esc_html( $selected_no ); ?> >logs disabled</option>
-		<option value="1" <?php echo esc_html( $selected_yes ); ?>>logs enabled</option>
+	<h4 style="margin-bottom:0px;"> <?php esc_html_e( 'Disable System Logs (logs should only be enabled during debug process)', 'mlsimport' ); ?> </h4>
+	<select name="mlsimport-disable-logs" class="mlsimport-2025-select" id="mlsimport-disable-logs">
+		<option value="0" <?php echo esc_html( $selected_no ); ?> ><?php esc_html_e( 'logs disabled', 'mlsimport' ); ?></option>
+		<option value="1" <?php echo esc_html( $selected_yes ); ?>><?php esc_html_e( 'logs enabled', 'mlsimport' ); ?></option>
 
 </select>
 </div>
 
 
 <div class="mlsimport_tool_field_item_wrapper">    
-	<h4 style="margin-bottom:0px;"> Disable Property History (can be seen by editing a property in WordPress admin) </h4>  
-	<select name="mlsimport-disable-history" class="mlsimport-2025-select" id="mlsimport-disable-history"> 
-	 
-		<option value="1" <?php echo esc_html( $selected_history_yes ); ?>>history enabled</option>
-		<option value="0" <?php echo esc_html( $selected_history_no ); ?> >history disabled</option>
+	<h4 style="margin-bottom:0px;"> <?php esc_html_e( 'Disable Property History (can be seen by editing a property in WordPress admin)', 'mlsimport' ); ?> </h4>
+	<select name="mlsimport-disable-history" class="mlsimport-2025-select" id="mlsimport-disable-history">
+
+		<option value="1" <?php echo esc_html( $selected_history_yes ); ?>><?php esc_html_e( 'history enabled', 'mlsimport' ); ?></option>
+		<option value="0" <?php echo esc_html( $selected_history_no ); ?> ><?php esc_html_e( 'history disabled', 'mlsimport' ); ?></option>
 
 </select>
 </div>
@@ -81,23 +103,23 @@ if ( 0 ===  intval($disable_history)  ) {
 <?php submit_button( __( 'Save Changes', 'mlsimport' ), 'mlsimport_button button save_data', 'submit', true ); ?>
 
 <div class="mlsimport_tool_field_item_wrapper"  style="background-color: #eee;padding: 10px;border-radius: 5px;">
-        <h3 style="margin-bottom:20px;"> Clear cached data </h3>
-        <input class="button mlsimport_button "  type="button" id="mlsimport-clear-cache" value="Clear Plugin Cached Data" />
+        <h3 style="margin-bottom:20px;"> <?php esc_html_e( 'Clear cached data', 'mlsimport' ); ?> </h3>
+        <input class="button mlsimport_button "  type="button" id="mlsimport-clear-cache" value="<?php esc_attr_e( 'Clear Plugin Cached Data', 'mlsimport' ); ?>" />
 </div>
 
 <div class="mlsimport_tool_field_item_wrapper"  style="background-color: #eee;padding: 10px;border-radius: 5px;">
-        <h3 style="margin-bottom:20px;"> Clear fields data </h3>
-        <input class="button mlsimport_button "  type="button" id="mlsimport-clear-fields-data" value="Clear Field Data" />
+        <h3 style="margin-bottom:20px;"> <?php esc_html_e( 'Clear fields data', 'mlsimport' ); ?> </h3>
+        <input class="button mlsimport_button "  type="button" id="mlsimport-clear-fields-data" value="<?php esc_attr_e( 'Clear Field Data', 'mlsimport' ); ?>" />
 </div>
 	 
 	 
 <div class="mlsimport_tool_field_item_wrapper">     
-	<h3 style="margin-bottom:0px;">Cron Jobs </h3>
+	<h3 style="margin-bottom:0px;"><?php esc_html_e( 'Cron Jobs', 'mlsimport' ); ?> </h3>
 	<div class="cron_job_explainin">
-		By default a syncronization event runs every hour. The action will be triggered when someone visits your site if the scheduled time has passed. This is the default, "out of the box" way to do things in WordPress and it works very well in 99% of the cases.
+		<?php esc_html_e( 'By default a syncronization event runs every hour. The action will be triggered when someone visits your site if the scheduled time has passed. This is the default, "out of the box" way to do things in WordPress and it works very well in 99% of the cases.', 'mlsimport' ); ?>
 
-		</br></br>If, for some reason, you want to force the syncronization event to run every two hours(minimum time frame permitted by this plugin) you can set a cron job on your server enviroment and call this url : http://yourwebsite.com/?mlsimport_cron=yes.
-		</br></br><strong>Example : 0   */2 *   *   *   wget https://yourwebsite.com/?mlsimport_cron=yes</strong> .   
+		</br></br><?php esc_html_e( 'If, for some reason, you want to force the syncronization event to run every two hours(minimum time frame permitted by this plugin) you can set a cron job on your server enviroment and call this url : http://yourwebsite.com/?mlsimport_cron=yes.', 'mlsimport' ); ?>
+		</br></br><strong><?php esc_html_e( 'Example : 0   */2 *   *   *   wget https://yourwebsite.com/?mlsimport_cron=yes', 'mlsimport' ); ?></strong> .
 	</div>
 <div>
 	 
@@ -111,7 +133,9 @@ if ( 0 ===  intval($disable_history)  ) {
 	<select id="mlsimport_delete_category" class="mlsimport-select mlsimport-2025-select">
 		<option value=""><?php esc_html_e( '-- Select Taxonomy --', 'mlsimport' ); ?></option>
 		<?php
+		// Populate the taxonomy dropdown with the active property post type's taxonomies.
 		$delete_taxonomies = mlsimport_get_custom_post_type_taxonomies( $mlsimport->admin->env_data->get_property_post_type() );
+		// One <option> per taxonomy (value = slug, label shows name + slug).
 		foreach ( $delete_taxonomies as $tax_slug => $tax_label ) :
 		?>
 			<option value="<?php echo esc_attr( $tax_slug ); ?>"><?php echo esc_html( $tax_label ); ?> (<?php echo esc_html( $tax_slug ); ?>)</option>
@@ -137,6 +161,7 @@ if ( 0 ===  intval($disable_history)  ) {
 	<input class="button" type="button" id="mlsimport-delete-stop" value="<?php esc_attr_e( 'Stop', 'mlsimport' ); ?>" style="display:none;margin-left:10px;" />
 </fieldset>
 <?php
+// Nonce for the tools form / delete AJAX actions, emitted as a hidden field below.
 $ajax_nonce = wp_create_nonce( "mlsimport_tool_actions" );
 ?>
 

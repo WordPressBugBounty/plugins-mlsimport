@@ -1,0 +1,289 @@
+/**
+ * MLSImport Half Map page block (theme_id 990).
+ *
+ * A full-bleed, full-height split surface: the MLS listings block (filter bar +
+ * scrolling results) beside a sticky viewport-clustered map. The list pane reuses
+ * the standalone listings styles (mlsimport-listings.css); this file only lays out
+ * the two panes and the mobile List/Map toggle.
+ *
+ * Height comes from the --mlsimport-half-map-height custom property set per block
+ * (default 100vh) and is applied to each pane DIRECTLY, so it never depends on a
+ * fragile height:100% chain through the wrappers. Width breaks out of the theme's
+ * centered content column so the block spans the whole page.
+ */
+
+.mlsimport-half-map {
+	display: flex;
+	align-items: stretch;
+	box-sizing: border-box;
+	position: relative;
+	/* Break out of the theme's content column to span the whole viewport width.
+	   A pure-CSS 50%/translateX breakout centers on the block's PARENT column, which
+	   is wrong when the theme puts the content in an off-center column (a page with a
+	   sidebar). So mlsimport-half-map.js measures the block's distance from the
+	   viewport's left edge and sets an INLINE `margin-left: <-that>px !important`,
+	   which pins the block to x=0 on any template — including block themes, whose
+	   constrained-layout rules override a plugin STYLESHEET !important but not an
+	   element inline !important. This calc() is only the no-JS / classic-theme
+	   fallback (correct when the content column is centered / full width). */
+	width: 100vw !important;
+	max-width: 100vw !important;
+	margin-left: calc( 50% - 50vw ) !important;
+	margin-right: 0 !important;
+	left: 0 !important;
+	right: auto !important;
+	transform: none;
+	height: var( --mlsimport-half-map-height, 100vh );
+	overflow: hidden;
+}
+
+/* Map on the left: keep the list first in the DOM (so screen readers and the
+   listings script find it), just reverse the visual order. */
+.mlsimport-half-map--map-left {
+	flex-direction: row-reverse;
+}
+
+.mlsimport-half-map__list {
+	flex: 1 1 50%;
+	min-width: 0;
+	height: var( --mlsimport-half-map-height, 100vh );
+	overflow-y: auto;
+	-webkit-overflow-scrolling: touch;
+	padding: 1rem;
+	box-sizing: border-box;
+}
+
+.mlsimport-half-map__map {
+	flex: 1 1 50%;
+	min-width: 0;
+	height: var( --mlsimport-half-map-height, 100vh );
+	position: relative;
+}
+
+/* List-pane search form: a grid whose column count is the "Search fields per row"
+   setting (--mlsimport-search-cols, set inline on the form), defaulting to 3-up
+   since the pane is only ~half the viewport. The submit gets its own full-width row.
+   (The shared listings rule already makes this a grid; this only narrows the default
+   to 3 for the half-map pane.) */
+.mlsimport-half-map__list .mlsimport-listings:not( .mlsimport-listings--map ) .mlsimport-search {
+	grid-template-columns: repeat( var( --mlsimport-search-cols, 3 ), 1fr );
+}
+
+/* Narrow screens: cap the column count regardless of the "Search fields per row"
+   setting, so a 4/5/6-up form doesn't stay 6-up on a phone. These must live HERE
+   rather than rely on the shared listings breakpoint in mlsimport-listings.css:
+   the rule above carries an extra class (.mlsimport-half-map__list), so it outranks
+   that file's `@media (max-width:600px)` rule at every width — which is why the
+   half-map form stayed N-up on mobile while the standalone listings form collapsed.
+   Same selector = same specificity, and these come later, so they win. */
+@media ( max-width: 880px ) {
+	.mlsimport-half-map__list .mlsimport-listings:not( .mlsimport-listings--map ) .mlsimport-search {
+		grid-template-columns: repeat( 2, 1fr );
+	}
+}
+
+@media ( max-width: 600px ) {
+	.mlsimport-half-map__list .mlsimport-listings:not( .mlsimport-listings--map ) .mlsimport-search {
+		grid-template-columns: 1fr;
+	}
+}
+
+/* The map fills its pane edge to edge. Height is set DIRECTLY from the variable
+   (not a height:100% chain) with !important, to beat the listings rule
+   `.mlsimport-page-block--map .mlsimport-map { height:420px }` which ties on
+   specificity, and the `min-height:480px` floor. */
+.mlsimport-half-map__map .mlsimport-page-block--map,
+.mlsimport-half-map__map .mlsimport-map {
+	height: var( --mlsimport-half-map-height, 100vh ) !important;
+	width: 100%;
+	min-height: 0 !important;
+	margin: 0;
+	border: 0;
+	border-radius: 0;
+}
+
+/* Mobile List/Map switch — hidden on desktop where both panes show. */
+.mlsimport-half-map__switch {
+	display: none;
+}
+
+/* Styled to pair with the Draw-area button — the block's other floating map
+   control — so the two read as one family: same pill radius, same shadow (on the
+   .__switch wrapper), same 0.85rem/600 Manrope type.
+
+   NOTE the explicit font-size. This used to be `font: inherit`, which pulled the
+   THEME's body scale (18.3px on this site) and made the tabs tower over every
+   other plugin control on the page — all of which sit at 13.6-14px. Inherit the
+   family, but pin the size to the plugin's own scale. */
+.mlsimport-half-map__tab {
+	flex: 1 1 50%;
+	padding: 0.75rem 1rem;
+	border: 0;
+	background: #fff;
+	color: var( --mli-text, #1f2733 );
+	font-family: inherit;
+	font-size: 0.85rem;
+	font-weight: 600;
+	line-height: 1;
+	cursor: pointer;
+	/* Kill the grey flash Android/iOS paint over the tapped segment; the active
+	   state already gives the press feedback. */
+	-webkit-tap-highlight-color: transparent;
+}
+
+/* No focus ring on click/tap — the pill's shadow and the accent fill already show
+   which segment is active, and a ring inside a 999px pill reads as a stray box.
+   `:focus-visible` keeps the ring for KEYBOARD focus, so tabbing to the switch is
+   still visible; dropping the outline entirely would make it unreachable to see. */
+.mlsimport-half-map__tab:focus {
+	outline: none;
+}
+
+.mlsimport-half-map__tab:focus-visible {
+	outline: 2px solid var( --mli-text, #1f2733 );
+	outline-offset: -3px;
+}
+
+/* Active segment in the site accent with white text, matching the search submit
+   button exactly. Note the contrast is low (white on the #b4cc00 lime measures
+   1.8:1, under the 4.5:1 WCAG AA minimum) — this matches the site's existing
+   button treatment by choice. If the label proves hard to read over the map,
+   swapping this to var( --mli-text ) gives 8.3:1. */
+.mlsimport-half-map__tab.is-active {
+	background: var( --mli-accent, #b4cc00 );
+	color: #fff;
+}
+
+/* ── Draw-on-map toolbar ─────────────────────────────────────────────────── */
+/* Pinned top-right of the map pane (Leaflet's zoom control sits top-left, and the
+   mobile switch is pinned bottom-center, so the top-right stays clear). */
+.mlsimport-half-map__draw-tools {
+	position: absolute;
+	top: 0.75rem;
+	right: 0.75rem;
+	z-index: 1001;
+	display: flex;
+	gap: 0.4rem;
+}
+
+.mlsimport-half-map__draw-btn {
+	padding: 0.45rem 0.85rem;
+	border: 0;
+	border-radius: 999px;
+	background: #fff;
+	color: #1a1a1a;
+	font: inherit;
+	font-weight: 600;
+	font-size: 0.85rem;
+	line-height: 1;
+	cursor: pointer;
+	box-shadow: 0 1px 6px rgba( 0, 0, 0, 0.25 );
+}
+
+.mlsimport-half-map__draw-btn:hover {
+	background: #f3f4f6;
+}
+
+.mlsimport-half-map__draw-btn.is-drawing {
+	background: var(--mli-accent);
+	color: #fff;
+}
+
+.mlsimport-half-map__draw-btn--clear {
+	color: #b91c1c;
+}
+
+.mlsimport-half-map__draw-btn.is-hidden {
+	display: none;
+}
+
+/* Crosshair while the polygon drawer is active (the class lands on the Leaflet
+   container, i.e. the .mlsimport-map node). !important beats Leaflet's own grab
+   cursor rules. */
+.mlsimport-map--drawing,
+.mlsimport-map--drawing .leaflet-grab,
+.mlsimport-map--drawing .leaflet-interactive {
+	cursor: crosshair !important;
+}
+
+/* While drawing, let clicks fall through the price pins / clusters to the map so
+   every click drops a vertex (instead of opening a marker's popup). */
+.mlsimport-map--drawing .mlsimport-map-pin-wrap,
+.mlsimport-map--drawing .mlsimport-map-cluster-wrap {
+	pointer-events: none;
+}
+
+/* ── Mobile: stack to one pane at a time, toggled by the switch ───────────── */
+@media ( max-width: 880px ) {
+	.mlsimport-half-map,
+	.mlsimport-half-map--map-left {
+		flex-direction: column;
+	}
+
+	/* Double-scroll fix: on desktop the block is a fixed-height split surface whose
+	   list pane scrolls internally. Stacked on mobile that gives TWO scrollbars —
+	   the page's and the list pane's — and traps the wheel inside the pane. Let the
+	   list flow with the document instead and scroll the page only. The map pane
+	   keeps its own height (below) since a map needs a fixed box. */
+	.mlsimport-half-map {
+		height: auto;
+		overflow: visible;
+	}
+
+	.mlsimport-half-map__list {
+		height: auto;
+		overflow-y: visible;
+	}
+
+	/* Switch pinned to the BOTTOM of the screen, not the top: it is the primary
+	   List/Map control on mobile and must stay in thumb reach while the page
+	   scrolls. `fixed` (not `absolute`) because the block is now auto-height —
+	   an absolute bottom would sit at the end of a very long list, off-screen. */
+	.mlsimport-half-map__switch {
+		display: flex;
+		position: fixed;
+		bottom: 0.75rem;
+		left: 50%;
+		transform: translateX( -50% );
+		z-index: 1000;
+		width: min( 18rem, calc( 100% - 1.5rem ) );
+		border-radius: 999px;
+		overflow: hidden;
+		/* Same elevation as .mlsimport-half-map__draw-btn, so the two floating map
+		   controls sit on the same visual plane. */
+		box-shadow: 0 1px 6px rgba( 0, 0, 0, 0.25 );
+	}
+
+	/* Keep Leaflet's bottom-right attribution (a licence requirement, so it must stay
+	   legible) clear of the switch pill now that both sit along the bottom edge.
+	   The clearance has to cover THREE things, which is why it looks oversized:
+	     - the pill itself (~42px) plus its 12px bottom offset, and
+	     - the ~20px by which the map pane overhangs the fold. The pane is 100vh tall
+	       but starts ~20px down the page, so its bottom — which is what Leaflet
+	       anchors the attribution to — is below the visible viewport.
+	   Verified against the pill's measured box at 360/390/600/768/880 wide. */
+	.mlsimport-half-map__map .leaflet-bottom {
+		margin-bottom: 5rem;
+	}
+
+	.mlsimport-half-map__tab:first-child {
+		border-radius: 999px 0 0 999px;
+	}
+
+	.mlsimport-half-map__tab:last-child {
+		border-radius: 0 999px 999px 0;
+	}
+
+	/* List is the default view; the map appears only when toggled on. */
+	.mlsimport-half-map__map {
+		display: none;
+	}
+
+	.mlsimport-half-map.is-view-map .mlsimport-half-map__list {
+		display: none;
+	}
+
+	.mlsimport-half-map.is-view-map .mlsimport-half-map__map {
+		display: block;
+	}
+}

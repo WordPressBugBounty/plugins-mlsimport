@@ -58,14 +58,19 @@ $mlsimport_telemetry_pending = array();
  * @return void
  */
 function mlsimport_telemetry_bump( string $metric, int $amount = 1 ): void {
+	// Whitelist of accepted metric keys.
 	$allowed = array( 'imported', 'updated', 'deleted', 'syncs', 'token_failures' );
+	// Guard: silently ignore an unknown metric key.
 	if ( ! in_array( $metric, $allowed, true ) ) {
 		return;
 	}
+	// Reach the request-scoped accumulator.
 	global $mlsimport_telemetry_pending;
+	// Lazily zero-initialise this metric's slot on first use.
 	if ( ! isset( $mlsimport_telemetry_pending[ $metric ] ) ) {
 		$mlsimport_telemetry_pending[ $metric ] = 0;
 	}
+	// Add the delta (no DB touch here — flush writes on shutdown).
 	$mlsimport_telemetry_pending[ $metric ] += $amount;
 }
 
@@ -82,21 +87,26 @@ function mlsimport_telemetry_bump( string $metric, int $amount = 1 ): void {
  * @return void
  */
 function mlsimport_telemetry_flush(): void {
+	// Reach the request-scoped accumulator.
 	global $mlsimport_telemetry_pending;
 
+	// Nothing accumulated this request — do not read or write the option.
 	if ( empty( $mlsimport_telemetry_pending ) ) {
 		return;
 	}
 
+	// Load the persisted state; coerce a corrupt/legacy value back to an array.
 	$state = get_option( 'mlsimport_telemetry_state', array() );
 	if ( ! is_array( $state ) ) {
 		$state = array();
 	}
 
+	// Ensure the daily bucket map exists.
 	if ( ! isset( $state['daily'] ) || ! is_array( $state['daily'] ) ) {
 		$state['daily'] = array();
 	}
 
+	// Today's UTC date is the bucket key; start from any existing bucket.
 	$today  = gmdate( 'Y-m-d' );
 	$bucket = isset( $state['daily'][ $today ] ) ? $state['daily'][ $today ] : array();
 
@@ -108,17 +118,21 @@ function mlsimport_telemetry_flush(): void {
 		'syncs'          => 0,
 		'token_failures' => 0,
 	);
+	// Fill any missing counters with 0 while keeping already-accumulated values.
 	$bucket = array_merge( $defaults, $bucket );
 
+	// Fold this request's pending deltas into today's bucket.
 	foreach ( $mlsimport_telemetry_pending as $metric => $delta ) {
 		if ( isset( $bucket[ $metric ] ) ) {
 			$bucket[ $metric ] += $delta;
 		}
 	}
 
+	// Store the updated bucket, then drop buckets older than the retention window.
 	$state['daily'][ $today ] = $bucket;
 	$state['daily']           = mlsimport_telemetry_prune_buckets( $state['daily'], $today );
 
+	// Single write, non-autoloaded.
 	update_option( 'mlsimport_telemetry_state', $state, false );
 
 	// Reset pending.
@@ -142,10 +156,12 @@ add_action( 'shutdown', 'mlsimport_telemetry_flush' );
  * @return void
  */
 function mlsimport_telemetry_set( string $key, $value ): void {
+	// Load the persisted state; coerce a non-array back to an array.
 	$state = get_option( 'mlsimport_telemetry_state', array() );
 	if ( ! is_array( $state ) ) {
 		$state = array();
 	}
+	// Overwrite the key unconditionally, then persist (non-autoloaded).
 	$state[ $key ] = $value;
 	update_option( 'mlsimport_telemetry_state', $state, false );
 }
@@ -161,13 +177,16 @@ function mlsimport_telemetry_set( string $key, $value ): void {
  * @return void
  */
 function mlsimport_telemetry_set_once( string $key, $value ): void {
+	// Load the persisted state; coerce a non-array back to an array.
 	$state = get_option( 'mlsimport_telemetry_state', array() );
 	if ( ! is_array( $state ) ) {
 		$state = array();
 	}
+	// First occurrence wins — bail if the stamp already holds a non-empty value.
 	if ( ! empty( $state[ $key ] ) ) {
 		return;
 	}
+	// Record the value and persist (non-autoloaded).
 	$state[ $key ] = $value;
 	update_option( 'mlsimport_telemetry_state', $state, false );
 }
@@ -181,19 +200,24 @@ function mlsimport_telemetry_set_once( string $key, $value ): void {
  * @return void
  */
 function mlsimport_telemetry_mark_onboarding_step( string $step ): void {
+	// Guard: ignore an empty step id.
 	if ( '' === $step ) {
 		return;
 	}
+	// Load the persisted state; coerce a non-array back to an array.
 	$state = get_option( 'mlsimport_telemetry_state', array() );
 	if ( ! is_array( $state ) ) {
 		$state = array();
 	}
+	// Ensure the onboarding-steps map exists.
 	if ( ! isset( $state['onboarding_steps'] ) || ! is_array( $state['onboarding_steps'] ) ) {
 		$state['onboarding_steps'] = array();
 	}
+	// First completion wins — do not move an existing timestamp.
 	if ( isset( $state['onboarding_steps'][ $step ] ) ) {
 		return;
 	}
+	// Stamp the step with the current epoch and persist (non-autoloaded).
 	$state['onboarding_steps'][ $step ] = time();
 	update_option( 'mlsimport_telemetry_state', $state, false );
 }
@@ -209,9 +233,11 @@ function mlsimport_telemetry_mark_onboarding_step( string $step ): void {
  * @return string|null ISO 8601 UTC string or null.
  */
 function mlsimport_telemetry_iso( int $epoch ): ?string {
+	// Non-positive epoch means "never" — represent as null.
 	if ( $epoch <= 0 ) {
 		return null;
 	}
+	// Format the epoch as an ISO 8601 UTC string.
 	return gmdate( 'Y-m-d\TH:i:s\Z', $epoch );
 }
 
@@ -224,7 +250,9 @@ function mlsimport_telemetry_iso( int $epoch ): ?string {
  * @return array Pruned daily map.
  */
 function mlsimport_telemetry_prune_buckets( array $daily, string $today, int $keep_days = 8 ): array {
+	// Compute the oldest date to keep (today minus the retention window).
 	$cutoff = gmdate( 'Y-m-d', strtotime( $today ) - ( $keep_days * DAY_IN_SECONDS ) );
+	// Drop any bucket whose date string sorts before the cutoff.
 	foreach ( array_keys( $daily ) as $date ) {
 		if ( $date < $cutoff ) {
 			unset( $daily[ $date ] );
@@ -252,11 +280,15 @@ function mlsimport_telemetry_sum_buckets( array $daily, string $today, int $days
 		'token_failures' => 0,
 	);
 
+	// Walk back $days days from $today, accumulating each present bucket.
 	for ( $i = 0; $i < $days; $i++ ) {
+		// The date for this step back from today.
 		$date = gmdate( 'Y-m-d', strtotime( $today ) - ( $i * DAY_IN_SECONDS ) );
+		// Skip a missing or malformed bucket.
 		if ( ! isset( $daily[ $date ] ) || ! is_array( $daily[ $date ] ) ) {
 			continue;
 		}
+		// Add each counter this bucket carries into the running totals.
 		foreach ( $sums as $key => $_ ) {
 			if ( isset( $daily[ $date ][ $key ] ) ) {
 				$sums[ $key ] += (int) $daily[ $date ][ $key ];
@@ -387,33 +419,42 @@ function mlsimport_telemetry_sample_completeness(): array {
 		'no_found_rows'  => true,
 	);
 
+	// Run the query (guard for environments without get_posts()).
 	$post_ids = function_exists( 'get_posts' ) ? get_posts( $args ) : array();
 
+	// No sample — return all-zero percentages.
 	if ( empty( $post_ids ) ) {
 		return $empty;
 	}
 
+	// Denominator + per-field hit counters.
 	$total       = count( $post_ids );
 	$photos      = 0;
 	$price       = 0;
 	$address     = 0;
 	$coordinates = 0;
 
+	// Tally how many sampled posts carry each field.
 	foreach ( $post_ids as $pid ) {
+		// Featured image present?
 		if ( has_post_thumbnail( $pid ) ) {
 			$photos++;
 		}
+		// Price meta non-empty?
 		if ( '' !== get_post_meta( $pid, $keys['price'], true ) ) {
 			$price++;
 		}
+		// Address meta non-empty?
 		if ( '' !== get_post_meta( $pid, $keys['address'], true ) ) {
 			$address++;
 		}
+		// Coordinate meta non-empty?
 		if ( '' !== get_post_meta( $pid, $keys['coordinate'], true ) ) {
 			$coordinates++;
 		}
 	}
 
+	// Convert each tally to an integer 0-100 percentage of the sample.
 	return array(
 		'with_photos_percent'      => (int) round( $photos / $total * 100 ),
 		'with_price_percent'       => (int) round( $price / $total * 100 ),
@@ -749,15 +790,19 @@ add_action( 'admin_init', 'mlsimport_telemetry_track_admin_load' );
  * @return void
  */
 function mlsimport_telemetry_track_field_management(): void {
+	// Load the persisted state; coerce a non-array back to an array.
 	$state = get_option( 'mlsimport_telemetry_state', array() );
 	if ( ! is_array( $state ) ) {
 		$state = array();
 	}
+	// Current time and the last-recorded field-management stamp (missing = 0).
 	$now    = time();
 	$stored = isset( $state['last_field_management'] ) ? (int) $state['last_field_management'] : 0;
+	// Throttle: skip if the last write was under 10 minutes ago.
 	if ( ( $now - $stored ) < 10 * MINUTE_IN_SECONDS ) {
 		return;
 	}
+	// Record the activity and persist (non-autoloaded).
 	$state['last_field_management'] = $now;
 	update_option( 'mlsimport_telemetry_state', $state, false );
 }

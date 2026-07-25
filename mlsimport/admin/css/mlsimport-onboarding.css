@@ -1,16 +1,28 @@
 /**
  * MLSImport Onboarding Wizard Styles - Modern Design
+ *
+ * Skins the 6-step onboarding wizard (admin.php?page=mlsimport-onboarding):
+ * a full-screen fixed overlay that sits above wp-admin, with a progress bar,
+ * numbered step indicators, forms, connection-test panels, an import log,
+ * field-mapping tables and a success screen.
+ *
+ * Colours/spacing come from CSS custom properties (--primary-color,
+ * --text-primary, --background-white, --shadow-sm, --transition-speed, etc.)
+ * that are defined elsewhere (the wizard partial / a shared variables sheet),
+ * NOT in this file — so most values here are token references.
  */
 
-/* Import Inter font */
+/* Import Inter font (remote Google Fonts import — the wizard's base typeface). */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
+/* Lock the wp-admin body from scrolling while the fixed wizard overlay is up. */
 .admin_page_mlsimport-onboarding {
     overflow: hidden;
 }
 
 
-/* Main Wrapper */
+/* Main Wrapper — full-viewport fixed overlay pinned above wp-admin chrome
+   (very high z-index), scrolls internally on the y-axis. */
 .mlsimport-wizard-wrap {
     position: fixed;
     top: 0;
@@ -59,7 +71,9 @@
 
 
 
-/* Hide WordPress notices when wizard is active */
+/* Suppress stray wp-admin notices while the wizard is active.
+   NOTE: despite the "Hide" label these declarations set display:inline-block
+   (not none), so the effect here is cosmetic layout rather than true hiding. */
 body.mlsimport-wizard-active .notice,
 body.mlsimport-wizard-active .update-nag,
 body.mlsimport-wizard-active #message,
@@ -284,7 +298,7 @@ body.mlsimport-wizard-active .is-dismissible {
         width: 100%;
         text-align: center;
     }
-} none !important;
+} none !important; /* NOTE: orphaned "none !important;" fragment after the media-query close brace — appears to be a leftover typo; browsers ignore it. Left as-is. */
 
 
 /* Header bar styling */
@@ -1078,6 +1092,9 @@ body.mlsimport-wizard-active .is-dismissible {
 
 
 
+/* Legacy welcome/requirements overrides — a second pass of rules (plain hex,
+   collapsed table borders) that re-declare selectors already styled above with
+   design tokens. Later source order means these win where they overlap. */
 .mlsimport-welcome-intro {
     font-size: 16px;
     line-height: 1.5;

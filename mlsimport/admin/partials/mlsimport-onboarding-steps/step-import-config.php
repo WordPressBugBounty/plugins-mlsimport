@@ -2,6 +2,15 @@
 /**
  * Template for the Import Configuration step of the MLSImport onboarding wizard
  *
+ * Collects the settings for the user's first import job: import name, price
+ * range, property types, and cities. Property-type and city choices are
+ * populated from the cached MLS enum metadata, falling back to a small default
+ * list. A display/form template with no AJAX action of its own; the values are
+ * persisted by the parent onboarding submit handler.
+ *
+ * NOTE: comments here live only inside PHP regions; the inline HTML/JS/CSS
+ * below is emitted verbatim and is intentionally left uncommented.
+ *
  * @link       https://mlsimport.com/
  * @since      6.1.0
  *
@@ -14,17 +23,21 @@ if (!defined('WPINC')) {
     die;
 }
 
+// Previously saved values for this step, if the user has been here before.
 // Get saved data
 $import_data = mlsimport_get_onboarding_step_data('import-config');
 
+// Resolve each field's value from saved data, else fall back to a default.
 // Set default values
 $import_title = isset($import_data['import_title']) ? $import_data['import_title'] : __('Initial MLS Import', 'mlsimport');
 $property_status = isset($import_data['property_status']) ? $import_data['property_status'] : 'publish';
 $agent_id = isset($import_data['agent_id']) ? $import_data['agent_id'] : '';
 $property_user = isset($import_data['property_user']) ? $import_data['property_user'] : get_current_user_id();
+// Min price: saved non-empty value, otherwise '0'.
 $min_price = isset($import_data['min_price']) && $import_data['min_price'] !== ''
     ? $import_data['min_price']
     : '0';
+// Max price: saved non-empty value, otherwise a high ceiling.
 $max_price = isset($import_data['max_price']) && $import_data['max_price'] !== ''
     ? $import_data['max_price']
     : '10000000';
@@ -32,11 +45,13 @@ $property_cities = isset($import_data['property_cities']) ? $import_data['proper
 $property_types = isset($import_data['property_types']) ? $import_data['property_types'] : array();
 $auto_update = isset($import_data['auto_update']) ? $import_data['auto_update'] : 1;
 
+// Decode the cached MLS enum metadata used to populate the filter dropdowns.
 // Get MLS metadata
 global $mlsimport;
 $mls_metadata = get_option('mlsimport_mls_metadata_mls_enums', '');
 $enums_data = json_decode($mls_metadata, true);
 
+// Property type choices: from MLS enums when present, else a default set.
 // Get property types
 $property_type_options = array();
 if (isset($enums_data['global_array']['PropertyEnums']['PropertyType'])) {
@@ -52,12 +67,14 @@ if (isset($enums_data['global_array']['PropertyEnums']['PropertyType'])) {
     );
 }
 
+// City choices come only from the MLS enums (no default fallback).
 // Get cities
 $city_options = array();
 if (isset($enums_data['global_array']['PropertyEnums']['City'])) {
     $city_options = $enums_data['global_array']['PropertyEnums']['City'];
 }
 
+// Post-status choices for imported properties.
 // Get status options
 $status_options = array(
     'publish' => __('Published', 'mlsimport'),
@@ -65,11 +82,13 @@ $status_options = array(
     'pending' => __('Pending Review', 'mlsimport'),
 );
 
+// Build a map of existing agent posts (id => title) via the theme adapter.
 // Get agents
 $agents = array();
 if (method_exists($mlsimport->admin->env_data, 'get_agent_post_type')) {
     $agent_post_type = $mlsimport->admin->env_data->get_agent_post_type();
-    
+
+    // Fetch up to 100 published agent posts.
     $args = array(
         'post_type' => $agent_post_type,
         'post_status' => 'publish',
@@ -77,7 +96,8 @@ if (method_exists($mlsimport->admin->env_data, 'get_agent_post_type')) {
     );
     
     $agent_query = new WP_Query($args);
-    
+
+    // Collect each agent's id and title into the map.
     if ($agent_query->have_posts()) {
         while ($agent_query->have_posts()) {
             $agent_query->the_post();
@@ -87,6 +107,7 @@ if (method_exists($mlsimport->admin->env_data, 'get_agent_post_type')) {
     }
 }
 
+// Build a map of assignable users (id => "Display Name (login)").
 // Get users
 $users = array();
 $blogusers = get_users(array('role__in' => array('administrator', 'editor', 'author'), 'orderby' => 'display_name'));
@@ -94,10 +115,12 @@ foreach ($blogusers as $user) {
     $users[$user->ID] = $user->display_name . ' (' . $user->user_login . ')';
 }
 
+// Read the active theme name to tailor the note copy.
 // Get current theme
 $current_theme = wp_get_theme();
 $theme_name = $current_theme->get('Name');
 
+// Map of supported theme slugs to human-facing labels.
 // Detect supported theme
 $supported_themes = array(
     'WpResidence' => 'WP Residence',
@@ -106,8 +129,10 @@ $supported_themes = array(
     'Wpestate' => 'WP Estate',
 );
 
+// False when the active theme is not one of the supported themes.
 $detected_theme = false;
 foreach ($supported_themes as $theme_key => $theme_label) {
+    // Exact case-insensitive match OR slug appearing as a substring.
     if (strtolower($theme_name) === strtolower($theme_key) || strpos(strtolower($theme_name), strtolower($theme_key)) !== false) {
         $detected_theme = $theme_label;
         break;
@@ -164,14 +189,14 @@ foreach ($supported_themes as $theme_key => $theme_label) {
                     </p>
                 </div>
                 
-                <?php if (!empty($property_type_options)) : ?>
+                <?php if (!empty($property_type_options)) : /* only show the property-type filter when options exist */ ?>
                     <div class="mlsimport-wizard-field-group">
                         <label for="mlsimport_property_types" class="mlsimport-wizard-field-label">
                             <?php _e('Property Types', 'mlsimport'); ?>
                         </label>
                         
                         <select id="mlsimport_property_types" name="mlsimport_property_types[]" multiple="multiple" size="5">
-                            <?php foreach ($property_type_options as $value => $label) : ?>
+                            <?php /* one option per property type; mark saved selections */ foreach ($property_type_options as $value => $label) : ?>
                                 <option value="<?php echo esc_attr($value); ?>" <?php selected(in_array($value, $property_types), true); ?>>
                                     <?php echo esc_html($value); ?>
                                 </option>
@@ -183,13 +208,13 @@ foreach ($supported_themes as $theme_key => $theme_label) {
                     </div>
                 <?php endif; ?>
                 
-                <?php if (!empty($city_options)) : ?>
+                <?php if (!empty($city_options)) : /* only show the city filter when MLS enums provided cities */ ?>
                     <div class="mlsimport-wizard-field-group">
                         <label for="mlsimport_property_cities" class="mlsimport-wizard-field-label">
                             <?php _e('Cities', 'mlsimport'); ?>
                         </label>
                         <select id="mlsimport_property_cities" name="mlsimport_property_cities[]" multiple="multiple" size="5" class="mlsimport-city-select">
-                            <?php foreach ($city_options as $value => $label) : ?>
+                            <?php /* one option per city; mark saved selections */ foreach ($city_options as $value => $label) : ?>
                                 <option value="<?php echo esc_attr($value); ?>" <?php selected(in_array($value, $property_cities), true); ?>>
                                     <?php echo esc_html($value); ?>
                                 </option>

@@ -1,0 +1,3048 @@
+/**
+ * MLSImport standalone single-property sections.
+ *
+ * Responsive, framework-free. Every selector is prefixed mlsimport-property-.
+ * Each section is a self-contained block: the THEME TOKENS below are declared on
+ * :root so every section/Gutenberg block — placed anywhere on the page —
+ * inherits the same design.
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
+
+/* =========================================================================
+   THEME TOKENS — the ONE place to edit colors, fonts and sizes to re-theme.
+   Colour/typography/size options (future settings UI) write to these vars.
+   Tints/hovers derive from --mlsimport-accent via color-mix, so changing the
+   accent re-tints the whole page automatically.
+   ========================================================================= */
+:root {
+	/* — Colors — */
+	--mlsimport-accent: #c2724e;          /* primary brand / buttons / chips     */
+	--mlsimport-accent-hover: #d08560;    /* primary hover                       */
+	--mlsimport-accent2: #9c5536;         /* deep accent / prices / headings tint */
+	--mlsimport-accent2-hover: #b0683f;
+	--mlsimport-secondary: #4c7c6e;       /* secondary action                    */
+	--mlsimport-page-bg: #ffffff;
+	--mlsimport-card-bg: #ffffff;
+	--mlsimport-ink: #3b342e;             /* primary text / headings             */
+	--mlsimport-ink-2: #6e655c;           /* secondary text                      */
+	--mlsimport-muted: #a89e92;           /* labels / meta                       */
+	--mlsimport-hairline: #efe7dc;        /* borders / dividers                  */
+	--mlsimport-good: #1f9d57;            /* price-reduced / positive            */
+
+	/* Derived washes (follow the accent), matched to the design's accent alphas:
+	   wash ≈ accent @ 4-5% (panel backgrounds), tint ≈ 8% (tiles / hovers),
+	   tint-strong ≈ 12% (icon chips, soft pills, avatars). */
+	--mlsimport-accent-wash: color-mix(in srgb, var(--mlsimport-accent) 5%, #fff);
+	--mlsimport-accent-tint: color-mix(in srgb, var(--mlsimport-accent) 8%, #fff);
+	--mlsimport-accent-tint-strong: color-mix(in srgb, var(--mlsimport-accent) 12%, #fff);
+
+	/* — Typography — */
+	--mlsimport-font: 'Roboto', system-ui, -apple-system, 'Segoe UI', sans-serif;
+	--mlsimport-head-weight: 500;
+	--mlsimport-display-size: 40px;       /* title-bar H1                        */
+	--mlsimport-section-title-size: 20px; /* section headings                    */
+	--mlsimport-price-size: 38px;         /* title-bar price                     */
+	--mlsimport-base-size: 15px;          /* body copy                           */
+
+	/* — Sizing: radius / spacing / shadow — */
+	--mlsimport-radius-card: 24px;
+	--mlsimport-radius-btn: 14px;
+	--mlsimport-radius-img: 20px;
+	--mlsimport-radius-input: 13px;
+	--mlsimport-radius-chip: 999px;
+	--mlsimport-section-gap: 26px;
+	--mlsimport-pad: 30px;
+	--mlsimport-shadow-card: 0 14px 40px -18px rgba(20, 30, 50, 0.14);
+	--mlsimport-shadow-soft: 0 6px 22px -12px rgba(20, 30, 50, 0.10);
+
+	/* — Layout — */
+	--mlsimport-max-width: 1240px;
+	--mlsimport-sidebar-width: 360px;
+	--mlsimport-sticky-offset: 88px;
+}
+
+/* Palette variant: Coastal slate-blue & sand (flat, minimal, crisp). */
+.mlsimport-palette-coastal {
+	--mlsimport-accent: #3e6b8b;
+	--mlsimport-accent-hover: #4a7b9d;
+	--mlsimport-accent2: #2c5169;
+	--mlsimport-accent2-hover: #36617d;
+	--mlsimport-secondary: #c0895c;
+	--mlsimport-ink: #22323f;
+	--mlsimport-ink-2: #566570;
+	--mlsimport-muted: #97a3ac;
+	--mlsimport-hairline: #e6ecef;
+	--mlsimport-head-weight: 400;
+	--mlsimport-display-size: 50px;
+	--mlsimport-radius-card: 10px;
+	--mlsimport-radius-btn: 7px;
+	--mlsimport-radius-img: 8px;
+	--mlsimport-radius-input: 7px;
+	--mlsimport-radius-chip: 6px;
+	--mlsimport-shadow-card: none;
+	--mlsimport-shadow-soft: none;
+}
+
+/* Palette variant: Fresh teal & linen (light cards, soft shadows). */
+.mlsimport-palette-teal {
+	--mlsimport-accent: #2e8c82;
+	--mlsimport-accent-hover: #379a8f;
+	--mlsimport-accent2: #1f6a62;
+	--mlsimport-accent2-hover: #277a70;
+	--mlsimport-secondary: #c18a5c;
+	--mlsimport-ink: #213330;
+	--mlsimport-ink-2: #55635e;
+	--mlsimport-muted: #97a39e;
+	--mlsimport-hairline: #e6edea;
+	--mlsimport-radius-card: 18px;
+	--mlsimport-radius-btn: 11px;
+	--mlsimport-radius-img: 14px;
+	--mlsimport-radius-input: 11px;
+	--mlsimport-shadow-card: 0 12px 34px -16px rgba(30, 100, 90, 0.26);
+	--mlsimport-shadow-soft: 0 6px 18px -10px rgba(30, 100, 90, 0.22);
+}
+
+/* =========================================================================
+   PAGE SHELL
+   ========================================================================= */
+.mlsimport-property-single {
+	max-width: var(--mlsimport-max-width);
+	margin: 0 auto;
+	padding: 24px 26px 10px;
+	font-family: var(--mlsimport-font);
+	color: var(--mlsimport-ink-2);
+	font-size: var(--mlsimport-base-size);
+}
+
+.mlsimport-property-layout {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) var(--mlsimport-sidebar-width);
+	gap: 30px;
+	align-items: start;
+}
+
+.mlsimport-property-layout__main {
+	min-width: 0;
+}
+
+/* Sidebar tracks the scroll while the longer main column scrolls past. The grid's
+   align-items:start keeps the aside content-height so sticky has room to travel.
+   min-width:0 for the same reason as __main: a grid item's automatic minimum size
+   is its min-content, and the booking form's day strip is 30 cards wide. Without
+   this the track is sized to THAT, and the whole page grows a horizontal scrollbar. */
+.mlsimport-property-layout__aside {
+	position: sticky;
+	top: var(--mlsimport-sticky-offset);
+	min-width: 0;
+}
+
+@media (max-width: 960px) {
+	/* minmax(0, 1fr), not 1fr: plain 1fr is minmax(auto, 1fr), and that auto is the
+	   min-content floor again — one column, but still blown out to the widest thing
+	   on the page. */
+	.mlsimport-property-layout {
+		grid-template-columns: minmax(0, 1fr);
+	}
+	/* Single column — let the sidebar flow inline instead of pinning over content. */
+	.mlsimport-property-layout__aside {
+		position: static;
+	}
+}
+
+/* =========================================================================
+   SHARED SECTION CHROME (card + header + icon glyph)
+   ========================================================================= */
+.mlsimport-property-section {
+	box-sizing: border-box;
+	font-family: var(--mlsimport-font);
+	color: var(--mlsimport-ink-2);
+	background: var(--mlsimport-card-bg);
+	border-radius: var(--mlsimport-radius-card);
+	box-shadow: var(--mlsimport-shadow-card);
+	padding: var(--mlsimport-pad);
+	margin: 0 0 var(--mlsimport-section-gap);
+	scroll-margin-top: var(--mlsimport-sticky-offset);
+}
+
+/* When there is no shadow (e.g. coastal), fall back to a hairline outline. */
+.mlsimport-palette-coastal .mlsimport-property-section {
+	border: 1px solid var(--mlsimport-hairline);
+}
+
+.mlsimport-property-section * {
+	box-sizing: border-box;
+}
+
+.mlsimport-property-section__header {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	margin: 0 0 20px;
+}
+
+.mlsimport-property-section__icon {
+	display: grid;
+	place-items: center;
+	flex-shrink: 0;
+	width: 36px;
+	height: 36px;
+	border-radius: var(--mlsimport-radius-btn);
+	background: var(--mlsimport-accent-tint-strong);
+	color: var(--mlsimport-accent2);
+}
+
+.mlsimport-property-section__icon .mlsimport-property-icon {
+	width: 18px;
+	height: 18px;
+}
+
+.mlsimport-property-section__title {
+	margin: 0;
+	font-size: var(--mlsimport-section-title-size);
+	line-height: 1.2;
+	font-weight: var(--mlsimport-head-weight);
+	color: var(--mlsimport-ink);
+}
+
+/* Inline icon default sizing (overridden by context). */
+.mlsimport-property-icon {
+	width: 1em;
+	height: 1em;
+	display: inline-block;
+	vertical-align: -0.15em;
+	flex-shrink: 0;
+}
+
+/* Sections that render flush (no card panel). */
+.mlsimport-property-gallery,
+.mlsimport-property-title-bar,
+.mlsimport-property-subnav,
+.mlsimport-property-booking,
+.mlsimport-property-attribution {
+	background: transparent;
+	box-shadow: none;
+	border: 0;
+	padding: 0;
+}
+
+.mlsimport-palette-coastal .mlsimport-property-gallery,
+.mlsimport-palette-coastal .mlsimport-property-title-bar,
+.mlsimport-palette-coastal .mlsimport-property-subnav,
+.mlsimport-palette-coastal .mlsimport-property-booking,
+.mlsimport-palette-coastal .mlsimport-property-attribution {
+	border: 0;
+}
+
+/* =========================================================================
+   GALLERY — photo mosaic (1 large + thumbnails)
+   ========================================================================= */
+.mlsimport-property-gallery__grid {
+	display: grid;
+	grid-template-columns: 1.55fr 1fr 1fr;
+	grid-template-rows: 1fr 1fr;
+	gap: 10px;
+	height: 480px;
+}
+
+.mlsimport-property-gallery__item {
+	position: relative;
+	margin: 0;
+	border-radius: var(--mlsimport-radius-img);
+	overflow: hidden;
+}
+
+/* First photo spans the full height on the left. */
+.mlsimport-property-gallery__item:first-child {
+	grid-row: 1 / span 2;
+}
+
+/* Only the first five tiles fit the 480px mosaic; hide overflow tiles. */
+.mlsimport-property-gallery__item:nth-child(n + 6) {
+	display: none;
+}
+
+.mlsimport-property-photo {
+	display: block;
+	width: 100%;
+	height: 100%;
+	background-color: #eef1f4;
+	background-size: cover;
+	background-position: center;
+	background-repeat: no-repeat;
+}
+
+/* Featured-image section: the single large photo above the gallery. */
+.mlsimport-property-featured__image {
+	aspect-ratio: 16 / 9;
+	border-radius: var(--mlsimport-radius-img);
+	overflow: hidden;
+}
+
+/* The lightbox link wraps the image; make it fill the tile and signal zoom. */
+.mlsimport-property-gallery__item .mlsimport-glightbox {
+	display: block;
+	width: 100%;
+	height: 100%;
+}
+
+.mlsimport-glightbox {
+	cursor: zoom-in;
+}
+
+/* In sliders the link wraps each slide photo; fill the slide so the bg shows. */
+.mlsimport-property-slider .mlsimport-glightbox {
+	display: block;
+	height: 100%;
+}
+
+/* Every slide clips to the image radius. The photo is a background-image div, so
+   the rounding has to come from the slide that contains it — without this the
+   multi-image slider's tiles render square-cornered. */
+.mlsimport-property-slider .splide__slide {
+	border-radius: var(--mlsimport-radius-img);
+	overflow: hidden;
+}
+
+/* Hero height for the thumbnailed single-image sliders (classic/vertical/horizontal).
+   The track and list are pinned to the same height as the slide — not the slide
+   alone — so the hero is a fixed-height window. Without this the flex track can
+   drift to the viewport height when a slide's image is slow (notably inside the
+   Customizer preview iframe), opening a tall empty gap above the thumbnails. */
+.mlsimport-property-slider-wrap .mlsimport-property-slider .splide__slide,
+.mlsimport-property-slider-wrap .mlsimport-property-slider .splide__track,
+.mlsimport-property-slider-wrap .mlsimport-property-slider .splide__list {
+	height: 30rem;
+}
+
+/* Multi-image slider: shorter tiles, several across. */
+.mlsimport-property-slider[data-mlsimport-slider="multi"] .splide__slide {
+	height: 33rem;
+}
+
+@media (max-width: 720px) {
+	.mlsimport-property-slider-wrap .mlsimport-property-slider .splide__slide,
+	.mlsimport-property-slider-wrap .mlsimport-property-slider .splide__track,
+	.mlsimport-property-slider-wrap .mlsimport-property-slider .splide__list {
+		height: 18rem;
+	}
+}
+
+/* Navigation arrows: fixed 50x50 hit area (overrides Splide's 2em default),
+   semi-transparent white so they read over the photos. */
+.mlsimport-property-slider .splide__arrow {
+	width: 50px;
+	height: 50px;
+	background: #ffffff8c;
+}
+
+/* ── Thumbnail navigation (classic / vertical / horizontal sliders) ──────────
+   Splide's main+thumbnail sync drives behaviour; these rules style the strip
+   and fade non-active thumbnails. */
+.mlsimport-property-slider-thumbs {
+	margin-top: 10px;
+}
+
+/* Bottom thumbnail strip (classic / horizontal): one fixed-height row. Pin the
+   track and list to that height so they can't balloon in the Customizer preview,
+   exactly as the main slider above — otherwise the strip stretches to the iframe
+   height and drops the thumbnails to the bottom of a huge empty band. The vertical
+   variant runs down the side and is sized by its own flexbox rule below. */
+.mlsimport-property-slider-wrap:not(.mlsimport-property-slider-wrap--vertical) .mlsimport-property-slider-thumbs .splide__track,
+.mlsimport-property-slider-wrap:not(.mlsimport-property-slider-wrap--vertical) .mlsimport-property-slider-thumbs .splide__list,
+.mlsimport-property-slider-wrap:not(.mlsimport-property-slider-wrap--vertical) .mlsimport-property-slider-thumbs .splide__slide {
+	height: 110px;
+}
+
+/* Splide's nav theme puts a 3px border on every thumb slide (transparent, black
+   when active), shrinking the photo inside by 3px on each side and leaving a
+   visible frame around the tile. Drop it so the photo fills the tile edge to
+   edge; the active thumb is marked by an inset ring below, which paints over
+   the photo instead of shrinking it. */
+.mlsimport-property-slider-thumbs.splide--nav > .splide__track > .splide__list > .splide__slide,
+.mlsimport-property-slider-thumbs.splide--nav > .splide__track > .splide__list > .splide__slide.is-active {
+	border: 0;
+}
+
+.mlsimport-property-slider-thumbs .splide__slide {
+	border-radius: var(--mlsimport-radius-img);
+	overflow: hidden;
+	opacity: 0.5;
+	cursor: pointer;
+	transition: opacity 0.2s ease;
+}
+
+.mlsimport-property-slider-thumbs .splide__slide.is-active,
+.mlsimport-property-slider-thumbs .splide__slide:hover {
+	opacity: 1;
+}
+
+/* Active thumb ring: inset so it sits on top of the photo — a real border would
+   push the photo in by its width and reopen the frame gap. */
+.mlsimport-property-slider-thumbs .splide__slide.is-active .mlsimport-property-photo {
+	border-radius: var(--mlsimport-radius-img);
+	box-shadow: inset 0 0 0 3px var(--mlsimport-accent);
+}
+
+/* Vertical variant: the strip runs down the side of the main image. */
+.mlsimport-property-slider-wrap--vertical {
+	display: flex;
+	gap: 10px;
+	align-items: flex-start;
+}
+
+.mlsimport-property-slider-wrap--vertical .mlsimport-property-slider {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.mlsimport-property-slider-wrap--vertical .mlsimport-property-slider-thumbs {
+	flex: 0 0 7rem;
+	margin-top: 0;
+}
+
+@media (max-width: 720px) {
+	/* Narrow screens: drop the vertical strip below the image. align-items must
+	   flip to stretch (the desktop flex-start left the main slider unstretched,
+	   so it collapsed to 0 width and the photo never showed). */
+	.mlsimport-property-slider-wrap--vertical {
+		flex-direction: column;
+		align-items: stretch;
+	}
+	.mlsimport-property-slider-wrap--vertical .mlsimport-property-slider {
+		width: 100%;
+	}
+	.mlsimport-property-slider-wrap--vertical .mlsimport-property-slider-thumbs {
+		flex: 1 1 auto;
+		width: 100%;
+		margin-top: 10px;
+	}
+}
+
+/* Cap the lightbox image to ~75% of the viewport width (GLightbox defaults to
+   100vw). Two classes beat GLightbox's single-class rule, so order doesn't matter. */
+.glightbox-container .gslide-image img {
+	max-width: 75vw;
+}
+
+.mlsimport-property-gallery__chip {
+	position: absolute;
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	padding: 5px 11px;
+	border-radius: var(--mlsimport-radius-chip);
+	font-size: 11px;
+	font-weight: 500;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	line-height: 1;
+}
+
+.mlsimport-property-gallery__chip--status {
+	top: 16px;
+	left: 16px;
+	background: var(--mlsimport-accent);
+	color: #fff;
+}
+
+.mlsimport-property-gallery__chip--count {
+	right: 12px;
+	bottom: 12px;
+	background: rgba(255, 255, 255, 0.92);
+	color: var(--mlsimport-ink);
+}
+
+/* Masonry v2 — a wide hero on top, a strip of four thumbnails beneath. The first
+   five tiles show; the base :nth-child(n+6) rule hides the rest. */
+.mlsimport-property-gallery--masonry-v2 {
+	grid-template-columns: repeat(4, 1fr);
+	grid-template-rows: 2fr 1fr;
+	height: 520px;
+}
+
+.mlsimport-property-gallery--masonry-v2 .mlsimport-property-gallery__item:first-child {
+	grid-row: 1;
+	grid-column: 1 / -1;
+}
+
+@media (max-width: 720px) {
+	.mlsimport-property-gallery__grid {
+		grid-template-columns: 1fr 1fr;
+		grid-template-rows: auto;
+		height: auto;
+	}
+	.mlsimport-property-gallery__item:first-child {
+		grid-row: auto;
+		grid-column: 1 / -1;
+		aspect-ratio: 16 / 10;
+	}
+	.mlsimport-property-gallery__item:not(:first-child) {
+		aspect-ratio: 1 / 1;
+	}
+}
+
+/* =========================================================================
+   TITLE BAR — chips, title, address, meta + price/actions
+   ========================================================================= */
+/* The two-column (left info / right price) flex layout. Scoped with :not() so it
+   applies ONLY to the inner div, never the <section> wrapper: the section carries
+   the same slug-derived class (mlsimport-property-title-bar) AND mlsimport-property-
+   section, and if it also became a flex row its single __body child would shrink to
+   content width — collapsing the price inward whenever the title was short. */
+.mlsimport-property-title-bar:not(.mlsimport-property-section) {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 24px;
+	flex-wrap: wrap;
+	margin: 26px 0 4px;
+}
+
+.mlsimport-property-title-bar__left {
+	flex: 1;
+	/* min() so the floor can never exceed the phone it is on: a flat 280px is wider
+	   than the content box of a 320px screen once the page padding is taken out. */
+	min-width: min(280px, 100%);
+}
+
+.mlsimport-property-title-bar__chips {
+	display: flex;
+	gap: 8px;
+	margin-bottom: 14px;
+}
+
+.mlsimport-property-title-bar__chip {
+	display: inline-flex;
+	align-items: center;
+	padding: 5px 11px;
+	border-radius: var(--mlsimport-radius-chip);
+	font-size: 11px;
+	font-weight: 500;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	line-height: 1;
+}
+
+.mlsimport-property-title-bar__chip--accent {
+	background: var(--mlsimport-accent);
+	color: #fff;
+}
+
+.mlsimport-property-title-bar__chip--soft {
+	background: var(--mlsimport-accent-tint-strong);
+	color: var(--mlsimport-accent2);
+}
+
+.mlsimport-property-title-bar__title {
+	margin: 0 0 10px;
+	font-size: var(--mlsimport-display-size);
+	line-height: 1.05;
+	font-weight: var(--mlsimport-head-weight);
+	letter-spacing: -0.02em;
+	color: var(--mlsimport-ink);
+	/* MLS titles arrive as one long comma-run with no spaces ("…STREET,SARASOTA,
+	   Sarasota,Residential"), which has no break opportunity and sets a 400px floor
+	   under the whole page. Let it break mid-token when there is no other way. */
+	overflow-wrap: anywhere;
+}
+
+.mlsimport-property-title-bar__address {
+	display: flex;
+	align-items: center;
+	gap: 7px;
+	margin: 0;
+	font-size: 15px;
+	color: var(--mlsimport-ink-2);
+	min-width: 0;
+	overflow-wrap: anywhere;
+}
+
+.mlsimport-property-title-bar__address .mlsimport-property-icon {
+	color: var(--mlsimport-accent);
+	width: 16px;
+	height: 16px;
+}
+
+.mlsimport-property-title-bar__meta {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px 16px;
+	margin-top: 12px;
+	font-size: 12.5px;
+	color: var(--mlsimport-muted);
+}
+
+.mlsimport-property-title-bar__meta-item {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+}
+
+.mlsimport-property-title-bar__meta-item .mlsimport-property-icon {
+	width: 14px;
+	height: 14px;
+}
+
+.mlsimport-property-title-bar__right {
+	text-align: right;
+}
+
+.mlsimport-property-title-bar__psf {
+	margin: 0;
+	font-size: 13px;
+	font-weight: 500;
+	color: var(--mlsimport-muted);
+}
+
+.mlsimport-property-title-bar__psf span {
+	font-weight: 400;
+}
+
+.mlsimport-property-title-bar__price {
+	margin: 0;
+	font-size: var(--mlsimport-price-size);
+	font-weight: 500;
+	line-height: 1.1;
+	letter-spacing: -0.02em;
+	color: var(--mlsimport-accent2);
+}
+
+.mlsimport-property-title-bar__actions {
+	display: flex;
+	gap: 8px;
+	margin-top: 14px;
+	justify-content: flex-end;
+	flex-wrap: wrap;
+}
+
+/* :hover/:focus repeat the resting selector so a theme's `button:hover`/`:focus`
+   reset (Hello Elementor's reset.css: pink #c36 bg + white text at 0,2,0) can't
+   repaint this button — its own :hover (accent tint + border) and .is-saved below
+   are declared later and still win. Without this the reset's white text leaked on
+   hover (this button's :hover changes bg/border but not colour) and pink on focus. */
+.mlsimport-property-title-bar__action,
+.mlsimport-property-title-bar__action:hover,
+.mlsimport-property-title-bar__action:focus {
+	display: inline-flex;
+	align-items: center;
+	gap: 7px;
+	padding: 9px 16px;
+	border: 1.5px solid var(--mlsimport-hairline);
+	border-radius: var(--mlsimport-radius-btn);
+	background: transparent;
+	color: var(--mlsimport-accent2);
+	font: inherit;
+	font-size: 13px;
+	font-weight: 500;
+	cursor: pointer;
+	transition: border-color 0.2s linear, background 0.2s linear, color 0.2s linear;
+}
+
+/* Share button + its popup. The wrapper is the popup's containing block. */
+.mlsimport-property-title-bar__share {
+	position: relative;
+	display: inline-flex;
+}
+
+.mlsimport-property-share-menu {
+	display: none;
+	position: absolute;
+	top: calc(100% + 6px);
+	right: 0;
+	z-index: 99;
+	min-width: 140px;
+	padding: 6px;
+	border: 1px solid var(--mlsimport-hairline);
+	border-radius: var(--mlsimport-radius-btn);
+	background: #fff;
+	box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+	text-align: left;
+}
+
+.mlsimport-property-title-bar__share.is-open .mlsimport-property-share-menu {
+	display: block;
+}
+
+.mlsimport-property-share-menu__item {
+	display: block;
+	width: 100%;
+	padding: 7px 10px;
+	border: 0;
+	border-radius: var(--mlsimport-radius-btn);
+	background: transparent;
+	color: var(--mlsimport-ink);
+	font: inherit;
+	font-size: 13px;
+	text-align: left;
+	text-decoration: none;
+	cursor: pointer;
+	transition: background 0.2s linear, color 0.2s linear;
+}
+
+.mlsimport-property-share-menu__item:hover,
+.mlsimport-property-share-menu__item:focus {
+	background: var(--mlsimport-accent-tint);
+	color: var(--mlsimport-accent2);
+}
+
+.mlsimport-property-title-bar__action .mlsimport-property-icon {
+	width: 15px;
+	height: 15px;
+}
+
+.mlsimport-property-title-bar__action:hover {
+	border-color: var(--mlsimport-accent);
+	background: var(--mlsimport-accent-tint);
+}
+
+.mlsimport-property-title-bar__action.is-saved {
+	border-color: var(--mlsimport-accent);
+	color: var(--mlsimport-accent);
+}
+
+.mlsimport-property-title-bar__action.is-saved .mlsimport-property-icon {
+	fill: var(--mlsimport-accent);
+}
+
+.mlsimport-property-title-bar__reduced {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 5px;
+	margin: 12px 0 0;
+	font-size: 12.5px;
+	font-weight: 500;
+	color: var(--mlsimport-good);
+}
+
+.mlsimport-property-title-bar__reduced .mlsimport-property-icon {
+	width: 14px;
+	height: 14px;
+}
+
+@media (max-width: 640px) {
+	.mlsimport-property-title-bar__right {
+		text-align: left;
+	}
+	.mlsimport-property-title-bar__actions {
+		justify-content: flex-start;
+	}
+	.mlsimport-property-title-bar__reduced {
+		justify-content: flex-start;
+	}
+}
+
+/* =========================================================================
+   SUB-NAV — sticky in-page tabs
+   ========================================================================= */
+/* NOTE the two selectors below are NOT the same element. The section wrapper and
+   the <nav> inside it both carry .mlsimport-property-subnav (the section's class
+   comes from its slug), so anything left unscoped lands on both — which is how
+   overflow-x:auto ended up on the section and made IT the scroll container. */
+
+/* The section wrapper: the bar that sticks to the top of the viewport. */
+.mlsimport-property-section.mlsimport-property-subnav {
+	position: sticky;
+	top: 0;
+	z-index: 50;
+	padding: 12px 0 10px;
+	margin-bottom: 6px;
+	background: var(--mlsimport-page-bg);
+}
+
+/* The nav itself: the horizontally scrolling chip rail. */
+nav.mlsimport-property-subnav {
+	display: flex;
+	flex: 1 1 auto;
+	gap: 4px;
+	overflow-x: auto;
+	min-width: 0;
+	padding: 0;
+	margin: 0;
+	background: transparent;
+	/* A swipeable rail, not a scrollable panel: on a phone the fifteen section chips
+	   do not fit, and a visible scrollbar under them reads as a broken layout. The
+	   arrows carry the affordance instead. Same treatment as the tour day strip. */
+	scrollbar-width: none;
+	-ms-overflow-style: none;
+	scroll-behavior: smooth;
+}
+
+nav.mlsimport-property-subnav::-webkit-scrollbar {
+	display: none;
+}
+
+/* The strip: arrows either side of the scrolling nav. */
+.mlsimport-property-subnav__strip {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	min-width: 0;
+}
+
+/* Hidden until JS finds the chips don't fit — on a desktop where they all fit,
+   arrows would be furniture with nothing to do. */
+/* :hover/:focus repeat the resting selector so a theme's pink `button:hover`/
+   `:focus` reset can't repaint the prev/next arrow (it has no hover of its own).
+   The .is-scrollable display:grid rule below is declared later and still wins, so
+   visibility is unaffected. */
+.mlsimport-property-subnav__arrow,
+.mlsimport-property-subnav__arrow:hover,
+.mlsimport-property-subnav__arrow:focus {
+	display: none;
+	place-items: center;
+	flex-shrink: 0;
+	width: 28px;
+	height: 28px;
+	padding: 0;
+	border: 1px solid var(--mlsimport-hairline);
+	border-radius: 999px;
+	background: var(--mlsimport-card-bg);
+	color: var(--mlsimport-ink-2);
+	cursor: pointer;
+}
+
+.mlsimport-property-subnav__strip.is-scrollable .mlsimport-property-subnav__arrow {
+	display: grid;
+}
+
+.mlsimport-property-subnav__arrow:disabled {
+	opacity: 0.35;
+	cursor: default;
+}
+
+.mlsimport-property-subnav__arrow .mlsimport-property-icon {
+	width: 14px;
+	height: 14px;
+}
+
+.mlsimport-property-subnav__link {
+	flex: 0 0 auto;
+	padding: 8px 15px;
+	border-radius: var(--mlsimport-radius-chip);
+	font-size: 13.5px;
+	font-weight: 500;
+	color: var(--mlsimport-ink-2);
+	text-decoration: none;
+	white-space: nowrap;
+	transition: background 0.2s linear, color 0.2s linear;
+}
+
+.mlsimport-property-subnav__link:hover {
+	color: var(--mlsimport-accent2);
+}
+
+.mlsimport-property-subnav__link.is-active {
+	background: var(--mlsimport-accent-tint);
+	color: var(--mlsimport-accent2);
+}
+
+/* =========================================================================
+   OVERVIEW — stat tiles
+   ========================================================================= */
+.mlsimport-property-overview__grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+	gap: 12px;
+}
+
+.mlsimport-property-overview__tile {
+	display: flex;
+	flex-direction: column;
+	padding: 16px;
+	border-radius: var(--mlsimport-radius-btn);
+	background: var(--mlsimport-accent-tint);
+}
+
+.mlsimport-property-overview__tile-icon {
+	display: grid;
+	place-items: center;
+	width: 34px;
+	height: 34px;
+	margin-bottom: 12px;
+	border-radius: 999px;
+	background: var(--mlsimport-accent-tint-strong);
+	color: var(--mlsimport-accent2);
+}
+
+.mlsimport-property-overview__tile-icon .mlsimport-property-icon {
+	width: 17px;
+	height: 17px;
+}
+
+.mlsimport-property-overview__tile-label {
+	font-size: 11.5px;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: var(--mlsimport-muted);
+	margin-bottom: 4px;
+}
+
+.mlsimport-property-overview__tile-value {
+	font-size: 16px;
+	font-weight: 500;
+	color: var(--mlsimport-ink);
+}
+
+/* =========================================================================
+   DETAILS — label / value rows (two-column, hairline divided)
+   ========================================================================= */
+.mlsimport-property-details__grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+	gap: 0 28px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	/* Clips the hairline under the final row — see __item. */
+	overflow: hidden;
+}
+
+/* Column count comes from the Property Page "Details Columns" setting, and is worn
+   by EVERY grid inside a section — the details grids, the Address grid, the amenity
+   list. The tracks are explicit rather than auto-fit, so the choice is honoured;
+   they still collapse on narrow viewports, where three columns cannot fit. */
+.mlsimport-cols-3 {
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.mlsimport-cols-2 {
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (max-width: 1024px) {
+	.mlsimport-cols-3 {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+
+@media (max-width: 640px) {
+	.mlsimport-cols-3,
+	.mlsimport-cols-2 {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}
+
+/* The Address grid sits above the map canvas. */
+.mlsimport-property-details__grid--address {
+	margin-bottom: 20px;
+}
+
+.mlsimport-property-details__item {
+	/* An explicit two-column track, NOT flex: a long multi-value list (an HOA fee
+	   that includes fifteen things) would otherwise collapse the label to nothing
+	   and print straight over it. minmax(0,…) lets both columns shrink so long
+	   values wrap instead of overflowing the cell. */
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr);
+	align-items: baseline;
+	gap: 12px;
+	padding: 12px 2px;
+	/* A shadow, not a border: it sits outside the item's box, so the grid's
+	   overflow:hidden clips it for the final row — no trailing rule under the
+	   section, at any column count. */
+	box-shadow: 0 1px 0 var(--mlsimport-hairline);
+}
+
+.mlsimport-property-details__label {
+	font-size: 14px;
+	color: var(--mlsimport-ink-2);
+	min-width: 0;
+	overflow-wrap: break-word;
+}
+
+.mlsimport-property-details__value {
+	font-size: 14px;
+	font-weight: 500;
+	color: var(--mlsimport-ink);
+	text-align: right;
+	min-width: 0;
+	/* Break mid-token only when there is no other way to fit (a 32-char MLS key,
+	   a long email) — ordinary values still wrap on spaces. */
+	overflow-wrap: anywhere;
+}
+
+/* =========================================================================
+   FEATURES — check-marked amenity grid
+   ========================================================================= */
+/* No grid-template-columns here: the tracks come from the .mlsimport-cols-* class
+   the markup always carries. Declaring them here too would win on the cascade
+   (same specificity, later in the file) and silently ignore the setting. */
+.mlsimport-property-features__list {
+	display: grid;
+	gap: 14px 18px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.mlsimport-property-features__item {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	font-size: 14.5px;
+	color: var(--mlsimport-ink-2);
+}
+
+.mlsimport-property-features__check {
+	display: grid;
+	place-items: center;
+	flex-shrink: 0;
+	width: 22px;
+	height: 22px;
+	border-radius: 999px;
+	background: var(--mlsimport-accent-tint-strong);
+	color: var(--mlsimport-accent2);
+}
+
+.mlsimport-property-features__check .mlsimport-property-icon {
+	width: 12px;
+	height: 12px;
+}
+
+/* =========================================================================
+   DESCRIPTION / CONTENT
+   ========================================================================= */
+.mlsimport-property-description__body,
+.mlsimport-property-content__body {
+	font-size: 15.5px;
+	line-height: 1.75;
+	color: var(--mlsimport-ink-2);
+}
+
+.mlsimport-property-description__body p {
+	margin: 0 0 16px;
+}
+
+.mlsimport-property-description__body p:last-child {
+	margin-bottom: 0;
+}
+
+/* =========================================================================
+   TITLE / STATUS / ADDRESS (standalone simple sections)
+   ========================================================================= */
+.mlsimport-property-title__heading {
+	margin: 0;
+	font-size: 1.75rem;
+	line-height: 1.2;
+	color: var(--mlsimport-ink);
+}
+
+.mlsimport-property-price__amount {
+	margin: 0;
+	font-size: 1.875rem;
+	font-weight: 700;
+	line-height: 1.1;
+	color: var(--mlsimport-accent2);
+}
+
+.mlsimport-property-status__badge {
+	display: inline-flex;
+	align-items: center;
+	align-self: flex-start;
+	padding: 0.25rem 0.75rem;
+	border-radius: var(--mlsimport-radius-chip);
+	background: var(--mlsimport-accent-tint-strong);
+	color: var(--mlsimport-accent2);
+	font-size: 0.8125rem;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
+}
+
+.mlsimport-property-address__line {
+	margin: 0;
+	font-size: 1rem;
+	color: var(--mlsimport-ink-2);
+}
+
+/* =========================================================================
+   MOBILE AGENT BAR — sticky contact strip, phones only
+   ========================================================================= */
+/* Desktop already shows the agent card and its contact rail, so the bar would be
+   a duplicate that steals 64px of screen. It exists only below the lg breakpoint. */
+.mlsimport-property-mobile-agent-bar {
+	display: none;
+}
+
+@media (max-width: 991px) {
+	.mlsimport-property-mobile-agent-bar {
+		position: fixed;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		z-index: 105;
+		display: block;
+		padding: 10px 14px;
+		/* Clears the iOS home indicator, and is 0 everywhere else. */
+		padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+		background: #fff;
+		border-top: 1px solid var(--mlsimport-hairline);
+		box-shadow: 0 -4px 16px rgba(16, 24, 40, 0.08);
+	}
+
+	.mlsimport-property-mobile-agent {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px;
+	}
+
+	.mlsimport-property-mobile-agent__identity {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		/* Lets the name truncate instead of shoving the actions off-screen. */
+		min-width: 0;
+	}
+
+	.mlsimport-property-mobile-agent__photo {
+		display: grid;
+		place-items: center;
+		flex-shrink: 0;
+		width: 40px;
+		height: 40px;
+		overflow: hidden;
+		border-radius: 999px;
+		background: var(--mlsimport-accent-tint-strong);
+		color: var(--mlsimport-accent2);
+		font-size: 13px;
+		font-weight: 700;
+	}
+
+	.mlsimport-property-mobile-agent__img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+
+	.mlsimport-property-mobile-agent__name {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		font-size: 15px;
+		font-weight: 600;
+		color: var(--mlsimport-ink);
+		text-decoration: none;
+		transition: color 0.25s ease;
+	}
+
+	a.mlsimport-property-mobile-agent__name:hover,
+	a.mlsimport-property-mobile-agent__name:focus {
+		color: var(--mlsimport-accent2);
+	}
+
+	.mlsimport-property-mobile-agent__actions {
+		display: flex;
+		flex-shrink: 0;
+		gap: 8px;
+	}
+
+	.mlsimport-property-mobile-agent__action {
+		display: grid;
+		place-items: center;
+		/* 44px: the minimum comfortable tap target. */
+		width: 44px;
+		height: 44px;
+		border-radius: 999px;
+		background: var(--mlsimport-accent-tint-strong);
+		color: var(--mlsimport-accent2);
+		text-decoration: none;
+	}
+
+	.mlsimport-property-mobile-agent__action--whatsapp {
+		background: #25d366;
+		color: #fff;
+	}
+
+	.mlsimport-property-mobile-agent__action .mlsimport-property-icon {
+		width: 18px;
+		height: 18px;
+	}
+
+	/* The bar is fixed, so it floats over whatever ends the page. The spacer is the
+	   in-flow stand-in that reserves its height — without it the MLS disclaimer sits
+	   permanently underneath the bar. */
+	.mlsimport-property-mobile-agent-spacer {
+		display: block;
+		height: 76px;
+	}
+}
+
+.mlsimport-property-mobile-agent-spacer {
+	display: none;
+}
+
+/* =========================================================================
+   BREADCRUMBS — Home > City > County/State > listing
+   ========================================================================= */
+/* A trail, not a card: the section chrome (panel, border, padding) is dropped so
+   it reads as navigation sitting above the gallery, under the site header. */
+.mlsimport-property-section.mlsimport-property-breadcrumbs {
+	background: transparent;
+	box-shadow: none;
+	border: 0;
+	padding: 0;
+}
+
+.mlsimport-property-breadcrumbs .mlsimport-property-section__body {
+	padding: 0;
+}
+
+.mlsimport-property-breadcrumbs__list {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0 8px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	font-size: 13px;
+	color: var(--mlsimport-muted);
+}
+
+.mlsimport-property-breadcrumbs__item {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-width: 0;
+}
+
+/* The separator is decorative, so it belongs to the style sheet and not to the
+   markup a screen reader walks. */
+.mlsimport-property-breadcrumbs__item + .mlsimport-property-breadcrumbs__item::before {
+	content: "\203A"; /* › */
+	color: var(--mlsimport-hairline-strong, var(--mlsimport-muted));
+}
+
+.mlsimport-property-breadcrumbs__item a {
+	color: inherit;
+	text-decoration: none;
+}
+
+.mlsimport-property-breadcrumbs__item a:hover,
+.mlsimport-property-breadcrumbs__item a:focus {
+	color: var(--mlsimport-accent2);
+	text-decoration: underline;
+}
+
+/* The listing's own title: the trail ends here, and on a phone a long address
+   should truncate rather than wrap the trail onto three lines. */
+.mlsimport-property-breadcrumbs__item [aria-current="page"] {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	color: var(--mlsimport-ink-2);
+}
+
+/* =========================================================================
+   MAP
+   ========================================================================= */
+.mlsimport-property-map__canvas {
+	width: 100%;
+	min-height: 360px;
+	border-radius: var(--mlsimport-radius-img);
+	overflow: hidden;
+	border: 1px solid var(--mlsimport-hairline);
+}
+
+/* --- Price-pin marker ----------------------------------------------------- */
+/* Reset Leaflet's default white box around a divIcon. */
+.leaflet-marker-icon.mlsimport-map-pin-wrap {
+	width: auto !important;
+	height: auto !important;
+	background: none;
+	border: 0;
+}
+
+.mlsimport-map-pin-wrap .mlsimport-map-pin {
+	position: absolute;
+	left: 0;
+	top: 0;
+	/* Anchor the pill's tip (bottom-centre, incl. the 6px notch) on the point. */
+	transform: translate( -50%, calc( -100% - 6px ) );
+}
+
+.mlsimport-map-pin {
+	display: inline-flex;
+	align-items: center;
+	line-height: 1;
+	white-space: nowrap;
+	padding: 7px 13px;
+	border-radius: 999px;
+	background: #fff;
+	color: var(--mlsimport-ink);
+	border: 1px solid var(--mlsimport-hairline);
+	box-shadow: 0 4px 14px -4px rgba( 0, 0, 0, 0.42 );
+	font-weight: 700;
+	font-size: 13px;
+	cursor: pointer;
+	transition: background 0.15s ease, color 0.15s ease;
+}
+
+.mlsimport-map-pin::after {
+	content: '';
+	position: absolute;
+	left: 50%;
+	bottom: -5px;
+	transform: translateX( -50% );
+	border: 6px solid transparent;
+	border-top-color: #fff;
+	border-bottom: 0;
+	filter: drop-shadow( 0 2px 1px rgba( 0, 0, 0, 0.12 ) );
+}
+
+.mlsimport-map-pin:hover,
+.mlsimport-map-pin:focus {
+	background: var(--mlsimport-accent);
+	color: #fff;
+	border-color: var(--mlsimport-accent);
+}
+
+.mlsimport-map-pin:hover::after,
+.mlsimport-map-pin:focus::after {
+	border-top-color: var(--mlsimport-accent);
+}
+
+/* --- Cluster bubble (server-side clustering) ------------------------------ */
+/* Reset Leaflet's default white box around the divIcon. */
+.leaflet-marker-icon.mlsimport-map-cluster-wrap {
+	width: auto !important;
+	height: auto !important;
+	background: none;
+	border: 0;
+}
+
+/* Centre the bubble on the point (Leaflet divIcon at 0,0). */
+.mlsimport-map-cluster-wrap .mlsimport-map-cluster {
+	position: absolute;
+	left: 0;
+	top: 0;
+	transform: translate( -50%, -50% );
+}
+
+.mlsimport-map-cluster {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 999px;
+	background: var(--mlsimport-accent);
+	color: #fff;
+	font-weight: 700;
+	line-height: 1;
+	cursor: pointer;
+	border: 3px solid rgba( 255, 255, 255, 0.85 );
+	box-shadow: 0 4px 14px -4px rgba( 0, 0, 0, 0.5 );
+}
+
+.mlsimport-map-cluster--sm {
+	width: 36px;
+	height: 36px;
+	font-size: 12px;
+}
+
+.mlsimport-map-cluster--md {
+	width: 46px;
+	height: 46px;
+	font-size: 13px;
+}
+
+.mlsimport-map-cluster--lg {
+	width: 58px;
+	height: 58px;
+	font-size: 14px;
+}
+
+/* Live mode's "zoom in to view listings" state (payload type zoom_in). */
+.mlsimport-map__zoom-notice {
+	position: absolute;
+	left: 50%;
+	top: 16px;
+	transform: translateX( -50% );
+	z-index: 1000;
+	padding: 9px 16px;
+	border-radius: 999px;
+	background: #fff;
+	color: var(--mlsimport-ink);
+	border: 1px solid var(--mlsimport-hairline);
+	box-shadow: 0 4px 14px -4px rgba( 0, 0, 0, 0.42 );
+	font-weight: 600;
+	font-size: 13px;
+	white-space: nowrap;
+	pointer-events: none;
+}
+
+/* Use the page/theme font inside the maps + their popups, not Leaflet's built-in
+   Helvetica — leaflet.css sets font-family on .leaflet-container, which otherwise
+   cascades into the popup and makes the card look different from the page. The
+   doubled class beats Leaflet's single-class rule so `inherit` reaches through. */
+.leaflet-container.mlsimport-property-map__canvas,
+.leaflet-container.mlsimport-map {
+	font-family: inherit;
+}
+
+/* --- Info-card (content for the Leaflet popup) ---------------------------- */
+.mlsimport-map-card {
+	display: flex;
+	align-items: center;
+	width: 400px;
+	max-width: 82vw;
+	overflow: hidden;
+	border-radius: 14px;
+	background: #fff;
+}
+
+.mlsimport-map-card__media {
+	flex: 0 0 100px;
+	width: 100px;
+	height: 100px;
+	background-color: var(--mlsimport-accent-tint);
+	background-size: cover;
+	background-position: center;
+	background-repeat: no-repeat;
+}
+
+.mlsimport-map-card__body {
+	flex: 1 1 auto;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	padding: 0px 16px;
+}
+
+.mlsimport-map-card__title {
+	color: var(--mlsimport-ink, #2b2b2b);
+	/* 14px / ink, no tracking, like the Address section's value; same weight as the
+	   price so title and price read at the same strength. */
+	font-weight: 600;
+	font-size: 14px;
+	line-height: 1.3;
+	text-decoration: none;
+	/* Clamp long addresses to two lines so the card can't balloon. */
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+}
+
+/* Qualified with the anchor so the theme's generic popup link color (blue)
+   can't override the title — it must read as ink, like the listing cards. */
+.mlsimport-map-card a.mlsimport-map-card__title {
+	color: var(--mlsimport-ink, #2b2b2b);
+}
+
+.mlsimport-map-card a.mlsimport-map-card__title:hover {
+	color: var(--mlsimport-accent);
+}
+
+.mlsimport-map-card__price {
+	color: var(--mlsimport-ink-2);
+	font-weight: 600;
+	font-size: 14px;
+	letter-spacing: -0.02em;
+	line-height: 1.3;
+}
+
+.mlsimport-map-card__facts {
+	color: var(--mlsimport-ink-2);
+	font-size: 13px;
+	line-height: 1.3;
+}
+
+/* Strip Leaflet popup padding so the card sits flush inside the bubble. */
+.mlsimport-map-popup .leaflet-popup-content-wrapper {
+	padding: 0;
+	border-radius: 14px;
+	overflow: hidden;
+	box-shadow: 0 14px 40px -18px rgba( 0, 0, 0, 0.45 );
+}
+
+.mlsimport-map-popup .leaflet-popup-content {
+	margin: 0;
+	width: auto !important;
+}
+
+/* A smaller, softer pointer than Leaflet's default 17px tip. */
+.mlsimport-map-popup .leaflet-popup-tip {
+	width: 11px;
+	height: 11px;
+	margin: -6px auto 0;
+	box-shadow: 0 10px 24px -12px rgba( 0, 0, 0, 0.35 );
+}
+
+/* Close button: a small round chip in the corner instead of Leaflet's bare "×". */
+.mlsimport-map-popup .leaflet-popup-close-button {
+	top: 8px;
+	right: 8px;
+	width: 24px;
+	height: 24px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 0;
+	border-radius: 999px;
+	background: rgba( 255, 255, 255, 0.92 );
+	color: var(--mlsimport-ink-2, #555);
+	font-size: 18px;
+	font-weight: 400;
+	line-height: 1;
+	box-shadow: 0 1px 5px -1px rgba( 0, 0, 0, 0.25 );
+	transition: background 0.15s ease, color 0.15s ease;
+}
+
+.mlsimport-map-popup .leaflet-popup-close-button:hover,
+.mlsimport-map-popup .leaflet-popup-close-button:focus {
+	background: #fff;
+	color: var(--mlsimport-accent);
+}
+
+/* =========================================================================
+   VIRTUAL TOUR / VIDEO — poster + play (opens the provider in a new tab)
+   ========================================================================= */
+.mlsimport-property-poster {
+	position: relative;
+	display: block;
+	aspect-ratio: 16 / 8.4;
+	border-radius: var(--mlsimport-radius-img);
+	overflow: hidden;
+	background: var(--mlsimport-accent-tint-strong);
+}
+
+.mlsimport-property-poster__img {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+.mlsimport-property-poster::after {
+	content: '';
+	position: absolute;
+	inset: 0;
+	background: linear-gradient(180deg, rgba(0, 0, 0, 0.32) 0%, rgba(0, 0, 0, 0) 42%);
+}
+
+.mlsimport-property-poster__badge {
+	position: absolute;
+	top: 16px;
+	left: 16px;
+	z-index: 1;
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	padding: 5px 11px;
+	border-radius: var(--mlsimport-radius-chip);
+	background: rgba(255, 255, 255, 0.92);
+	color: var(--mlsimport-ink);
+	font-size: 11px;
+	font-weight: 500;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	line-height: 1;
+}
+
+.mlsimport-property-poster__badge .mlsimport-property-icon {
+	width: 13px;
+	height: 13px;
+	color: var(--mlsimport-accent2);
+}
+
+.mlsimport-property-poster__play {
+	position: absolute;
+	left: 50%;
+	top: 50%;
+	transform: translate(-50%, -50%);
+	display: grid;
+	place-items: center;
+	width: 66px;
+	height: 66px;
+	border-radius: 999px;
+	background: rgba(255, 255, 255, 0.92);
+	color: var(--mlsimport-accent2);
+	box-shadow: 0 12px 30px -8px rgba(0, 0, 0, 0.4);
+	transition: transform 0.2s ease;
+}
+
+.mlsimport-property-poster:hover .mlsimport-property-poster__play {
+	transform: translate(-50%, -50%) scale(1.06);
+}
+
+.mlsimport-property-poster__play svg {
+	width: 24px;
+	height: 24px;
+	margin-left: 3px;
+}
+
+/* =========================================================================
+   MORTGAGE CALCULATOR
+   ========================================================================= */
+.mlsimport-property-calculator {
+	display: flex;
+	flex-direction: column;
+	gap: 22px;
+}
+
+.mlsimport-property-calculator__summary {
+	padding: 22px 24px;
+	border: 1px solid var(--mlsimport-hairline);
+	border-radius: var(--mlsimport-radius-card);
+	background: var(--mlsimport-accent-wash);
+}
+
+.mlsimport-property-calculator__headline {
+	display: flex;
+	flex-direction: column;
+	gap: 5px;
+	margin-bottom: 18px;
+}
+
+.mlsimport-property-calculator__headline-label {
+	font-size: 12.5px;
+	color: var(--mlsimport-ink-2);
+}
+
+.mlsimport-property-calculator__amount {
+	font-size: 42px;
+	font-weight: 600;
+	line-height: 1;
+	letter-spacing: -0.02em;
+	color: var(--mlsimport-accent2);
+}
+
+.mlsimport-property-calculator__bar {
+	display: flex;
+	height: 14px;
+	border-radius: 999px;
+	overflow: hidden;
+	background: var(--mlsimport-hairline);
+}
+
+.mlsimport-property-calculator__seg {
+	transition: width 0.3s ease;
+}
+
+/* The cost-breakdown chart needs DISTINCT categorical colours so each legend row
+   is legible, so these are a fixed palette rather than the brand tokens — routing
+   them through --mlsimport-accent/secondary (which now follow the Main Color)
+   collapsed several segments into the same hue. */
+/* Payment breakdown ramp: shades of the main colour (--mlsimport-accent), darkest
+   first → lightest last, so the bar + legend always match the brand accent. */
+.mlsimport-property-calculator__seg--pi,
+.mlsimport-property-calculator__dot--pi {
+	background: var(--mlsimport-accent);
+}
+.mlsimport-property-calculator__seg--tax,
+.mlsimport-property-calculator__dot--tax {
+	background: color-mix(in srgb, var(--mlsimport-accent) 78%, #fff);
+}
+.mlsimport-property-calculator__seg--ins,
+.mlsimport-property-calculator__dot--ins {
+	background: color-mix(in srgb, var(--mlsimport-accent) 58%, #fff);
+}
+.mlsimport-property-calculator__seg--pmi,
+.mlsimport-property-calculator__dot--pmi {
+	background: color-mix(in srgb, var(--mlsimport-accent) 40%, #fff);
+}
+.mlsimport-property-calculator__seg--hoa,
+.mlsimport-property-calculator__dot--hoa {
+	background: color-mix(in srgb, var(--mlsimport-accent) 26%, #fff);
+}
+
+.mlsimport-property-calculator__legend {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px 20px;
+	margin: 14px 0 0;
+	padding: 0;
+	list-style: none;
+}
+
+.mlsimport-property-calculator__legend-item {
+	display: flex;
+	align-items: center;
+	gap: 7px;
+	font-size: 12.5px;
+	color: var(--mlsimport-ink-2);
+}
+
+.mlsimport-property-calculator__dot {
+	width: 10px;
+	height: 10px;
+	border-radius: 3px;
+}
+
+.mlsimport-property-calculator__legend-amount {
+	color: var(--mlsimport-ink);
+	font-weight: 600;
+}
+
+.mlsimport-property-calculator__controls {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+	gap: 16px;
+}
+
+.mlsimport-property-calculator__field {
+	display: flex;
+	flex-direction: column;
+	gap: 7px;
+}
+
+.mlsimport-property-calculator__field-label {
+	font-size: 12.5px;
+	font-weight: 500;
+	color: var(--mlsimport-ink-2);
+}
+
+.mlsimport-property-calculator__field input {
+	height: 46px;
+	padding: 0 14px;
+	border: 1px solid var(--mlsimport-hairline);
+	border-radius: var(--mlsimport-radius-input);
+	font: inherit;
+	font-size: 14px;
+	color: var(--mlsimport-ink);
+	background: #fff;
+	outline: none;
+}
+
+.mlsimport-property-calculator__field input:focus {
+	border-color: var(--mlsimport-accent);
+	box-shadow: 0 0 0 3px var(--mlsimport-accent-tint-strong);
+}
+
+.mlsimport-property-calculator__note {
+	margin: 0;
+	font-size: 11.5px;
+	color: var(--mlsimport-muted);
+}
+
+/* =========================================================================
+   AGENT — "Meet your agent" block
+   ========================================================================= */
+/* Two columns: a wider bio/identity block on the left, a fixed-ish contact rail on
+   the right (220–300px). minmax(0,…) on the left lets it shrink so long bios wrap
+   instead of forcing a horizontal scrollbar. */
+.mlsimport-property-agent__grid {
+	display: grid;
+	grid-template-columns: minmax(0, 1.15fr) minmax(220px, 300px);
+	gap: 30px;
+	align-items: start;
+}
+
+@media (max-width: 720px) {
+	.mlsimport-property-agent__grid {
+		grid-template-columns: 1fr;
+	}
+}
+
+.mlsimport-property-agent__identity {
+	display: flex;
+	align-items: center;
+	gap: 18px;
+	margin-bottom: 20px;
+}
+
+.mlsimport-property-agent__photo {
+	position: relative;
+	flex-shrink: 0;
+	width: 84px;
+	height: 84px;
+}
+
+.mlsimport-property-agent__photo-img,
+.mlsimport-property-agent__initials {
+	width: 84px;
+	height: 84px;
+	border-radius: 999px;
+	object-fit: cover;
+}
+
+.mlsimport-property-agent__initials {
+	display: grid;
+	place-items: center;
+	background: var(--mlsimport-accent-tint-strong);
+	color: var(--mlsimport-accent2);
+	font-size: 30px;
+	font-weight: 500;
+}
+
+.mlsimport-property-agent__verified {
+	position: absolute;
+	right: -2px;
+	bottom: -2px;
+	display: grid;
+	place-items: center;
+	width: 26px;
+	height: 26px;
+	border-radius: 999px;
+	background: var(--mlsimport-accent);
+	color: #fff;
+	border: 3px solid #fff;
+}
+
+.mlsimport-property-agent__verified .mlsimport-property-icon {
+	width: 12px;
+	height: 12px;
+}
+
+.mlsimport-property-agent__name {
+	margin: 0;
+	font-size: 22px;
+	font-weight: 500;
+	color: var(--mlsimport-ink);
+}
+
+.mlsimport-property-agent__name a {
+	color: inherit;
+	text-decoration: none;
+	transition: color 0.25s ease;
+}
+
+.mlsimport-property-agent__name a:hover,
+.mlsimport-property-agent__name a:focus {
+	color: var(--mlsimport-accent2);
+}
+
+.mlsimport-property-agent__role {
+	margin: 4px 0 0;
+	font-size: 14px;
+	color: var(--mlsimport-ink-2);
+}
+
+.mlsimport-property-agent__creds {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 12px;
+	margin-bottom: 22px;
+}
+
+@media (max-width: 480px) {
+	.mlsimport-property-agent__creds {
+		grid-template-columns: 1fr;
+	}
+}
+
+.mlsimport-property-agent__cred {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 13px 15px;
+	border-radius: var(--mlsimport-radius-btn);
+	background: var(--mlsimport-accent-wash);
+	border: 1px solid var(--mlsimport-hairline);
+}
+
+.mlsimport-property-agent__cred-icon {
+	display: grid;
+	place-items: center;
+	flex-shrink: 0;
+	width: 34px;
+	height: 34px;
+	border-radius: var(--mlsimport-radius-chip);
+	background: var(--mlsimport-accent-tint-strong);
+	color: var(--mlsimport-accent2);
+}
+
+.mlsimport-property-agent__cred-icon .mlsimport-property-icon {
+	width: 15px;
+	height: 15px;
+}
+
+.mlsimport-property-agent__cred-text {
+	min-width: 0;
+}
+
+.mlsimport-property-agent__cred-label {
+	display: block;
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: var(--mlsimport-muted);
+}
+
+.mlsimport-property-agent__cred-value {
+	display: block;
+	margin-top: 2px;
+	font-size: 14px;
+	font-weight: 500;
+	color: var(--mlsimport-ink);
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.mlsimport-property-agent__bio {
+	margin: 0;
+	font-size: 14.5px;
+	line-height: 1.7;
+	color: var(--mlsimport-ink-2);
+}
+
+.mlsimport-property-agent__contact {
+	padding: 22px;
+	border-radius: var(--mlsimport-radius-card);
+	background: var(--mlsimport-accent-wash);
+	border: 1px solid var(--mlsimport-hairline);
+}
+
+.mlsimport-property-agent__contact-title {
+	margin: 0 0 16px;
+	font-size: 15px;
+	font-weight: 600;
+	color: var(--mlsimport-ink);
+}
+
+.mlsimport-property-agent__btn {
+	display: flex;
+	align-items: center;
+	gap: 9px;
+	width: 100%;
+	margin-bottom: 9px;
+	padding: 12px 16px;
+	border-radius: var(--mlsimport-radius-btn);
+	font-size: 14px;
+	font-weight: 500;
+	text-decoration: none;
+	transition: background 0.2s linear, border-color 0.2s linear;
+}
+
+.mlsimport-property-agent__btn .mlsimport-property-icon {
+	width: 16px;
+	height: 16px;
+}
+
+.mlsimport-property-agent__btn--primary {
+	background: var(--mlsimport-accent);
+	color: #fff;
+	border: none;
+}
+
+.mlsimport-property-agent__btn--primary:hover {
+	background: var(--mlsimport-accent-hover);
+	/* Hold the text white: these CTAs are <a>, so a theme's a:hover colour rule
+	   (0,1,1) would otherwise override the base #fff (0,1,0) on hover. */
+	color: #fff;
+}
+
+.mlsimport-property-agent__btn--outline {
+	background: #fff;
+	color: var(--mlsimport-accent2);
+	border: 1.5px solid var(--mlsimport-hairline);
+}
+
+.mlsimport-property-agent__btn--outline:hover {
+	/* Tinted fill on hover, matching the outline-button design used elsewhere
+	   (e.g. the agent page's .mlsimport-agent-btn--outline). */
+	background: var(--mlsimport-accent-tint);
+	border-color: var(--mlsimport-accent);
+	/* Hold the accent text against a theme's a:hover colour rule (see --primary). */
+	color: var(--mlsimport-accent2);
+}
+
+.mlsimport-property-agent__office-line {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin: 14px 0 0;
+	font-size: 12.5px;
+	color: var(--mlsimport-ink-2);
+}
+
+.mlsimport-property-agent__office-line .mlsimport-property-icon {
+	color: var(--mlsimport-accent);
+	width: 14px;
+	height: 14px;
+}
+
+.mlsimport-property-agent__license {
+	margin: 16px 0 0;
+	font-size: 11px;
+	color: var(--mlsimport-muted);
+}
+
+/* =========================================================================
+   BOOKING SIDEBAR — sticky rail with tour/question tabs + mini stats
+   ========================================================================= */
+.mlsimport-property-booking {
+	/* Rail tokens — warm default is a SOLID accent rail (white text); coastal &
+	   teal flip to a white card below. Every booking control reads these. */
+	--mlsb-surface: var(--mlsimport-accent);
+	--mlsb-card-border: transparent;
+	--mlsb-text: #fff;
+	--mlsb-text-soft: rgba(255, 255, 255, 0.82);
+	--mlsb-control-bg: rgba(255, 255, 255, 0.12);
+	--mlsb-control-border: rgba(255, 255, 255, 0.35);
+	--mlsb-control-on-bg: #fff;
+	--mlsb-control-on-text: var(--mlsimport-accent2);
+	--mlsb-tabs-bg: rgba(0, 0, 0, 0.12);
+	--mlsb-input-border: transparent;
+	--mlsb-submit-bg: #fff;
+	--mlsb-submit-text: var(--mlsimport-accent2);
+
+	position: sticky;
+	top: var(--mlsimport-sticky-offset);
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+}
+
+.mlsimport-palette-coastal .mlsimport-property-booking,
+.mlsimport-palette-teal .mlsimport-property-booking {
+	--mlsb-surface: var(--mlsimport-card-bg);
+	--mlsb-card-border: var(--mlsimport-hairline);
+	--mlsb-text: var(--mlsimport-ink);
+	--mlsb-text-soft: var(--mlsimport-ink-2);
+	--mlsb-control-bg: #fff;
+	--mlsb-control-border: var(--mlsimport-hairline);
+	--mlsb-control-on-bg: var(--mlsimport-accent);
+	--mlsb-control-on-text: #fff;
+	--mlsb-tabs-bg: var(--mlsimport-accent-wash);
+	--mlsb-input-border: var(--mlsimport-hairline);
+	--mlsb-submit-bg: var(--mlsimport-accent);
+	--mlsb-submit-text: #fff;
+}
+
+@media (max-width: 960px) {
+	.mlsimport-property-booking {
+		position: static;
+	}
+}
+
+.mlsimport-property-booking__card {
+	background: var(--mlsb-surface);
+	color: var(--mlsb-text);
+	border: 1px solid var(--mlsb-card-border);
+	border-radius: var(--mlsimport-radius-card);
+	box-shadow: var(--mlsimport-shadow-card);
+	padding: 20px;
+}
+
+.mlsimport-property-booking__agent {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	margin-bottom: 18px;
+}
+
+.mlsimport-property-booking__avatar,
+.mlsimport-property-booking__avatar-img,
+.mlsimport-property-booking__initials {
+	width: 52px;
+	height: 52px;
+	border-radius: 999px;
+	flex-shrink: 0;
+	object-fit: cover;
+}
+
+.mlsimport-property-booking__initials {
+	display: grid;
+	place-items: center;
+	background: rgba(255, 255, 255, 0.2);
+	color: var(--mlsb-text);
+	border: 2px solid rgba(255, 255, 255, 0.55);
+	font-size: 19px;
+	font-weight: 500;
+}
+
+.mlsimport-palette-coastal .mlsimport-property-booking__initials,
+.mlsimport-palette-teal .mlsimport-property-booking__initials {
+	background: var(--mlsimport-accent-tint-strong);
+	color: var(--mlsimport-accent2);
+	border: 0;
+}
+
+.mlsimport-property-booking__agent-name {
+	display: block;
+	font-size: 16px;
+	font-weight: 500;
+	color: var(--mlsb-text);
+}
+
+.mlsimport-property-booking__agent-role {
+	display: block;
+	font-size: 13px;
+	color: var(--mlsb-text-soft);
+}
+
+.mlsimport-property-booking__tabs {
+	display: flex;
+	gap: 4px;
+	padding: 6px;
+	margin-bottom: 16px;
+	border-radius: var(--mlsimport-radius-btn);
+	background: var(--mlsb-tabs-bg);
+}
+
+/* :hover/:focus repeat the resting selector so a theme's pink `button:hover`/
+   `:focus` reset can't repaint the tab; .is-active below is declared later and wins. */
+.mlsimport-property-booking__tab,
+.mlsimport-property-booking__tab:hover,
+.mlsimport-property-booking__tab:focus {
+	flex: 1;
+	padding: 10px 8px;
+	border: none;
+	border-radius: var(--mlsimport-radius-btn);
+	background: transparent;
+	font: inherit;
+	font-size: 13.5px;
+	font-weight: 500;
+	color: var(--mlsb-text-soft);
+	cursor: pointer;
+	transition: background 0.2s linear, color 0.2s linear;
+}
+
+.mlsimport-property-booking__tab.is-active {
+	background: var(--mlsb-control-on-bg);
+	color: var(--mlsb-control-on-text);
+}
+
+/* Field labels above each picker group */
+.mlsimport-property-booking__field-label {
+	margin: 0 0 9px;
+	font-size: 12.5px;
+	font-weight: 500;
+	color: var(--mlsb-text-soft);
+}
+
+/* Day strip — a slider: the arrows replace the browser's scrollbar, and sit on
+   the same line as the "Select a day" label. */
+.mlsimport-property-booking__picker-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+}
+
+.mlsimport-property-booking__picker-head .mlsimport-property-booking__field-label {
+	margin-bottom: 0;
+}
+
+.mlsimport-property-booking__days-nav {
+	display: flex;
+	gap: 6px;
+}
+
+/* :hover/:focus repeat the resting selector so a theme's `button:hover`/`:focus`
+   reset (Hello Elementor's reset.css paints them pink #c36 at 0,2,0) can't repaint
+   the carousel arrow, which has no hover background of its own to defend the slot. */
+.mlsimport-property-booking__arrow,
+.mlsimport-property-booking__arrow:hover,
+.mlsimport-property-booking__arrow:focus {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 24px;
+	height: 24px;
+	padding: 0;
+	border: 1.5px solid var(--mlsb-control-border);
+	border-radius: 50%;
+	background: var(--mlsb-control-bg);
+	color: var(--mlsb-text);
+	cursor: pointer;
+	transition: opacity 0.2s linear, background 0.2s linear;
+}
+
+.mlsimport-property-booking__arrow svg {
+	width: 13px;
+	height: 13px;
+}
+
+.mlsimport-property-booking__arrow:disabled {
+	opacity: 0.35;
+	cursor: default;
+}
+
+.mlsimport-property-booking__days {
+	display: flex;
+	gap: 8px;
+	overflow-x: auto;
+	margin: 9px 0 16px;
+	scroll-behavior: smooth;
+	scroll-snap-type: x proximity;
+	/* The arrows are the control now — the native bar was the overflow artefact. */
+	scrollbar-width: none;
+	-ms-overflow-style: none;
+}
+
+.mlsimport-property-booking__days::-webkit-scrollbar {
+	display: none;
+}
+
+.mlsimport-property-booking__day {
+	scroll-snap-align: start;
+}
+
+/* :hover/:focus repeat the resting selector so a theme's pink `button:hover`/
+   `:focus` reset can't repaint the day tile; .is-active below is declared later. */
+.mlsimport-property-booking__day,
+.mlsimport-property-booking__day:hover,
+.mlsimport-property-booking__day:focus {
+	flex: 0 0 auto;
+	width: 58px;
+	padding: 10px 0;
+	border: 1.5px solid var(--mlsb-control-border);
+	border-radius: var(--mlsimport-radius-btn);
+	background: var(--mlsb-control-bg);
+	color: var(--mlsb-text);
+	font: inherit;
+	text-align: center;
+	cursor: pointer;
+	transition: all 0.2s linear;
+}
+
+.mlsimport-property-booking__day.is-active {
+	background: var(--mlsb-control-on-bg);
+	color: var(--mlsb-control-on-text);
+	border-color: var(--mlsb-control-on-bg);
+}
+
+.mlsimport-property-booking__day-dow,
+.mlsimport-property-booking__day-mon {
+	display: block;
+	font-size: 11px;
+	opacity: 0.8;
+}
+
+.mlsimport-property-booking__day-num {
+	display: block;
+	font-size: 18px;
+	font-weight: 500;
+	line-height: 1.3;
+}
+
+/* Time slots */
+.mlsimport-property-booking__times {
+	display: grid;
+	grid-template-columns: repeat(4, 1fr);
+	gap: 6px;
+	margin-bottom: 16px;
+}
+
+/* :hover/:focus repeat the resting selector so a theme's pink `button:hover`/
+   `:focus` reset can't repaint the time tile; .is-active below is declared later. */
+.mlsimport-property-booking__time,
+.mlsimport-property-booking__time:hover,
+.mlsimport-property-booking__time:focus {
+	padding: 9px 4px;
+	border: 1.5px solid var(--mlsb-control-border);
+	border-radius: var(--mlsimport-radius-btn);
+	background: var(--mlsb-control-bg);
+	color: var(--mlsb-text);
+	font: inherit;
+	font-size: 12.5px;
+	font-weight: 500;
+	cursor: pointer;
+	transition: all 0.2s linear;
+}
+
+.mlsimport-property-booking__time.is-active {
+	background: var(--mlsb-control-on-bg);
+	color: var(--mlsb-control-on-text);
+	border-color: var(--mlsb-control-on-bg);
+}
+
+/* Inputs + submit inside the rail read the rail tokens */
+.mlsimport-property-booking .mlsimport-property-lead-form input,
+.mlsimport-property-booking .mlsimport-property-lead-form textarea,
+.mlsimport-property-booking .mlsimport-property-lead-form select {
+	border: 1px solid var(--mlsb-input-border);
+}
+
+/* The submit button colours now come from the shared
+   .mlsimport-property-lead-form rule reading --mlsb-submit-* (set on the booking
+   rail above), so no booking-specific override is needed here. */
+
+.mlsimport-property-booking .mlsimport-property-lead-form__status {
+	color: var(--mlsb-text-soft);
+}
+
+.mlsimport-property-booking .mlsimport-property-lead-form__consent {
+	color: var(--mlsb-text-soft);
+}
+
+.mlsimport-property-booking .mlsimport-property-lead-form__consent a {
+	color: inherit;
+	text-decoration: underline;
+}
+
+.mlsimport-property-booking__note {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 7px;
+	margin: 12px 0 0;
+	font-size: 11.5px;
+	color: var(--mlsb-text-soft);
+}
+
+.mlsimport-property-booking__note .mlsimport-property-icon {
+	width: 13px;
+	height: 13px;
+}
+
+.mlsimport-property-booking__call {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	margin-top: 10px;
+	padding: 11px 16px;
+	border: 1.5px solid var(--mlsb-control-border);
+	border-radius: var(--mlsimport-radius-btn);
+	color: var(--mlsb-text);
+	font-size: 13.5px;
+	font-weight: 500;
+	text-decoration: none;
+	transition: color 0.25s ease, border-color 0.25s ease;
+}
+
+.mlsimport-property-booking__call:hover,
+.mlsimport-property-booking__call:focus {
+	color: var(--mlsimport-accent2);
+	border-color: var(--mlsimport-accent2);
+}
+
+.mlsimport-property-booking__call .mlsimport-property-icon {
+	width: 15px;
+	height: 15px;
+}
+
+/* Success confirmation (revealed after a sent lead) */
+.mlsimport-property-booking__success {
+	text-align: center;
+	padding: 22px 0;
+	color: var(--mlsb-text);
+}
+
+.mlsimport-property-booking__success-icon {
+	display: grid;
+	place-items: center;
+	width: 56px;
+	height: 56px;
+	margin: 0 auto 14px;
+	border-radius: 999px;
+	background: rgba(255, 255, 255, 0.2);
+	color: var(--mlsb-text);
+}
+
+.mlsimport-palette-coastal .mlsimport-property-booking__success-icon,
+.mlsimport-palette-teal .mlsimport-property-booking__success-icon {
+	background: var(--mlsimport-accent-tint-strong);
+	color: var(--mlsimport-accent2);
+}
+
+.mlsimport-property-booking__success-icon .mlsimport-property-icon {
+	width: 24px;
+	height: 24px;
+}
+
+.mlsimport-property-booking__success-title {
+	margin: 0 0 4px;
+	font-size: 16px;
+	font-weight: 500;
+}
+
+.mlsimport-property-booking__success-text {
+	margin: 0;
+	font-size: 13.5px;
+	color: var(--mlsb-text-soft);
+}
+
+/* =========================================================================
+   LEAD FORMS (shared by lead sections + booking panels)
+   ========================================================================= */
+.mlsimport-property-lead-form {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.mlsimport-property-lead-form input,
+.mlsimport-property-lead-form textarea,
+.mlsimport-property-lead-form select {
+	width: 100%;
+	padding: 0 15px;
+	height: 48px;
+	border: 1px solid var(--mlsimport-hairline);
+	border-radius: var(--mlsimport-radius-input);
+	font: inherit;
+	font-size: 14px;
+	color: var(--mlsimport-ink);
+	background: #fff;
+	outline: none;
+}
+
+.mlsimport-property-lead-form textarea {
+	height: auto;
+	padding: 12px 15px;
+	resize: vertical;
+}
+
+.mlsimport-property-lead-form input:focus,
+.mlsimport-property-lead-form textarea:focus,
+.mlsimport-property-lead-form select:focus {
+	border-color: var(--mlsimport-accent);
+	box-shadow: 0 0 0 3px var(--mlsimport-accent-tint-strong);
+}
+
+/* ---- "I'm interested in" dropdown -------------------------------------------
+   A native select's option list is OS-drawn and unstylable, so it could never match
+   the site however the closed box was themed. mlsimport-property-interest.js swaps in
+   a button + listbox; the panel reuses .mlsimport-location__list / __option (the
+   search form's Location autocomplete, mlsimport-listings.css:884) so the two
+   dropdowns match by construction instead of by copied values.
+
+   The trigger repeats the shared input box rather than inheriting it — a <button> is
+   not covered by the input/textarea/select rule above — so the two must be kept in
+   step: same height, padding, border, radius token and focus ring. */
+.mlsimport-interest {
+	position: relative;
+}
+
+/* The native control is hidden ONLY once the widget is really in place (the JS adds
+   .is-enhanced after inserting it), so a script that never runs leaves a working
+   select behind rather than an invisible one. */
+.mlsimport-interest.is-enhanced > select {
+	display: none;
+}
+
+/* :hover/:focus repeat the resting selector so a theme's pink `button:hover`/
+   `:focus` reset can't repaint the "I'm interested in" trigger; :focus-visible and
+   .is-open below (border/shadow only) are declared later and still win. */
+.mlsimport-interest__trigger,
+.mlsimport-interest__trigger:hover,
+.mlsimport-interest__trigger:focus {
+	display: flex;
+	align-items: center;
+	width: 100%;
+	height: 48px;
+	padding: 0 38px 0 15px;
+	border: 1px solid var(--mlsimport-hairline);
+	border-radius: var(--mlsimport-radius-input);
+	font: inherit;
+	font-size: 14px;
+	color: var(--mlsimport-ink);
+	background-color: #fff;
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath fill='none' stroke='%236b7785' stroke-width='1.5' d='M1 1.5 6 6.5l5-5'/%3E%3C/svg%3E");
+	background-repeat: no-repeat;
+	background-position: right 14px center;
+	background-size: 12px 8px;
+	text-align: left;
+	cursor: pointer;
+}
+
+.mlsimport-interest__trigger:focus-visible {
+	border-color: var(--mlsimport-accent);
+	box-shadow: 0 0 0 3px var(--mlsimport-accent-tint-strong);
+	outline: none;
+}
+
+/* Nothing chosen yet: the label is a prompt, so it reads as placeholder text — the
+   same weight of grey the other fields' placeholders use. */
+.mlsimport-interest.is-placeholder .mlsimport-interest__label {
+	color: var(--mlsimport-ink-2);
+}
+
+.mlsimport-interest.is-open .mlsimport-interest__trigger {
+	border-color: var(--mlsimport-accent);
+}
+
+/* The panel inherits its box from .mlsimport-location__list, but NOT its text colour:
+   that component sets none, so its options inherit from the surrounding surface. That
+   is fine where it normally lives (the search bar, dark text on light) and invisible
+   here — the booking rail is an accent surface whose text is white, which on this
+   panel's white background rendered white-on-white. A panel that brings its own
+   background has to bring its own foreground, so the colour is pinned to the section
+   ink regardless of the surface the widget is dropped onto. */
+.mlsimport-interest__list {
+	color: var(--mlsimport-ink);
+}
+
+/* Privacy-consent row — the checkbox sheds the full-width input treatment. */
+.mlsimport-property-lead-form__consent {
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+	font-size: 13px;
+	color: var(--mlsimport-ink-2);
+}
+
+.mlsimport-property-lead-form .mlsimport-property-lead-form__consent input[type='checkbox'] {
+	width: auto;
+	height: auto;
+	margin: 2px 0 0;
+	accent-color: var(--mlsimport-accent);
+}
+
+/* Honeypot — off-screen, not display:none (bots skip those). */
+.mlsimport-property-lead-form__hp {
+	position: absolute;
+	left: -9999px;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+}
+
+.mlsimport-property-lead-form button[type='submit'] {
+	width: 100%;
+	padding: 13px 18px;
+	border: 0;
+	border-radius: var(--mlsimport-radius-btn);
+	/* On an accent surface (booking rail, agent rail) the button flips to a white
+	   fill with accent-2 text via these tokens; without them it is the default
+	   accent-fill button. One rule serves every context — see --mlsb-submit-*. */
+	background: var(--mlsb-submit-bg, var(--mlsimport-accent));
+	color: var(--mlsb-submit-text, #fff);
+	font: inherit;
+	/* Pin to the design base size so the button is identical regardless of the
+	   surrounding context's font-size (the agent rail inherits a larger size). */
+	font-size: var(--mlsimport-base-size);
+	font-weight: 500;
+	cursor: pointer;
+	transition: background 0.2s linear;
+}
+
+.mlsimport-property-lead-form button[type='submit']:hover {
+	background: var(--mlsb-submit-bg, var(--mlsimport-accent-hover));
+	filter: brightness(0.97);
+}
+
+.mlsimport-property-lead-form__status {
+	font-size: 13px;
+	color: var(--mlsimport-ink-2);
+}
+
+/* =========================================================================
+   SHARE / PRINT (standalone share section)
+   ========================================================================= */
+.mlsimport-property-share__actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem;
+}
+
+/* :hover/:focus repeat the resting selector so a theme's pink `button:hover`/
+   `:focus` reset can't fill the background (this button's own :hover below changes
+   colour/border only, so the theme's bg would otherwise leak); that :hover is
+   declared later and still wins for colour + border. */
+.mlsimport-property-share__button,
+.mlsimport-property-share__button:hover,
+.mlsimport-property-share__button:focus {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.375rem;
+	padding: 0.5rem 0.875rem;
+	border: 1px solid var(--mlsimport-hairline);
+	border-radius: var(--mlsimport-radius-btn);
+	background: #fff;
+	font-size: 0.875rem;
+	cursor: pointer;
+	text-decoration: none;
+	color: var(--mlsimport-ink);
+	transition: color 0.25s ease, border-color 0.25s ease;
+}
+
+.mlsimport-property-share__button:hover,
+.mlsimport-property-share__button:focus {
+	color: var(--mlsimport-accent2);
+	border-color: var(--mlsimport-accent2);
+}
+
+/* =========================================================================
+   ATTRIBUTION
+   ========================================================================= */
+.mlsimport-property-attribution {
+	padding: var(--mlsimport-pad);
+	border: 1px solid var(--mlsimport-hairline);
+	border-radius: var(--mlsimport-radius-card);
+	background: var(--mlsimport-accent-wash);
+	font-size: 12px;
+	line-height: 1.6;
+	color: var(--mlsimport-ink-2);
+}
+
+.mlsimport-property-attribution__head {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	margin-bottom: 8px;
+}
+
+.mlsimport-property-attribution__logo {
+	height: 55px;
+	width: auto;
+	flex-shrink: 0;
+}
+
+.mlsimport-property-attribution__courtesy {
+	font-size: 13px;
+	font-weight: 600;
+	color: var(--mlsimport-ink);
+}
+
+.mlsimport-property-attribution__meta {
+	margin: 0 0 6px;
+}
+
+.mlsimport-property-attribution__disclaimer {
+	color: var(--mlsimport-muted);
+}
+
+/* Admin-authored copy: wpautop makes one paragraph per blank line. */
+.mlsimport-property-attribution__disclaimer p {
+	margin: 0 0 8px;
+}
+
+.mlsimport-property-attribution__disclaimer p:last-child {
+	margin-bottom: 0;
+}
+
+.mlsimport-property-attribution__disclaimer a {
+	color: inherit;
+	text-decoration: underline;
+}
+
+/* =========================================================================
+   TABS / ACCORDION detail variants
+   ========================================================================= */
+.mlsimport-property-tabs__nav {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.25rem;
+	border-bottom: 1px solid var(--mlsimport-hairline);
+	margin-bottom: 16px;
+}
+
+/* :hover/:focus repeat the resting selector so a theme's pink `button:hover`/
+   `:focus` reset can't repaint the tab; [aria-selected] below is declared later. */
+.mlsimport-property-tabs__tab,
+.mlsimport-property-tabs__tab:hover,
+.mlsimport-property-tabs__tab:focus {
+	padding: 0.5rem 1rem;
+	border: 0;
+	background: none;
+	font: inherit;
+	cursor: pointer;
+	color: var(--mlsimport-ink-2);
+	border-bottom: 2px solid transparent;
+}
+
+.mlsimport-property-tabs__tab[aria-selected='true'] {
+	border-bottom-color: var(--mlsimport-accent);
+	color: var(--mlsimport-accent2);
+	font-weight: 600;
+}
+
+.mlsimport-property-accordion__item {
+	border: 1px solid var(--mlsimport-hairline);
+	border-radius: var(--mlsimport-radius-btn);
+	overflow: hidden;
+	margin-bottom: 10px;
+}
+
+.mlsimport-property-accordion__summary {
+	padding: 0.75rem 1rem;
+	cursor: pointer;
+	font-weight: 600;
+	color: var(--mlsimport-ink);
+}
+
+.mlsimport-property-accordion__body {
+	padding: 0 1rem 1rem;
+}
+
+/* =========================================================================
+   SIMILAR LISTINGS (delegates to the card grid)
+   ========================================================================= */
+/* A fixed N-up grid, N from the "Similar listings per row" setting (inline
+   --mli-cols, default 3): with fewer than N cards the empty tracks keep each card
+   at its N-column width (no full-width stretch). */
+.mlsimport-property-similar .mlsimport-results__grid {
+	display: grid;
+	grid-template-columns: repeat(var(--mli-cols, 3), 1fr);
+	gap: 20px;
+	align-items: stretch;
+}
+
+@media (max-width: 860px) {
+	.mlsimport-property-similar .mlsimport-results__grid {
+		grid-template-columns: repeat(2, 1fr);
+	}
+}
+
+@media (max-width: 560px) {
+	.mlsimport-property-similar .mlsimport-results__grid {
+		grid-template-columns: 1fr;
+	}
+}
+
+/* =========================================================================
+   PRINT
+   ========================================================================= */
+@media print {
+	.mlsimport-property-subnav,
+	.mlsimport-property-title-bar__actions,
+	.mlsimport-property-booking {
+		display: none !important;
+	}
+	.mlsimport-property-section {
+		box-shadow: none;
+		break-inside: avoid;
+	}
+}
+
+/* =========================================================================
+   FEATURED PROPERTY — six WPResidence-style single-listing designs.
+   Rendered by the Featured Property page block (includes/standalone/
+   featured-card.php). Uses the page-block theme tokens above so it re-themes
+   with the rest of the standalone surface.
+   ========================================================================= */
+/* Card shell: position:relative is the containing block for the absolutely-placed
+   overlays (tags, price badge, agent face, hero body); overflow:hidden clips them
+   to the rounded corners. */
+.mlsimport-featured {
+	position: relative;
+	overflow: hidden;
+	border-radius: 8px;
+	background: var(--mlsimport-card-bg, #fff);
+	font-family: inherit;
+	color: var(--mlsimport-ink, #3b342e);
+}
+.mlsimport-featured a { text-decoration: none; color: inherit; }
+.mlsimport-featured__media-link {
+	display: block;
+	width: 100%;
+	height: 100%;
+}
+.mlsimport-featured__img {
+	display: block;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+.mlsimport-featured__title { margin: 0; line-height: 1.3; }
+.mlsimport-featured__title a:hover { color: var(--mlsimport-accent); }
+
+/* Tag cluster (top-left): "Featured" flag + status badge. */
+.mlsimport-featured__tags {
+	position: absolute;
+	top: 14px;
+	left: 14px;
+	z-index: 3;
+	display: flex;
+	gap: 6px;
+}
+.mlsimport-featured__flag,
+.mlsimport-featured__badge {
+	display: inline-block;
+	padding: 3px 10px;
+	border-radius: 4px;
+	font-size: 12px;
+	font-weight: 600;
+	line-height: 1.4;
+	color: #fff;
+}
+.mlsimport-featured__flag { background: var(--mlsimport-accent); }
+.mlsimport-featured__badge { background: rgba(0, 0, 0, 0.62); }
+
+/* Agent face — the linked agent's featured image. */
+.mlsimport-featured__agent {
+	display: inline-flex;
+	align-items: center;
+	gap: 10px;
+}
+.mlsimport-featured__agent-photo {
+	display: block;
+	flex: none;
+	width: 46px;
+	height: 46px;
+	border-radius: 50%;
+	background-size: cover;
+	background-position: center;
+	border: 2px solid #fff;
+	box-shadow: 0 1px 4px rgba(0, 0, 0, 0.22);
+}
+.mlsimport-featured__agent-name { font-size: 14px; font-weight: 500; transition: color 0.25s ease; }
+a.mlsimport-featured__agent:hover .mlsimport-featured__agent-name,
+a.mlsimport-featured__agent:focus .mlsimport-featured__agent-name { color: var(--mlsimport-accent); }
+
+/* Design 1 — agent chip at the top of the bar. */
+.mlsimport-featured--design-1 .mlsimport-featured__agent { margin-bottom: 10px; }
+.mlsimport-featured--design-1 .mlsimport-featured__agent-photo { width: 40px; height: 40px; }
+
+/* Design 2 — agent face over the image, bottom-right. */
+.mlsimport-featured--design-2 .mlsimport-featured__agent {
+	position: absolute;
+	right: 18px;
+	bottom: 18px;
+	z-index: 4;
+}
+.mlsimport-featured--design-2 .mlsimport-featured__agent-photo { width: 60px; height: 60px; }
+
+/* Design 3 — agent face over the image, bottom-left. */
+.mlsimport-featured--design-3 .mlsimport-featured__agent {
+	position: absolute;
+	left: 18px;
+	bottom: 18px;
+	z-index: 4;
+}
+.mlsimport-featured--design-3 .mlsimport-featured__agent-photo { width: 50px; height: 50px; }
+
+/* Design 4 — agent chip on its own line (left), with "Discover more" below it. */
+.mlsimport-featured--design-4 .mlsimport-featured__agent { display: flex; margin: 18px 0 0; }
+.mlsimport-featured--design-4 .mlsimport-featured__agent-name { color: #fff; }
+
+/* Design 1 — image with price badge; title/specs bar overlaps the image bottom. */
+.mlsimport-featured--design-1 .mlsimport-featured__media {
+	position: relative;
+	aspect-ratio: 16 / 10;
+}
+.mlsimport-featured--design-1 .mlsimport-featured__price {
+	position: absolute;
+	left: 15px;
+	bottom: 56px;
+	z-index: 3;
+	padding: 4px 12px;
+	border-radius: 4px;
+	background: var(--mlsimport-accent);
+	color: #fff;
+	font-size: 14px;
+	font-weight: 600;
+}
+.mlsimport-featured--design-1 .mlsimport-featured__bar {
+	position: relative;
+	z-index: 2;
+	margin: -42px 16px 0;
+	padding: 14px 18px;
+	border-radius: 6px;
+	background: var(--mlsimport-card-bg, #fff);
+	box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+}
+.mlsimport-featured--design-1 .mlsimport-featured__title { font-size: 18px; }
+.mlsimport-featured--design-1 .mlsimport-featured__specs {
+	margin-top: 6px;
+	font-size: 14px;
+	color: var(--mlsimport-ink-2, #6e655c);
+}
+
+/* Design 2 — image with title + price overlaid at the bottom. */
+.mlsimport-featured--design-2 .mlsimport-featured__media {
+	position: relative;
+	aspect-ratio: 16 / 10;
+}
+.mlsimport-featured--design-2 .mlsimport-featured__overlay {
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	z-index: 3;
+	padding: 60px 20px 18px;
+	background: linear-gradient(to top, rgba(0, 0, 0, 0.78), transparent);
+	color: #fff;
+}
+.mlsimport-featured--design-2 .mlsimport-featured__title { font-size: 20px; color: #fff; }
+.mlsimport-featured--design-2 .mlsimport-featured__title a { color: #fff; }
+.mlsimport-featured--design-2 .mlsimport-featured__price {
+	display: inline-block;
+	margin-top: 8px;
+	padding: 3px 12px;
+	border-radius: 4px;
+	background: var(--mlsimport-accent);
+	font-size: 14px;
+	font-weight: 600;
+}
+
+/* Design 3 — horizontal split: photo left, details right. */
+.mlsimport-featured--design-3 {
+	display: flex;
+	flex-wrap: wrap;
+	min-height: 320px;
+	box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+}
+.mlsimport-featured--design-3 .mlsimport-featured__media {
+	position: relative;
+	flex: 1 1 320px;
+	min-height: 260px;
+}
+.mlsimport-featured--design-3 .mlsimport-featured__media-link,
+.mlsimport-featured--design-3 .mlsimport-featured__img { height: 100%; }
+.mlsimport-featured--design-3 .mlsimport-featured__panel {
+	flex: 1 1 320px;
+	padding: 30px;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+}
+.mlsimport-featured--design-3 .mlsimport-featured__title { font-size: 22px; }
+.mlsimport-featured--design-3 .mlsimport-featured__price {
+	margin-top: 10px;
+	font-size: 18px;
+	font-weight: 600;
+	color: var(--mlsimport-accent2, #9c5536);
+}
+.mlsimport-featured--design-3 .mlsimport-featured__excerpt {
+	margin: 14px 0;
+	font-size: 14px;
+	line-height: 1.65;
+	color: var(--mlsimport-ink-2, #6e655c);
+}
+.mlsimport-featured--design-3 .mlsimport-featured__specrow {
+	margin-top: auto;
+	padding-top: 16px;
+	border-top: 1px solid var(--mlsimport-hairline, #efe7dc);
+	font-size: 14px;
+	color: var(--mlsimport-ink, #3b342e);
+}
+
+/* Designs 4-6 — full-bleed image heroes. */
+.mlsimport-featured--design-4 .mlsimport-featured__hero,
+.mlsimport-featured--design-5 .mlsimport-featured__hero,
+.mlsimport-featured--design-6 .mlsimport-featured__hero {
+	position: relative;
+	display: block;
+	min-height: 460px;
+	background-color: #3b444f;
+	background-size: cover;
+	background-position: center;
+}
+.mlsimport-featured__gradient {
+	position: absolute;
+	inset: 0;
+	z-index: 1;
+	background: linear-gradient(to top right, rgba(0, 0, 0, 0.72), rgba(0, 0, 0, 0) 60%);
+}
+
+/* Design 4 — gradient hero with label + big title + discover more. */
+.mlsimport-featured--design-4 .mlsimport-featured__hero-body {
+	position: absolute;
+	left: 40px;
+	right: 40px;
+	bottom: 48px;
+	z-index: 2;
+	color: #fff;
+}
+.mlsimport-featured--design-4 .mlsimport-featured__label {
+	margin-bottom: 12px;
+	font-size: 16px;
+	text-transform: capitalize;
+}
+.mlsimport-featured--design-4 .mlsimport-featured__title {
+	max-width: 70%;
+	font-size: 38px;
+	color: #fff;
+}
+.mlsimport-featured--design-4 .mlsimport-featured__more {
+	display: inline-block;
+	margin-top: 14px;
+	padding-bottom: 6px;
+	border-bottom: 1px solid rgba(255, 255, 255, 0.4);
+	font-size: 13px;
+	color: #fff;
+}
+/* The three links sit as white text over the photo, so hover reads as transparency
+   (a colour change would be invisible on an arbitrary image). The title <a> inherits
+   the white so its hover matches the rest. */
+.mlsimport-featured--design-4 .mlsimport-featured__title a { color: inherit; }
+.mlsimport-featured--design-4 .mlsimport-featured__title a,
+.mlsimport-featured--design-4 .mlsimport-featured__agent,
+.mlsimport-featured--design-4 .mlsimport-featured__more {
+	transition: opacity 0.15s ease;
+}
+.mlsimport-featured--design-4 .mlsimport-featured__title a:hover,
+.mlsimport-featured--design-4 .mlsimport-featured__agent:hover,
+.mlsimport-featured--design-4 .mlsimport-featured__more:hover {
+	opacity: 0.72;
+}
+
+/* Design 5 — floating white content box over the image. */
+.mlsimport-featured--design-5 .mlsimport-featured__box {
+	position: absolute;
+	right: 6%;
+	bottom: 0;
+	z-index: 2;
+	width: 360px;
+	max-width: 86%;
+	padding: 30px;
+	background: var(--mlsimport-card-bg, #fff);
+	border-top-left-radius: 6px;
+	border-top-right-radius: 6px;
+	box-shadow: 0 -2px 24px rgba(0, 0, 0, 0.12);
+}
+.mlsimport-featured--design-5 .mlsimport-featured__label {
+	margin-bottom: 12px;
+	font-size: 16px;
+	font-weight: 600;
+	color: var(--mlsimport-accent2, #9c5536);
+}
+.mlsimport-featured--design-5 .mlsimport-featured__title { font-size: 26px; }
+.mlsimport-featured--design-5 .mlsimport-featured__specrow {
+	margin: 14px 0;
+	font-size: 14px;
+	color: var(--mlsimport-ink, #3b342e);
+}
+.mlsimport-featured--design-5 .mlsimport-featured__excerpt {
+	margin: 0 0 16px;
+	font-size: 14px;
+	line-height: 1.6;
+	color: var(--mlsimport-ink-2, #6e655c);
+}
+.mlsimport-featured--design-5 .mlsimport-featured__more {
+	font-size: 13px;
+	font-weight: 600;
+	color: var(--mlsimport-accent);
+}
+
+/* Design 6 — gradient hero with status badge + title/specs/price. */
+.mlsimport-featured--design-6 .mlsimport-featured__badge {
+	position: absolute;
+	top: 20px;
+	right: 20px;
+	z-index: 2;
+}
+.mlsimport-featured--design-6 .mlsimport-featured__hero-body {
+	position: absolute;
+	left: 40px;
+	right: 40px;
+	bottom: 40px;
+	z-index: 2;
+	color: #fff;
+}
+.mlsimport-featured--design-6 .mlsimport-featured__title {
+	font-size: 28px;
+	font-weight: 600;
+	color: #fff;
+	letter-spacing: 0.4px;
+}
+.mlsimport-featured--design-6 .mlsimport-featured__features {
+	margin-top: 10px;
+	font-size: 14px;
+	color: rgba(255, 255, 255, 0.85);
+}
+.mlsimport-featured--design-6 .mlsimport-featured__price {
+	margin-top: 8px;
+	font-size: 17px;
+	font-weight: 500;
+	color: #fff;
+}
+
+@media (max-width: 600px) {
+	.mlsimport-featured--design-4 .mlsimport-featured__title { font-size: 28px; max-width: 100%; }
+	.mlsimport-featured--design-5 .mlsimport-featured__box { right: 0; left: 0; width: auto; max-width: 100%; }
+	.mlsimport-featured--design-6 .mlsimport-featured__hero-body,
+	.mlsimport-featured--design-4 .mlsimport-featured__hero-body { left: 22px; right: 22px; }
+}
+
+/* Taxonomy values (chips, detail values, amenities) link to their term archive.
+   They inherit the surrounding colour so the page reads unchanged, and only
+   announce themselves as links on hover/focus. */
+.mlsimport-property-term-link {
+	color: inherit;
+	text-decoration: none;
+}
+.mlsimport-property-term-link:hover,
+.mlsimport-property-term-link:focus {
+	color: inherit;
+	text-decoration: underline;
+}

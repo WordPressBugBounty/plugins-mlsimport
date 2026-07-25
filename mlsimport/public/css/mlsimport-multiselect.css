@@ -1,0 +1,221 @@
+/**
+ * mlsimport-multiselect — dropdown multi-select styling (front end + admin).
+ * Enhances <select multiple class="mlsimport-multiselect">; the native select is
+ * visually removed but kept for form submission. Modeled on the WPResidence search
+ * dropdowns: a chip control, a searchable checkbox panel.
+ */
+
+.mlsimport-ms {
+	position: relative;
+}
+
+/* Keep a search field locked to its flex basis: a flex item defaults to
+   min-width:auto (its content width), so wide chips would widen the column and
+   shift the whole form. min-width:0 lets the control clip instead of grow. */
+.mlsimport-search__field,
+.mlsimport-search-form__field {
+	min-width: 0;
+}
+
+/* Shown in place of the chips when they don't fit — keeps the control one line. */
+.mlsimport-ms__summary {
+	color: inherit;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.mlsimport-ms__native {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	padding: 0;
+	overflow: hidden;
+	clip: rect(0 0 0 0);
+	border: 0;
+	opacity: 0;
+	pointer-events: none;
+}
+
+/* Before the JS enhances it (data-ms-init is set in enhance()), a native
+   <select multiple> paints its option rows — the flash on a cold load. Hide it
+   outright; the 40px box keeps the enhanced control's footprint so nothing
+   shifts when the widget replaces it. */
+select.mlsimport-multiselect:not( [data-ms-init] ) {
+	visibility: hidden;
+	display: block;
+	width: 100%;
+	height: 40px;
+	box-sizing: border-box;
+}
+
+/* :hover/:focus repeat the resting selector so an aggressive theme button reset
+   (Hello Elementor's reset.css paints `button:hover`/`:focus` pink #c36 at 0,2,0)
+   can't repaint the control on those states. The plugin's own state rules below
+   (accent border on :focus / .is-open) are declared later and still win. */
+.mlsimport-ms__control,
+.mlsimport-ms__control:hover,
+.mlsimport-ms__control:focus {
+	display: flex;
+	flex-wrap: nowrap;
+	align-items: center;
+	gap: 4px;
+	width: 100%;
+	height: 40px;
+	margin: 0;
+	padding: 5px 30px 5px 10px;
+	border: 1px solid #e2e2e2;
+	border-radius: 6px;
+	background: #fff;
+	font: inherit;
+	line-height: 1.4;
+	color: inherit;
+	text-align: left;
+	cursor: pointer;
+	box-sizing: border-box;
+	position: relative;
+	overflow: hidden;
+}
+
+/* Chips stay on one line; the control's fixed height never grows. When they run
+   past the edge they're clipped, and this fade signals there are more (it sits over
+   white when nothing overflows, so it's invisible until chips reach it). */
+.mlsimport-ms__control::after {
+	content: '';
+	position: absolute;
+	top: 1px;
+	bottom: 1px;
+	right: 24px;
+	width: 24px;
+	background: linear-gradient( to right, rgba( 255, 255, 255, 0 ), #fff 75% );
+	pointer-events: none;
+}
+
+/* 2px accent border on focus, matching every other field — see the focus block in
+   mlsimport-listings.css. Set here too so it wins regardless of stylesheet order.
+
+   `.is-open` is in the selector because clicking this control opens the dropdown and
+   moves focus into the search input inside it, so :focus alone stops matching and
+   the border dropped straight back to grey the moment you clicked. */
+.mlsimport-ms__control:focus,
+.mlsimport-ms.is-open .mlsimport-ms__control {
+	outline: none;
+	border-color: var(--mli-accent);
+}
+
+.mlsimport-ms__placeholder {
+	color: #8a8a8a;
+}
+
+.mlsimport-ms__chip {
+	display: inline-flex;
+	align-items: center;
+	flex: 0 0 auto;
+	gap: 6px;
+	padding: 2px 7px 2px 10px;
+	background: #eef1f5;
+	border-radius: 12px;
+	font-size: 13px;
+	line-height: 1.7;
+	white-space: nowrap;
+}
+
+.mlsimport-ms__chip-x {
+	display: inline-flex;
+	cursor: pointer;
+	color: #8a8a8a;
+	font-size: 15px;
+	line-height: 1;
+}
+
+.mlsimport-ms__chip-x:hover {
+	color: #c0392b;
+}
+
+/* Keep in sync with .mlsimport-range__toggle::after / .mlsimport-bedsbaths__toggle::after
+   in mlsimport-search-popups.css — every closed search control carries the same caret. */
+.mlsimport-ms__caret {
+	position: absolute;
+	right: 12px;
+	top: 50%;
+	width: 5px;
+	height: 5px;
+	border-right: 1.5px solid #8a8a8a;
+	border-bottom: 1.5px solid #8a8a8a;
+	transform: translateY( -65% ) rotate( 45deg );
+	pointer-events: none;
+}
+
+.mlsimport-ms__dropdown {
+	display: none;
+	position: absolute;
+	z-index: 60;
+	left: 0;
+	right: 0;
+	top: calc( 100% + 4px );
+	background: #fff;
+	border: 1px solid #e2e2e2;
+	border-radius: 6px;
+	box-shadow: 0 6px 22px rgba( 0, 0, 0, 0.13 );
+	overflow: hidden;
+}
+
+.mlsimport-ms.is-open .mlsimport-ms__dropdown {
+	display: block;
+}
+
+.mlsimport-ms__search {
+	width: 100%;
+	box-sizing: border-box;
+	padding: 9px 11px;
+	border: 0;
+	border-bottom: 1px solid #eee;
+	font: inherit;
+	outline: none;
+}
+
+.mlsimport-ms__options {
+	max-height: 240px;
+	overflow-y: auto;
+}
+
+.mlsimport-ms__option {
+	display: flex;
+	align-items: center;
+	gap: 9px;
+	padding: 8px 11px;
+	cursor: pointer;
+	font-size: 14px;
+}
+
+.mlsimport-ms__option:hover {
+	background: #f3f5f8;
+}
+
+.mlsimport-ms__check {
+	flex: 0 0 16px;
+	width: 16px;
+	height: 16px;
+	border: 1px solid #c4c4c4;
+	border-radius: 4px;
+	background: #fff;
+	position: relative;
+}
+
+.mlsimport-ms__option.is-selected .mlsimport-ms__check {
+	background: var(--mli-accent);
+	border-color: var(--mli-accent);
+}
+
+.mlsimport-ms__option.is-selected .mlsimport-ms__check::after {
+	content: '';
+	position: absolute;
+	left: 5px;
+	top: 2px;
+	width: 4px;
+	height: 8px;
+	border: solid #fff;
+	border-width: 0 2px 2px 0;
+	transform: rotate( 45deg );
+}

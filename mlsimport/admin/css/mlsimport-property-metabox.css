@@ -1,0 +1,430 @@
+/**
+ * MLS Listing metabox — admin styling.
+ *
+ * Two-column tabbed layout (rail + panes) inside the standalone property edit
+ * screen. Skinned to match the public single-property design language
+ * (public/css/mlsimport-property-sections.css): warm accent, Roboto, rounded
+ * inputs, soft tints and pill chips — so the editor reads like the front end.
+ *
+ * Design tokens are scoped to .mlsimport-mb (NOT :root) so they never leak into
+ * the rest of wp-admin. A small warm subset of the front-end token set.
+ */
+
+/* Remote Google Fonts import — Roboto, the metabox's typeface (matches front end). */
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
+
+.mlsimport-mb {
+	/* — Warm token subset, mirrored from the front-end design system — */
+	--mlsmb-accent: #c2724e;
+	--mlsmb-accent-hover: #d08560;
+	--mlsmb-accent2: #9c5536;
+	--mlsmb-ink: #3b342e;
+	--mlsmb-ink-2: #6e655c;
+	--mlsmb-muted: #a89e92;
+	--mlsmb-hairline: #efe7dc;
+	--mlsmb-good: #1f9d57;
+	--mlsmb-card-bg: #ffffff;
+	--mlsmb-accent-wash: color-mix(in srgb, var(--mlsmb-accent) 5%, #fff);
+	--mlsmb-accent-tint: color-mix(in srgb, var(--mlsmb-accent) 8%, #fff);
+	--mlsmb-accent-tint-strong: color-mix(in srgb, var(--mlsmb-accent) 12%, #fff);
+	--mlsmb-good-tint: color-mix(in srgb, var(--mlsmb-good) 12%, #fff);
+	--mlsmb-radius-input: 11px;
+	--mlsmb-radius-tab: 10px;
+	--mlsmb-radius-chip: 999px;
+
+	display: grid;
+	grid-template-columns: 210px 1fr;
+	min-height: 380px;
+	margin: -6px -12px -12px; /* bleed to the postbox edges */
+	font-family: 'Roboto', system-ui, -apple-system, 'Segoe UI', sans-serif;
+	color: var(--mlsmb-ink-2);
+	background: var(--mlsmb-card-bg);
+}
+
+.mlsimport-mb * {
+	box-sizing: border-box;
+}
+
+@media ( max-width: 782px ) {
+	.mlsimport-mb { grid-template-columns: 1fr; }
+}
+
+/* =========================================================================
+   TAB RAIL — warm wash, accent active marker
+   ========================================================================= */
+.mlsimport-mb__rail {
+	border-right: 1px solid var(--mlsmb-hairline);
+	background: var(--mlsmb-accent-wash);
+	padding: 10px 0;
+}
+@media ( max-width: 782px ) {
+	.mlsimport-mb__rail { border-right: 0; border-bottom: 1px solid var(--mlsmb-hairline); display: flex; flex-wrap: wrap; }
+}
+.mlsimport-mb__tab {
+	display: block;
+	width: 100%;
+	text-align: left;
+	background: none;
+	border: 0;
+	border-left: 3px solid transparent;
+	padding: 11px 18px;
+	font-family: inherit;
+	font-size: 13px;
+	font-weight: 500;
+	color: var(--mlsmb-ink-2);
+	cursor: pointer;
+	transition: background 0.18s linear, color 0.18s linear, border-color 0.18s linear;
+}
+.mlsimport-mb__tab:hover { background: var(--mlsmb-accent-tint); color: var(--mlsmb-accent2); }
+.mlsimport-mb__tab.is-active {
+	background: var(--mlsmb-card-bg);
+	border-left-color: var(--mlsmb-accent);
+	font-weight: 600;
+	color: var(--mlsmb-accent2);
+}
+
+/* =========================================================================
+   PANES + FIELD GRID
+   ========================================================================= */
+.mlsimport-mb__panes { padding: 20px 24px; }
+.mlsimport-mb__pane { display: none; }
+.mlsimport-mb__pane.is-active { display: block; }
+
+.mlsimport-mb__grid {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 16px 22px;
+}
+@media ( max-width: 600px ) {
+	.mlsimport-mb__grid { grid-template-columns: 1fr; }
+}
+
+.mlsimport-mb__f { display: flex; flex-direction: column; gap: 6px; }
+.mlsimport-mb__f--full { grid-column: 1 / -1; }
+.mlsimport-mb__f label {
+	display: flex;
+	align-items: center;
+	gap: 7px;
+	font-size: 11.5px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: var(--mlsmb-muted);
+}
+
+/* Inputs — rounded, hairline border, warm focus ring (mirrors lead-form). */
+.mlsimport-mb__f input[type="text"],
+.mlsimport-mb__f input[type="number"],
+.mlsimport-mb__f input[type="date"],
+.mlsimport-mb__f select,
+.mlsimport-mb__f textarea {
+	width: 100%;
+	max-width: 100%;
+	min-height: 40px;
+	padding: 9px 12px;
+	border: 1px solid var(--mlsmb-hairline);
+	border-radius: var(--mlsmb-radius-input);
+	font-family: inherit;
+	font-size: 14px;
+	color: var(--mlsmb-ink);
+	background: #fff;
+	box-shadow: none;
+	outline: none;
+	transition: border-color 0.18s linear, box-shadow 0.18s linear;
+}
+.mlsimport-mb__f select { height: 40px; }
+.mlsimport-mb__f textarea { min-height: 72px; resize: vertical; line-height: 1.6; }
+
+.mlsimport-mb__f input[type="text"]:focus,
+.mlsimport-mb__f input[type="number"]:focus,
+.mlsimport-mb__f input[type="date"]:focus,
+.mlsimport-mb__f select:focus,
+.mlsimport-mb__f textarea:focus {
+	border-color: var(--mlsmb-accent);
+	box-shadow: 0 0 0 3px var(--mlsmb-accent-tint-strong);
+}
+
+.mlsimport-mb__f input::placeholder,
+.mlsimport-mb__f textarea::placeholder { color: var(--mlsmb-muted); }
+
+/* Checkbox rows — sit in a soft tinted tile so toggles read as a group. */
+.mlsimport-mb__f--check {
+	flex-direction: row;
+	align-items: center;
+	padding: 12px 14px;
+	border: 1px solid var(--mlsmb-hairline);
+	border-radius: var(--mlsmb-radius-tab);
+	background: var(--mlsmb-accent-wash);
+}
+.mlsimport-mb__check {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	margin: 0;
+	font-size: 13.5px;
+	font-weight: 500 !important;
+	text-transform: none;
+	letter-spacing: 0;
+	color: var(--mlsmb-ink);
+}
+.mlsimport-mb__check input[type="checkbox"] {
+	border-color: var(--mlsmb-accent);
+}
+.mlsimport-mb__check input[type="checkbox"]:checked {
+	background: var(--mlsmb-accent);
+	border-color: var(--mlsmb-accent);
+}
+.mlsimport-mb__check input[type="checkbox"]:checked::before {
+	color: #fff;
+}
+.mlsimport-mb__check input[type="checkbox"]:focus {
+	border-color: var(--mlsmb-accent);
+	box-shadow: 0 0 0 2px var(--mlsmb-accent-tint-strong);
+}
+
+/* =========================================================================
+   ORIGIN TAGS — pill chips (MLS = accent, LOCAL = green)
+   ========================================================================= */
+.mlsimport-mb__tag {
+	display: inline-block;
+	font-size: 9px;
+	font-weight: 700;
+	letter-spacing: 0.05em;
+	padding: 2px 7px;
+	border-radius: var(--mlsmb-radius-chip);
+	text-transform: uppercase;
+	line-height: 1.4;
+	vertical-align: middle;
+}
+.mlsimport-mb__tag--mls { background: var(--mlsmb-accent-tint-strong); color: var(--mlsmb-accent2); }
+.mlsimport-mb__tag--local { background: var(--mlsmb-good-tint); color: var(--mlsmb-good); }
+/* Section tag on the Other Fields tab — the front-end group a field appears in.
+   Neutral ink tint so it reads as a category, distinct from the MLS/LOCAL chips. */
+.mlsimport-mb__tag--group {
+	background: color-mix(in srgb, var(--mlsmb-ink-2) 12%, #fff);
+	color: var(--mlsmb-ink-2);
+	text-transform: none;
+	letter-spacing: 0.02em;
+}
+
+/* =========================================================================
+   OTHER FIELDS TAB — every imported field not on a named tab, editable
+   ========================================================================= */
+.mlsimport-mb__other-note {
+	margin: 0 0 16px;
+	font-size: 12.5px;
+	line-height: 1.5;
+	color: var(--mlsmb-muted);
+}
+.mlsimport-mb__other-empty {
+	margin: 0;
+	font-size: 13px;
+	color: var(--mlsmb-muted);
+}
+/* The section tag sits on its own line under the label so the two never crowd. */
+.mlsimport-mb__other-grid .mlsimport-mb__f label {
+	flex-wrap: wrap;
+	gap: 4px 7px;
+}
+
+/* =========================================================================
+   LEAD ROUTING — read-only "who gets enquiries" callout (Agent & Office tab)
+   Sits above the feed's editable Agent/Office fields, visually distinct (a
+   tinted, accent-bordered card) so the two are never mistaken for each other.
+   ========================================================================= */
+/* Editable Lead Agent picker — left-aligned, above the read-only summary. */
+.mlsimport-mb__leadedit {
+	max-width: 520px;
+	margin: 4px 0 22px;
+}
+.mlsimport-mb__leadedit .mlsimport-mb__f { gap: 8px; }
+.mlsimport-mb__leadedit .mlsimport-mb__f label {
+	font-size: 14px;
+	font-weight: 600;
+	text-transform: none;
+	letter-spacing: 0;
+	color: var(--mlsmb-ink);
+}
+/* Own the select styling here (not the shared field rule) so the value never
+   clips and the picker carries an obvious dropdown caret. */
+.mlsimport-mb__leadedit .mlsimport-mb__f select {
+	width: 100%;
+	max-width: 460px;
+	height: 46px;
+	line-height: 1.4;
+	padding: 0 42px 0 14px;
+	text-align: left;
+	font-size: 14px;
+	color: var(--mlsmb-ink);
+	appearance: none;
+	-webkit-appearance: none;
+	-moz-appearance: none;
+	background-color: #fff;
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14'%3E%3Cpath d='M3 5l4 4 4-4' fill='none' stroke='%239c5536' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+	background-repeat: no-repeat;
+	background-position: right 16px center;
+	background-size: 14px 14px;
+}
+.mlsimport-mb__leadedit-hint {
+	margin: 0;
+	max-width: 460px;
+	font-size: 12px;
+	line-height: 1.5;
+	color: var(--mlsmb-muted);
+}
+
+/* Read-only "Where do leads go?" summary — a clean, light info card. */
+.mlsimport-mb__lead {
+	max-width: 620px;
+	margin: 0;
+	padding: 14px 16px;
+	border: 1px solid var(--mlsmb-hairline);
+	border-left: 3px solid var(--mlsmb-accent);
+	border-radius: var(--mlsmb-radius-tab);
+	background: var(--mlsmb-accent-wash);
+}
+.mlsimport-mb__lead-title {
+	margin: 0 0 8px;
+	font-size: 11.5px;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	color: var(--mlsmb-accent2);
+}
+.mlsimport-mb__lead-to {
+	margin: 0 0 6px;
+	font-size: 14.5px;
+	color: var(--mlsmb-ink);
+}
+.mlsimport-mb__lead-to strong { color: var(--mlsmb-accent2); }
+.mlsimport-mb__lead-src {
+	margin: 0;
+	font-size: 12.5px;
+	line-height: 1.55;
+	color: var(--mlsmb-ink-2);
+}
+.mlsimport-mb__lead-src a { color: var(--mlsmb-accent2); }
+
+/* =========================================================================
+   MEDIA TAB GALLERY — read-only thumbnail strip of the imported photos
+   ========================================================================= */
+.mlsimport-mb__gallery {
+	margin-top: 20px;
+	padding-top: 16px;
+	border-top: 1px solid var(--mlsmb-hairline);
+}
+.mlsimport-mb__gallery-title {
+	margin: 0 0 12px;
+	font-size: 13.5px;
+	font-weight: 600;
+	color: var(--mlsmb-ink);
+}
+.mlsimport-mb__gallery-note {
+	margin: -6px 0 12px;
+	font-size: 12px;
+	color: var(--mlsmb-muted);
+}
+.mlsimport-mb__gallery-empty {
+	margin: 0;
+	font-size: 13px;
+	color: var(--mlsmb-muted);
+}
+.mlsimport-mb__thumbs {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+	gap: 10px;
+}
+.mlsimport-mb__thumb {
+	position: relative;
+	display: block;
+	aspect-ratio: 4 / 3;
+	overflow: hidden;
+	border: 1px solid var(--mlsmb-hairline);
+	border-radius: var(--mlsmb-radius-input);
+	background: var(--mlsmb-accent-wash);
+	box-shadow: none;
+}
+.mlsimport-mb__thumb:focus {
+	outline: 2px solid var(--mlsmb-accent);
+	outline-offset: 1px;
+	box-shadow: none;
+}
+.mlsimport-mb__thumb > a {
+	display: block;
+	width: 100%;
+	height: 100%;
+	box-shadow: none;
+}
+.mlsimport-mb__thumb > a:focus {
+	outline: 2px solid var(--mlsmb-accent);
+	outline-offset: -2px;
+	box-shadow: none;
+}
+.mlsimport-mb__thumb img {
+	display: block;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+/* Photos Count excludes this image — kept in the DOM so raising the number
+   brings it straight back, but not shown as part of the published gallery. */
+.mlsimport-mb__thumb.is-beyond-count {
+	display: none;
+}
+
+/* Delete — a small round control, revealed on hover/focus of its tile. */
+.mlsimport-mb__thumb-del {
+	position: absolute;
+	top: 5px;
+	right: 5px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 22px;
+	height: 22px;
+	padding: 0;
+	border: 0;
+	border-radius: var(--mlsmb-radius-chip);
+	background: rgba( 0, 0, 0, 0.55 );
+	color: #fff;
+	font-size: 15px;
+	line-height: 1;
+	cursor: pointer;
+	opacity: 0;
+	transition: opacity 0.12s ease, background 0.12s ease;
+}
+.mlsimport-mb__thumb:hover .mlsimport-mb__thumb-del,
+.mlsimport-mb__thumb-del:focus {
+	opacity: 1;
+}
+.mlsimport-mb__thumb-del:hover {
+	background: #b32d2e;
+}
+.mlsimport-mb__thumb-del:disabled {
+	opacity: 0.5;
+	cursor: default;
+}
+
+/* Touch devices have no hover, so the control stays visible there. */
+@media ( hover: none ) {
+	.mlsimport-mb__thumb-del { opacity: 1; }
+}
+.mlsimport-mb__thumb.is-featured {
+	border-color: var(--mlsmb-accent);
+	box-shadow: 0 0 0 1px var(--mlsmb-accent);
+}
+.mlsimport-mb__thumb-badge {
+	position: absolute;
+	left: 6px;
+	bottom: 6px;
+	padding: 2px 7px;
+	border-radius: var(--mlsmb-radius-chip);
+	background: var(--mlsmb-accent);
+	color: #fff;
+	font-size: 9px;
+	font-weight: 700;
+	letter-spacing: 0.05em;
+	text-transform: uppercase;
+	line-height: 1.4;
+}

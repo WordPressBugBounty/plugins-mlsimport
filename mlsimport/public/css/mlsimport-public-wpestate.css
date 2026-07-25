@@ -1,25 +1,35 @@
 /**
  * All of the CSS for your public-facing functionality should be
  * included in this file.
+ *
+ * mlsimport-public-wpestate.css — public stylesheet enqueued when the WpEstate
+ * theme is active. Normalises imported-listing galleries: the single-listing
+ * Slick carousel and its nav thumbnails, listing-card image cropping, the
+ * no-crop lightbox slider, prev/next nav arrows, and the map infobox image.
  */
 
+/* Single-listing carousel: block-center the lightbox-trigger slide image, capped height. */
 #carousel-listing .slick-slide img.lightbox_trigger {
 	display: block;
 	max-height:420px;
 	margin: 0px auto;
 }
+/* Carousel nav thumbnails auto-size their width (override Slick). */
 #carousel-listing-nav .item.slick-slide{
 	width:auto!important;
 }
+/* Cap carousel nav thumbnail image height. */
 #carousel-listing-nav img{
 	max-height:90px;
 }
 
+/* Listing-card image cell: fixed height, black backdrop, full width. */
 .property_listing   .listing-unit-img-wrapper .item{
 	height: 233px;
 	background: #000;
 	width:100%;
 }
+/* Listing-card image: full width, capped height, vertically centred. */
 .property_listing   .listing-unit-img-wrapper img{
 	max-height: 233px;
 	width: 100%;
@@ -30,14 +40,17 @@
 	vertical-align: middle;
 
 }
+/* Carousel nav strip: fixed height, clip overflow. */
 #carousel-listing-nav{
 	max-height: 90px;
 	overflow: hidden;
 }
 
+/* Fixed height for each main carousel slide. */
 #carousel-listing .slick-slide {
 	height: 420px;
 }
+/* Absolutely centre the lightbox-trigger image within the slide. */
 #carousel-listing .slick-slide img.lightbox_trigger {
 	display: block;
 	max-height: 420px;
@@ -49,6 +62,7 @@
 	position: absolute;
 }
 
+/* No-crop lightbox slider: show images at natural size, vertically centred. */
 .ligtbox_no_crop .lightbox_property_slider .owl-wrapper img {
 	height: auto!important;
 	width: auto!important;
@@ -59,15 +73,18 @@
 	left: 0;
 	right: 0;
 }
+/* Full-width image wrapper. */
 .listing-unit-img-wrapper {
 	width: 100%;
 }
 
+/* Listing detail rows: tight padding and word wrapping. */
 .listing_detail {
 	padding: 3px 15px 3px 0px;
 	word-break:break-word;
 }
 
+/* Prev/next nav arrow images: capped width, vertically centred, absolute. */
 .nav-next img, .nav-prev img {
 	height: auto!important;
 	max-width: 100px;
@@ -76,21 +93,25 @@
 	position: absolute;
 
 }
+/* Pin prev arrow to the left edge. */
 .nav-prev img{
 	left:0px;
 }
 
+/* Pin next arrow to the right edge. */
 .nav-next img{
 	right:0px;
 }
 
 
+/* Prev/next nav arrow containers: fixed height, positioning context. */
 .nav-prev, .nav-next {
 	height: 100px;
 	position: relative;
 }
 
 
+/* Map infobox image cell: fixed width, floated, black backdrop. */
 .infobox_image_wrapper {
 	width: 175px;
 	height: 100%!important;
@@ -100,6 +121,7 @@
 	background: #000;
 }
 
+/* Infobox image: natural size within caps, floated and vertically centred. */
 .info_details img {
 	max-width: 100%;
 	width: auto;

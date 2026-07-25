@@ -1,4 +1,5 @@
 <?php 
+// Guard: block direct web access — only load when WordPress is bootstrapped.
 if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Exit if accessed directly
 }
@@ -6,6 +7,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /**
  * Register all actions and filters for the plugin
+ *
+ * File role: the hook registry (WordPress Plugin Boilerplate "Loader" pattern). Admin/public
+ * classes queue their hooks here via add_action()/add_filter(); the core class then calls
+ * run() once to bind every queued hook to WordPress in a single pass.
  *
  * @link       http://mlsimport.com/
  * @since      1.0.0
@@ -53,6 +58,7 @@ class Mlsimport_Loader {
 	 */
 	public function __construct() {
 
+		// Start with empty queues; hooks are appended as components register them.
 		$this->actions = array();
 		$this->filters = array();
 	}
@@ -68,6 +74,7 @@ class Mlsimport_Loader {
 	 * @param    int    $accepted_args    Optional. The number of arguments that should be passed to the $callback. Default is 1.
 	 */
 	public function add_action( $hook, $component, $callback, $priority = 10, $accepted_args = 1 ) {
+		// Append this action to the actions queue via the shared add() helper.
 		$this->actions = $this->add( $this->actions, $hook, $component, $callback, $priority, $accepted_args );
 	}
 
@@ -82,6 +89,7 @@ class Mlsimport_Loader {
 	 * @param    int    $accepted_args    Optional. The number of arguments that should be passed to the $callback. Default is 1
 	 */
 	public function add_filter( $hook, $component, $callback, $priority = 10, $accepted_args = 1 ) {
+		// Append this filter to the filters queue via the shared add() helper.
 		$this->filters = $this->add( $this->filters, $hook, $component, $callback, $priority, $accepted_args );
 	}
 
@@ -101,6 +109,7 @@ class Mlsimport_Loader {
 	 */
 	private function add( $hooks, $hook, $component, $callback, $priority, $accepted_args ) {
 
+		// Store the hook definition as an associative array for later binding in run().
 		$hooks[] = array(
 			'hook'          => $hook,
 			'component'     => $component,
@@ -109,6 +118,7 @@ class Mlsimport_Loader {
 			'accepted_args' => $accepted_args,
 		);
 
+		// Return the extended collection back to the caller for reassignment.
 		return $hooks;
 	}
 
@@ -119,10 +129,12 @@ class Mlsimport_Loader {
 	 */
 	public function run() {
 
+		// Bind every queued filter to WordPress via add_filter().
 		foreach ( $this->filters as $hook ) {
 			add_filter( $hook['hook'], array( $hook['component'], $hook['callback'] ), $hook['priority'], $hook['accepted_args'] );
 		}
 
+		// Bind every queued action to WordPress via add_action().
 		foreach ( $this->actions as $hook ) {
 			add_action( $hook['hook'], array( $hook['component'], $hook['callback'] ), $hook['priority'], $hook['accepted_args'] );
 		}

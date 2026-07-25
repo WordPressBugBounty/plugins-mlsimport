@@ -1,3 +1,11 @@
+/**
+ * Public-facing JavaScript entry point for the MLSImport plugin.
+ *
+ * This is the WordPress plugin-boilerplate stub: a jQuery-wrapped IIFE reserved
+ * for general public-side scripting. It currently holds no behaviour — the
+ * standalone front-end features live in the dedicated `mlsimport-property-*.js`
+ * files. Kept as the conventional place to hang future public JS.
+ */
 (function ( $ ) {
 	'use strict';
 

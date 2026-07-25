@@ -1,0 +1,1467 @@
+/**
+ * MLSImport standalone (theme_id 990) front-end styles.
+ * Self-contained BEM. Disable with:
+ *   add_filter( 'mlsimport_standalone_styles', '__return_false' );
+ */
+
+/* Design tokens shared by every standalone surface — the listings grid AND the
+   page blocks, which render outside .mlsimport-listings. Defining them on both
+   containers keeps the pager, accents and spacing identical everywhere (the
+   by-id / page-block pager was getting a different accent without this). */
+.mlsimport-listings,
+.mlsimport-page-block {
+	--mli-gap: 24px;
+	--mli-radius: 10px;
+	--mli-border: #e3e6ea;
+	--mli-accent: #1a73e8;
+	--mli-text: #1f2733;
+	--mli-muted: #6b7785;
+}
+
+/* Taxonomy/CPT archive wrapper (archive-mlsimport-property.php). */
+.mlsimport-archive {
+	padding: 0 30px;
+}
+
+.mlsimport-listings {
+	display: grid;
+	/* Default: search form full-width on top, results below. The half-map variant
+	   below keeps its left sidebar (the map needs the two-column split). */
+	grid-template-columns: 1fr;
+	gap: var(--mli-gap);
+	color: var(--mli-text);
+}
+
+.mlsimport-listings--map {
+	grid-template-columns: 320px 1fr 1fr;
+}
+
+/* When the form spans the full width (default layout), lay its fields out as a
+   horizontal search bar rather than a tall vertical stack. The column count is the
+   "Search fields per row" setting (--mlsimport-search-cols, set inline on the form);
+   it falls back to 4-up when unset. The submit gets its own full-width row. */
+.mlsimport-listings:not(.mlsimport-listings--map) .mlsimport-search {
+	display: grid;
+	grid-template-columns: repeat(var(--mlsimport-search-cols, 4), 1fr);
+	align-items: end;
+}
+/* The submit takes ONE grid cell, like every field, so it lands on the same row as
+   the last field and aligns to the column grid. It used to span the whole final row
+   (`grid-column: 1 / -1`) with justify-self:start, which left a ~75px button alone
+   on a full-width row — the only element in the form not aligned to a column, and
+   it read as an afterthought rather than the primary action. */
+.mlsimport-listings:not(.mlsimport-listings--map) .mlsimport-search__submit {
+	grid-column: auto;
+	justify-self: stretch;
+}
+
+@media (max-width: 600px) {
+	.mlsimport-listings:not(.mlsimport-listings--map) .mlsimport-search {
+		grid-template-columns: 1fr 1fr;
+	}
+}
+
+@media (max-width: 900px) {
+	.mlsimport-listings,
+	.mlsimport-listings--map {
+		grid-template-columns: 1fr;
+	}
+}
+
+/* Search form */
+.mlsimport-search {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	padding: 18px;
+	border: 1px solid var(--mli-border);
+	border-radius: var(--mli-radius);
+	background: #fff;
+	align-self: start;
+}
+
+.mlsimport-search__field {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	font-size: 13px;
+	color: var(--mli-muted);
+}
+
+/* Sized to match .mlsimport-ms__control (mlsimport-multiselect.css), which is the
+   reference for every closed control on the search surface: 13px/300 Manrope in a
+   40px-tall box. These used to be 14px/400 at 37-39px tall, so a row mixing a
+   multiselect with a text or date field showed three different type sizes and
+   three different heights side by side. box-sizing + min-height rather than a
+   fixed height, so a control still grows if its font is scaled up. */
+.mlsimport-search__field input,
+.mlsimport-search__field select {
+	box-sizing: border-box;
+	min-height: 40px;
+	padding: 8px 10px;
+	border: 1px solid var(--mli-border);
+	border-radius: 6px;
+	font-family: inherit;
+	font-size: 13px;
+	font-weight: 300;
+	line-height: 22px;
+	color: var(--mli-text);
+	background: #fff;
+}
+
+/* The multiselect renders its empty state ("Any") in --mli-muted. Match that for
+   real placeholders, so an untouched form reads as one consistent grey rather than
+   grey multiselects beside near-black inputs. Actual VALUES stay --mli-text — the
+   multiselect switches to that colour once something is chosen, and a typed value
+   in muted grey would look disabled. */
+.mlsimport-search__field input::placeholder {
+	color: var(--mli-muted);
+	opacity: 1;
+}
+
+/* Chrome gives date inputs extra intrinsic height for the picker icon, so
+   min-height alone left this one control 2px taller than its row. Pin it.
+
+   The calendar glyph is the browser's own, recoloured with a filter rather than
+   replaced. Swapping in an SVG background was tried and broke the control: the
+   padding-right needed to clear the icon shrinks the input's CONTENT box, and the
+   real (invisible) indicator lives inside that box — so it ended up ~30px left of
+   the glyph, and clicking the icon hit padding and never opened the picker.
+   Filtering leaves the native indicator exactly where the browser puts it, so it
+   stays clickable and keyboard-reachable; only its colour changes. grayscale drops
+   the glyph to neutral and the opacity lifts near-black to roughly the #8a8a8a of
+   the carets on every other control. */
+.mlsimport-search__field input[type="date"] {
+	height: 40px;
+}
+
+.mlsimport-search__field input[type="date"]::-webkit-calendar-picker-indicator {
+	filter: grayscale( 1 ) opacity( 0.45 );
+	cursor: pointer;
+}
+
+/* ═══ THE focus treatment. One rule, every control, no colour. ═══════════════
+   This is the ONLY place focus is styled for the standalone surfaces. Everything
+   else — the multiselect control, the range slider handles, the search fields —
+   deliberately has no :focus rule of its own, so nothing can drift out of sync
+   again. If you need to change how focus looks, change it HERE.
+
+   Colourless by design: the ring must read the same whatever --mli-accent a site
+   sets, and an accent halo just smears the brand colour across the form as you tab.
+   #8a8a8a is a TRUE neutral (R=G=B) — note --mli-muted is #6b7785, a blue-tinted
+   grey that still reads as colour in a ring.
+
+   An `outline` rather than a border+shadow combo, because outline works
+   identically on every element type — inputs, buttons, links, and the slider's
+   plain <div> handles — without shifting layout or fighting each element's own
+   border and shadow.
+
+   `:focus-visible` so the ring appears for keyboard navigation but not on a mouse
+   click. Applied uniformly, every control behaves the same way — which is the
+   point; the old mix of :focus and :focus-visible was why clicking Beds & Baths
+   looked different from clicking Area. */
+.mlsimport-listings :focus,
+.mlsimport-page-block :focus {
+	outline: none;
+}
+
+/* Focused field: a 2px solid border in the site accent. One rule for every field
+   type — text, number, date, select, the multiselect control, and the range /
+   beds-baths toggles — so they all respond identically to a click.
+
+   Only the COLOUR changes — the border stays 1px, exactly as at rest. A 2px focus
+   border was tried and rejected: these boxes are sized by min-height:40px, and the
+   extra border pushed the content past that minimum, so every field grew to 42px
+   and nudged its grid row as you clicked through the form. Compensating with
+   padding fixed the height but is fragile. Keeping the width constant means nothing
+   can shift, and the accent colour alone is a clear enough signal. */
+.mlsimport-search__field input:focus,
+.mlsimport-search__field select:focus,
+.mlsimport-search-form__field input:focus,
+.mlsimport-search-form__field select:focus,
+.mlsimport-contact-form__field input:not([type="checkbox"]):not([type="radio"]):focus,
+.mlsimport-contact-form__field select:focus,
+.mlsimport-contact-form__field textarea:focus,
+.mlsimport-results__sort select:focus,
+.mlsimport-range__toggle:focus,
+.mlsimport-bedsbaths__toggle:focus {
+	outline: none;
+	border-color: var(--mli-accent);
+}
+
+.mlsimport-listings :focus-visible,
+.mlsimport-page-block :focus-visible {
+	outline: 2px solid #8a8a8a;
+	outline-offset: 2px;
+}
+
+.mlsimport-search__row {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 10px;
+}
+
+/* :hover/:focus repeat the resting selector so a theme's pink `button:hover`/
+   `:focus` reset can't repaint the submit; the :hover brightness below still wins. */
+.mlsimport-search__submit,
+.mlsimport-search__submit:hover,
+.mlsimport-search__submit:focus {
+	/* Same 40px box as the fields it sits beside. Keeps its own 14px/600 type —
+	   it's the primary action, not another input, so it should read heavier. */
+	box-sizing: border-box;
+	min-height: 40px;
+	padding: 10px 14px;
+	border: 0;
+	border-radius: 6px;
+	background: var(--mli-accent);
+	color: #fff;
+	font-family: inherit;
+	font-size: 14px;
+	line-height: 1.2;
+	font-weight: 600;
+	cursor: pointer;
+}
+
+.mlsimport-search__submit:hover {
+	filter: brightness(0.95);
+}
+
+/* Results */
+.mlsimport-results {
+	display: flex;
+	flex-direction: column;
+	gap: var(--mli-gap);
+}
+
+/* Count + sort share one row above the grid: count left, sort control right. */
+.mlsimport-results__toolbar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	flex-wrap: wrap;
+}
+
+.mlsimport-results__meta {
+	font-size: 14px;
+	color: var(--mli-muted);
+}
+
+.mlsimport-results__sort {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-left: auto;
+	font-size: 13px;
+	color: var(--mli-muted);
+}
+
+/* The Sort control is the .mlsimport-interest widget (the same one the property
+   page's "I'm interested in" uses), so the native select below is only the fallback
+   the enhancer hides once it runs — and the styling that matters is the trigger.
+
+   The trigger rules have to live HERE rather than being reused from
+   mlsimport-property-sections.css: that file isn't loaded on listing pages, and its
+   rules are written against --mlsimport-* tokens that don't exist here. The dropdown
+   PANEL does come for free — the enhancer builds it from .mlsimport-location__list,
+   which is defined further down this file.
+
+   Sized 40px/13px to match the search controls it sits above, not the property
+   page's 48px/14px. Same component, sized for its context. */
+.mlsimport-results__sort-control {
+	position: relative;
+	display: block;
+}
+
+.mlsimport-interest.is-enhanced > select {
+	display: none;
+}
+
+.mlsimport-results__sort-control .mlsimport-interest__trigger {
+	box-sizing: border-box;
+	display: flex;
+	align-items: center;
+	/* height, not min-height: the label span inside carries its own line-height and
+	   pushed the button to 48px. Flex centring keeps the text vertically true. */
+	height: 40px;
+	line-height: 1;
+	/* The button sizes to whatever option is selected, so the toolbar jumped every
+	   time the choice changed ("Newest" is ~12px narrower than "Bedrooms"). A floor
+	   wide enough for the longest label holds it still. min-width, not width, so a
+	   longer translation still fits rather than being clipped. */
+	min-width: 150px;
+	padding: 8px 30px 8px 10px;
+	border: 1px solid var(--mli-border);
+	border-radius: 6px;
+	font-family: inherit;
+	font-size: 13px;
+	font-weight: 300;
+	color: var(--mli-text);
+	background-color: #fff;
+	background-image: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1L5 5L9 1' fill='none' stroke='%238a8a8a' stroke-width='1.5' stroke-linecap='square'/%3E%3C/svg%3E" );
+	background-repeat: no-repeat;
+	background-position: right 12px center;
+	background-size: 8px 5px;
+	text-align: left;
+	cursor: pointer;
+}
+
+/* Same focus treatment as every other field — see the focus block above. */
+.mlsimport-results__sort-control .mlsimport-interest__trigger:focus,
+.mlsimport-interest.is-open .mlsimport-interest__trigger {
+	outline: none;
+	border-color: var(--mli-accent);
+}
+
+/* The panel is .mlsimport-location__list, which deliberately sets no text colour so
+   its options inherit from whatever surface it is dropped onto. In the search bar
+   that is correct; in this toolbar the options inherited the THEME's body colour
+   (a warm brown) instead of the listings ink, and rendered at the autocomplete's
+   14px against the trigger's 13px. A panel that brings its own background has to
+   bring its own foreground — pin both so the open list matches the closed box. */
+.mlsimport-results__sort-control .mlsimport-interest__list {
+	color: var(--mli-text);
+}
+
+.mlsimport-results__sort-control .mlsimport-location__option {
+	font-size: 13px;
+	font-weight: 300;
+}
+
+/* Fallback for the un-enhanced native select (no JS): same box, same caret. */
+.mlsimport-results__sort select {
+	box-sizing: border-box;
+	min-height: 40px;
+	padding: 8px 30px 8px 10px;
+	border: 1px solid var(--mli-border);
+	border-radius: 6px;
+	font-family: inherit;
+	/* 13px/300/40px, same as every other closed control — see the search field rule. */
+	font-size: 13px;
+	font-weight: 300;
+	color: var(--mli-text);
+	appearance: none;
+	-webkit-appearance: none;
+	background-color: #fff;
+	background-image: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1L5 5L9 1' fill='none' stroke='%238a8a8a' stroke-width='1.5' stroke-linecap='square'/%3E%3C/svg%3E" );
+	background-repeat: no-repeat;
+	background-position: right 12px center;
+	background-size: 8px 5px;
+}
+
+.mlsimport-results__grid {
+	display: grid;
+	/* Cards-per-row (2/3/4) is set inline as --mli-cols by render_grid; falls back to
+	   3 when unset. Drops to 2 then 1 on narrower screens via the media queries below. */
+	grid-template-columns: repeat(var(--mli-cols, 3), 1fr);
+	/* Fallback so the grid keeps its gutter when reused outside the
+	   .mlsimport-listings wrapper (e.g. the agent profile listings), where the
+	   --mli-gap token isn't in scope and the gap would otherwise collapse to 0. */
+	gap: var(--mli-gap, 20px);
+}
+
+@media (max-width: 900px) {
+	.mlsimport-results__grid {
+		grid-template-columns: repeat(2, 1fr);
+	}
+}
+
+@media (max-width: 600px) {
+	.mlsimport-results__grid {
+		grid-template-columns: 1fr;
+	}
+}
+
+/* The half-map variant's results column is narrow — keep it auto-fitting, not a
+   forced three-up. */
+.mlsimport-listings--map .mlsimport-results__grid {
+	grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+}
+
+/* The empty message is rendered INSIDE .mlsimport-results__grid, which is a 3-column
+   grid — so it landed in a single ~431px cell and centred its text within that one
+   column, leaving the sentence floating in the left third instead of lining up with
+   the results count above it. Span every column and align left, so it starts on the
+   same edge as the toolbar and the cards it replaces. */
+.mlsimport-results__empty {
+	grid-column: 1 / -1;
+	padding: 40px 0;
+	text-align: left;
+	font-size: 14px;
+	color: var(--mli-muted);
+}
+
+/* While the grid repaints over AJAX it is filled with skeleton cards (below), so
+   the only thing left to do is freeze interaction — no opacity fade, the shimmer
+   is the loading cue. */
+.mlsimport-results.is-loading {
+	pointer-events: none;
+}
+
+/* Skeleton loading — placeholder cards shown while property cards load over AJAX
+   (search, filter, pagination). Each reuses the .mlsimport-listing-card box so the
+   grid keeps its exact columns/sizing; the media block and text lines shimmer. */
+.mlsimport-skeleton-card {
+	cursor: default;
+}
+
+.mlsimport-skeleton-card:hover {
+	box-shadow: none;
+	transform: none;
+}
+
+.mlsimport-skeleton__box {
+	height: 180px; /* matches .mlsimport-listing-card__media */
+}
+
+.mlsimport-skeleton__line {
+	display: block;
+	height: 12px;
+	border-radius: 6px;
+}
+
+.mlsimport-skeleton__line--price {
+	width: 40%;
+	height: 18px;
+}
+
+.mlsimport-skeleton__line--title {
+	width: 85%;
+}
+
+.mlsimport-skeleton__line--specs {
+	width: 60%;
+}
+
+/* Shimmer fill shared by the media box and the text lines. */
+.mlsimport-skeleton__box,
+.mlsimport-skeleton__line {
+	background: linear-gradient( 90deg, #eef1f4 25%, #e2e6eb 37%, #eef1f4 63% );
+	background-size: 400% 100%;
+	animation: mlsimport-skeleton-shimmer 1.4s ease infinite;
+}
+
+@keyframes mlsimport-skeleton-shimmer {
+	0% {
+		background-position: 100% 0;
+	}
+	100% {
+		background-position: 0 0;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.mlsimport-skeleton__box,
+	.mlsimport-skeleton__line {
+		animation: none;
+	}
+}
+
+/* Card — compact, price-forward (shared by results grid + similar listings) */
+.mlsimport-listing-card {
+	display: flex;
+	flex-direction: column;
+	border: 1px solid var(--mlsimport-hairline, var(--mli-border));
+	border-radius: var(--mlsimport-radius-card, var(--mli-radius));
+	overflow: hidden;
+	background: var(--mlsimport-card-bg, #fff);
+	transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.mlsimport-listing-card:hover {
+	box-shadow: var(--mlsimport-shadow-card, 0 6px 22px rgba(20, 30, 50, 0.12));
+	transform: translateY(-3px);
+}
+
+.mlsimport-listing-card__link {
+	text-decoration: none;
+	color: inherit;
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+}
+
+.mlsimport-listing-card__media {
+	position: relative;
+	height: 180px;
+	background-color: #eef1f4;
+	background-size: cover;
+	background-position: center;
+	background-repeat: no-repeat;
+}
+
+.mlsimport-listing-card__badge {
+	position: absolute;
+	top: 11px;
+	left: 11px;
+	padding: 5px 11px;
+	border-radius: var(--mlsimport-radius-chip, 999px);
+	background: rgba(255, 255, 255, 0.92);
+	color: var(--mlsimport-ink, var(--mli-text));
+	font-size: 11px;
+	font-weight: 500;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	line-height: 1;
+}
+
+.mlsimport-listing-card__body {
+	display: flex;
+	flex-direction: column;
+	gap: 5px;
+	flex: 1;
+	padding: 14px 16px 15px;
+}
+
+.mlsimport-listing-card__price {
+	font-size: 19px;
+	font-weight: 600;
+	letter-spacing: -0.01em;
+	color: var(--mlsimport-ink, var(--mli-text));
+}
+
+.mlsimport-listing-card__title {
+	margin: 0;
+	font-size: 14px;
+	font-weight: 400;
+	line-height: 1.35;
+	color: var(--mlsimport-ink-2, var(--mli-muted));
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+}
+
+.mlsimport-listing-card__specs {
+	margin: 0;
+	font-size: 13px;
+	color: var(--mlsimport-ink-2, var(--mli-muted));
+}
+
+/* Agency row — listing office (left) + MLS logo (right), pinned to the bottom */
+.mlsimport-listing-card__agency {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+	margin-top: auto;
+	padding-top: 12px;
+	border-top: 1px solid var(--mlsimport-hairline, var(--mli-border));
+}
+
+.mlsimport-listing-card__office {
+	min-width: 0;
+	font-size: 11.5px;
+	font-weight: 500;
+	color: var(--mlsimport-muted, var(--mli-muted));
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.mlsimport-listing-card__mls {
+	max-height: 35px;
+	width: auto;
+	flex-shrink: 0;
+}
+
+/* Pager — one component for the AJAX listings grid and the GET Search Results
+   block (Mlsimport_Pagination). */
+.mlsimport-pager {
+	display: flex;
+	gap: 8px;
+	justify-content: center;
+	align-items: center;
+	flex-wrap: wrap;
+	margin-top: 22px;
+}
+
+/* The grid's pager lives in this wrapper so the AJAX layer can repaint it; hide
+   the wrapper's gap when there is only one page (empty nav). */
+.mlsimport-results__pager:empty {
+	display: none;
+}
+
+.mlsimport-pager__btn {
+	padding: 8px 12px;
+	border: 1px solid var(--mli-border);
+	border-radius: 6px;
+	background: #fff;
+	color: var(--mli-text);
+	font-family: inherit;
+	font-size: 14px;
+	line-height: 1.2;
+	text-decoration: none;
+	cursor: pointer;
+}
+
+/* The agent-profile listings pager renders outside .mlsimport-listings /
+   .mlsimport-page-block, where --mli-accent is not defined, so fall back to the
+   root-level --mlsimport-accent (same Main Color) instead of an empty value. */
+a.mlsimport-pager__btn:hover {
+	border-color: var(--mli-accent, var(--mlsimport-accent));
+	color: var(--mli-accent, var(--mlsimport-accent));
+}
+
+.mlsimport-pager__btn.is-active {
+	background: var(--mli-accent, var(--mlsimport-accent));
+	color: #fff;
+	border-color: var(--mli-accent, var(--mlsimport-accent));
+	cursor: default;
+}
+
+.mlsimport-pager__gap {
+	padding: 8px 4px;
+	color: var(--mli-muted);
+}
+
+/* Content Slider (page block) — a multi-card Splide carousel. Each slide holds one
+   full-width property card (the card keeps its own styling). The arrows reproduce
+   the WpResidence editorial slider: a 38px square pair, hairline border, that invert
+   to dark on hover, grouped at the top-right above the cards. */
+.mlsimport-content-slider {
+	position: relative;
+	padding-top: 54px;
+}
+
+.mlsimport-content-slider .splide__slide {
+	height: auto;
+}
+
+.mlsimport-content-slider .splide__slide > * {
+	box-sizing: border-box;
+	width: 100%;
+	height: 100%;
+	/* Zero any padding the theme's editor styles inject onto the card <article>:
+	   it would inset the image from the card border and (with content-box) widen the
+	   card past its slide, eating the gap and overlapping neighbours. The card's own
+	   body keeps its padding; the image stays flush. */
+	padding: 0;
+	margin: 0;
+}
+
+/* Fallback before Splide mounts — and the editor preview, where the block-editor
+   iframe does not load Splide's own assets onto the ServerSideRender output. Lay the
+   slides out as a horizontal scroll-snap row (3 / 2 / 1 across) instead of a raw
+   bulleted <ul>. On the front end Splide adds .is-initialized and takes over. */
+.mlsimport-content-slider:not(.is-initialized) .splide__track {
+	overflow: hidden;
+}
+
+.mlsimport-content-slider:not(.is-initialized) .splide__list {
+	display: flex;
+	gap: 1.5rem;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	overflow-x: auto;
+	scroll-snap-type: x mandatory;
+}
+
+.mlsimport-content-slider:not(.is-initialized) .splide__slide {
+	flex: 0 0 calc(33.333% - 1rem);
+	min-width: 0;
+	list-style: none;
+	scroll-snap-align: start;
+}
+
+@media (max-width: 980px) {
+	.mlsimport-content-slider:not(.is-initialized) .splide__slide {
+		flex-basis: calc(50% - 0.75rem);
+	}
+}
+
+@media (max-width: 640px) {
+	.mlsimport-content-slider:not(.is-initialized) .splide__slide {
+		flex-basis: 85%;
+	}
+}
+
+.mlsimport-content-slider .splide__arrows {
+	position: absolute;
+	top: 0;
+	right: 0;
+	display: flex;
+	gap: 0;
+	/* Re-enable interaction: the block-editor preview wraps the SSR output in
+	   pointer-events:none (so card links can't hijack the editor), which would
+	   otherwise also kill the arrow clicks. The cards stay non-interactive. */
+	pointer-events: auto;
+}
+
+.mlsimport-content-slider .splide__arrow {
+	position: static;
+	top: auto;
+	left: auto;
+	right: auto;
+	transform: none;
+	width: 38px;
+	height: 38px;
+	border: 1px solid #e7e7e7;
+	border-radius: 0;
+	background: transparent;
+	opacity: 1;
+	pointer-events: auto;
+	transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.mlsimport-content-slider .splide__arrow--next {
+	border-left: none;
+}
+
+.mlsimport-content-slider .splide__arrow svg {
+	width: 14px;
+	height: 14px;
+	fill: #333;
+	transition: fill 0.2s ease;
+}
+
+.mlsimport-content-slider .splide__arrow:hover:not(:disabled) {
+	background: #1a1a1a;
+	border-color: #1a1a1a;
+}
+
+.mlsimport-content-slider .splide__arrow:hover:not(:disabled) svg {
+	fill: #fff;
+}
+
+.mlsimport-content-slider .splide__arrow:disabled {
+	opacity: 0.35;
+	cursor: default;
+}
+
+/* Map */
+.mlsimport-map {
+	min-height: 480px;
+	border-radius: var(--mli-radius);
+	overflow: hidden;
+	border: 1px solid var(--mli-border);
+}
+
+/* Agent box */
+.mlsimport-agent-box {
+	padding: 16px 18px;
+	border: 1px solid var(--mli-border);
+	border-radius: var(--mli-radius);
+	background: #fff;
+	max-width: 320px;
+}
+
+.mlsimport-agent-box__name {
+	margin: 0 0 4px;
+	font-size: 18px;
+}
+
+.mlsimport-agent-box__office {
+	margin: 0 0 10px;
+	color: var(--mli-muted);
+	font-size: 14px;
+}
+
+.mlsimport-agent-box__contact {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.mlsimport-agent-box__contact a {
+	color: var(--mli-accent);
+	text-decoration: none;
+}
+
+/* Agents archive */
+.mlsimport-agents__grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+	gap: var(--mli-gap);
+}
+
+.mlsimport-agent-card {
+	border: 1px solid var(--mli-border);
+	border-radius: var(--mli-radius);
+	overflow: hidden;
+	background: #fff;
+	text-align: center;
+}
+
+.mlsimport-agent-card__link {
+	text-decoration: none;
+	color: inherit;
+}
+
+.mlsimport-agent-card__photo img {
+	width: 100%;
+	height: 200px;
+	object-fit: cover;
+}
+
+.mlsimport-agent-card__name {
+	margin: 12px 0 4px;
+	font-size: 16px;
+}
+
+.mlsimport-agent-card__phone {
+	margin: 0 0 14px;
+	color: var(--mli-muted);
+	font-size: 14px;
+}
+
+/* Team Directory page block — a fixed-column grid of agent tiles, each the whole
+   card linking to that agent's page. Reuses the .mlsimport-agent-card base above. */
+.mlsimport-agents-directory {
+	display: grid;
+	grid-template-columns: repeat(var(--mlsimport-agents-cols, 4), minmax(0, 1fr));
+	gap: var(--mlsimport-agents-gap, var(--mli-gap));
+}
+
+.mlsimport-agent-card--dir {
+	display: block;
+	text-decoration: none;
+	color: inherit;
+	border-radius: var(--mlsimport-agents-radius, var(--mli-radius));
+	transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.mlsimport-agent-card--dir:hover {
+	box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+	transform: translateY(-2px);
+}
+
+.mlsimport-agent-card__img {
+	display: block;
+	width: 100%;
+	height: 240px;
+	object-fit: cover;
+}
+
+.mlsimport-agent-card__img--empty {
+	background: linear-gradient(135deg, #eef1f4, #dfe4ea);
+}
+
+.mlsimport-agent-card__body {
+	padding: 14px 12px 16px;
+}
+
+.mlsimport-agent-card--dir .mlsimport-agent-card__name {
+	display: block;
+	margin: 0 0 4px;
+	font-size: 16px;
+	font-weight: 600;
+}
+
+.mlsimport-agent-card__title {
+	display: block;
+	color: var(--mli-accent);
+	font-size: 13px;
+	font-weight: 500;
+}
+
+.mlsimport-agent-card__office {
+	display: block;
+	margin-top: 4px;
+	color: var(--mli-muted);
+	font-size: 13px;
+}
+
+@media (max-width: 900px) {
+	.mlsimport-agents-directory {
+		grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+	}
+}
+
+@media (max-width: 480px) {
+	.mlsimport-agents-directory {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+
+/* ── Page blocks (home/landing-page building blocks) ───────────────────────── */
+.mlsimport-page-block {
+	margin: 0 0 28px;
+}
+
+/* Search Results with the refine bar switched off: the form stays in the DOM as
+   the AJAX state carrier (so paging keeps the search), only hidden from view.
+
+   Both classes are on the SAME element on purpose. The layout rule above is
+   `.mlsimport-listings:not(.mlsimport-listings--map) .mlsimport-search { display: grid }`,
+   and a :not() contributes its argument's specificity — so that selector scores (0,3,0)
+   while a plain `.mlsimport-listings--no-form .mlsimport-search` scores only (0,2,0) and
+   LOSES to it no matter where it sits in the file. The bar was therefore never hidden.
+   Doubling up the class here matches (0,3,0) and, being later, wins. */
+.mlsimport-listings.mlsimport-listings--no-form .mlsimport-search {
+	display: none;
+}
+
+/* Search + contact forms. */
+/* The Contact Form block lays its fields out on a 12-column grid; each field's
+   "Width" setting is how many of those columns it spans, so two halves share a
+   row and three thirds make a three-up row. No width = the full row. */
+.mlsimport-contact-form {
+	display: grid;
+	grid-template-columns: repeat(12, 1fr);
+	gap: 12px;
+	align-items: end;
+}
+/* The Search Form block lays out on the same 12-column grid as the Contact Form,
+   so both blocks share one width vocabulary. Each field — and the submit button —
+   spans the columns its "Width" setting says, which is how the button can sit
+   INLINE as the last cell of a row instead of always taking a row of its own.
+   The other two search surfaces (the listings grid form and the half-map form)
+   keep their own --mlsimport-search-cols grid; they have no per-field widths. */
+.mlsimport-search-form {
+	display: grid;
+	grid-template-columns: repeat(12, 1fr);
+	gap: 12px;
+	align-items: end;
+}
+.mlsimport-search-form__field,
+.mlsimport-search-form__submit {
+	grid-column: span 12;
+}
+/* The optional heading claims a row of its own above the fields. */
+.mlsimport-search-form__title {
+	grid-column: span 12;
+	margin: 0;
+	font-size: 18px;
+	line-height: 1.3;
+}
+.mlsimport-search-form__field--two-thirds,
+.mlsimport-search-form__submit--two-thirds {
+	grid-column: span 8;
+}
+.mlsimport-search-form__field--half,
+.mlsimport-search-form__submit--half {
+	grid-column: span 6;
+}
+.mlsimport-search-form__field--third,
+.mlsimport-search-form__submit--third {
+	grid-column: span 4;
+}
+.mlsimport-search-form__field--quarter,
+.mlsimport-search-form__submit--quarter {
+	grid-column: span 3;
+}
+.mlsimport-search-form__field,
+.mlsimport-contact-form__field {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	flex: 1 1 160px;
+	font-size: 13px;
+	color: var(--mli-muted, #666);
+}
+/* A search field never squeezes below a usable width, however narrow its Width
+   setting makes its grid cell. The 12 tracks are 1fr = minmax(auto, 1fr), so this
+   floor raises each track's auto minimum and the cells grow to honour it.
+   Scoped through the form (0,2,0) so it outranks the min-width:0 that
+   mlsimport-multiselect.css sets on this class and which loads after this file.
+   That rule exists to stop wide multiselect CHIPS widening a column — a fixed
+   floor cannot do that (only min-width:auto could), so it stays honoured. */
+.mlsimport-search-form .mlsimport-search-form__field {
+	min-width: 240px;
+}
+
+/* Below 600px every cell claims the full row, so the button becomes a full-width
+   bar under the fields however its Width is configured. */
+@media (max-width: 600px) {
+	.mlsimport-search-form__field,
+	.mlsimport-search-form__submit {
+		grid-column: span 12;
+	}
+}
+.mlsimport-search-form__field input,
+.mlsimport-search-form__field select,
+.mlsimport-contact-form__field input:not([type="checkbox"]):not([type="radio"]),
+.mlsimport-contact-form__field select,
+.mlsimport-contact-form__field textarea {
+	padding: 9px 11px;
+	border: 1px solid var(--mli-border, #e2e2e2);
+	border-radius: 6px;
+	font-family: inherit;
+	font-size: 14px;
+}
+/* Text inputs and selects compute to ~37px from their padding alone, which left
+   them short of the 40px multiselect beside them. Pin the whole row to 40px so
+   every control in the search form — button included — is the same height. */
+.mlsimport-search-form__field input,
+.mlsimport-search-form__field select {
+	box-sizing: border-box;
+	min-height: 40px;
+}
+.mlsimport-contact-form__field {
+	grid-column: span 12;
+}
+.mlsimport-contact-form__field--two-thirds {
+	grid-column: span 8;
+}
+.mlsimport-contact-form__field--half {
+	grid-column: span 6;
+}
+.mlsimport-contact-form__field--third {
+	grid-column: span 4;
+}
+.mlsimport-contact-form__field--quarter {
+	grid-column: span 3;
+}
+/* A checkbox (GDPR consent) reads as one line: the box, then its label. */
+.mlsimport-contact-form__field--checkbox {
+	flex-direction: row;
+	align-items: center;
+	gap: 8px;
+}
+/* A radio group is a fieldset — a legend is not a flex item, so it stacks. */
+.mlsimport-contact-form__field--radio {
+	display: block;
+	border: 0;
+	margin: 0;
+	padding: 0;
+}
+.mlsimport-contact-form__field--radio label {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin-top: 4px;
+}
+@media (max-width: 600px) {
+	.mlsimport-contact-form__field {
+		grid-column: span 12;
+	}
+}
+/* :hover/:focus repeat the resting selector so a theme's pink `button:hover`/
+   `:focus` reset can't repaint the accent submit; the :hover brightness wins below. */
+.mlsimport-search-form__submit,
+.mlsimport-search-form__submit:hover,
+.mlsimport-search-form__submit:focus,
+.mlsimport-contact-form__submit,
+.mlsimport-contact-form__submit:hover,
+.mlsimport-contact-form__submit:focus {
+	padding: 10px 22px;
+	border: 0;
+	border-radius: 6px;
+	background: var(--mli-accent);
+	color: #fff;
+	font-family: inherit;
+	font-size: 14px;
+	line-height: 1.2;
+	cursor: pointer;
+}
+/* The search button fills its grid cell — the cell's width IS the button's width,
+   which is what the per-field "Width" setting is for. */
+/* 40px is the height of the multiselect control (.mlsimport-ms__control), which
+   is the tallest field in the form — the button matches it so the row lines up.
+   min-height, not height, so the --large modifier can still grow past it. */
+.mlsimport-search-form__submit {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	box-sizing: border-box;
+	width: 100%;
+	min-height: 40px;
+}
+/* Same hover as the other accent buttons (.mlsimport-search__submit). */
+.mlsimport-search-form__submit {
+	transition: filter 0.2s ease;
+}
+.mlsimport-search-form__submit:hover {
+	filter: brightness(0.95);
+}
+.mlsimport-search-form__submit--small {
+	padding: 7px 16px;
+	font-size: 13px;
+}
+.mlsimport-search-form__submit--large {
+	padding: 14px 28px;
+	font-size: 16px;
+}
+.mlsimport-search-form__submit-icon {
+	width: 1em;
+	height: 1em;
+	flex: none;
+	object-fit: contain;
+}
+
+/* Location autocomplete: the suggestion list hangs off the input without moving
+   it, so the form's grid row height never changes as suggestions appear. */
+/* A flex column, like the field wrapper itself — so the input STRETCHES to the
+   cell instead of being sized by width:100%. The inputs carry padding and a
+   border but the page may be content-box, where width:100% then overflows the
+   grid cell by 24px and swallows the gutter. Stretch sizing is immune to that. */
+.mlsimport-location {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+}
+.mlsimport-location__list {
+	position: absolute;
+	z-index: 20;
+	top: calc(100% + 4px);
+	left: 0;
+	right: 0;
+	margin: 0;
+	padding: 4px;
+	list-style: none;
+	max-height: 260px;
+	overflow-y: auto;
+	background: #fff;
+	border: 1px solid var(--mli-border, #e2e2e2);
+	border-radius: 6px;
+	box-shadow: 0 8px 24px -12px rgba(0, 0, 0, 0.3);
+}
+.mlsimport-location__list[hidden] {
+	display: none;
+}
+.mlsimport-location__option {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 8px 10px;
+	border-radius: 4px;
+	font-size: 14px;
+	cursor: pointer;
+}
+.mlsimport-location__option:hover,
+.mlsimport-location__option.is-active {
+	background: var(--mli-soft, #f2f4f3);
+}
+.mlsimport-location__type {
+	margin-left: auto;
+	font-size: 11px;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--mli-muted, #666);
+	border: 1px solid var(--mli-border, #e2e2e2);
+	border-radius: 4px;
+	padding: 1px 6px;
+}
+.mlsimport-hp {
+	position: absolute;
+	left: -9999px;
+}
+/* The submit spans the full row unless its "Width" narrows it, so it can sit
+   INLINE as the last cell of a row — the same vocabulary the fields use. */
+.mlsimport-contact-form__submit {
+	grid-column: span 12;
+	justify-self: start;
+}
+.mlsimport-contact-form__submit--two-thirds {
+	grid-column: span 8;
+}
+.mlsimport-contact-form__submit--half {
+	grid-column: span 6;
+}
+.mlsimport-contact-form__submit--third {
+	grid-column: span 4;
+}
+.mlsimport-contact-form__submit--quarter {
+	grid-column: span 3;
+}
+/* Where the button sits inside its cell. Justified makes the cell's width the
+   button's width; the other three leave it at its natural size. */
+.mlsimport-contact-form--btn-start .mlsimport-contact-form__submit {
+	justify-self: start;
+}
+.mlsimport-contact-form--btn-center .mlsimport-contact-form__submit {
+	justify-self: center;
+}
+.mlsimport-contact-form--btn-end .mlsimport-contact-form__submit {
+	justify-self: end;
+}
+.mlsimport-contact-form--btn-stretch .mlsimport-contact-form__submit {
+	justify-self: stretch;
+}
+.mlsimport-contact-form__submit--small {
+	padding: 7px 16px;
+	font-size: 13px;
+}
+.mlsimport-contact-form__submit--large {
+	padding: 14px 28px;
+	font-size: 16px;
+}
+/* Field size presets — padding and type size move together, so the three steps
+   read as one scale rather than as separate knobs. Medium is the base rule. */
+.mlsimport-contact-form--small .mlsimport-contact-form__field input:not([type="checkbox"]):not([type="radio"]),
+.mlsimport-contact-form--small .mlsimport-contact-form__field select,
+.mlsimport-contact-form--small .mlsimport-contact-form__field textarea {
+	padding: 6px 9px;
+	font-size: 13px;
+}
+.mlsimport-contact-form--large .mlsimport-contact-form__field input:not([type="checkbox"]):not([type="radio"]),
+.mlsimport-contact-form--large .mlsimport-contact-form__field select,
+.mlsimport-contact-form--large .mlsimport-contact-form__field textarea {
+	padding: 13px 15px;
+	font-size: 16px;
+}
+/* The optional heading claims a row of its own above the fields. */
+.mlsimport-contact-form__title {
+	grid-column: span 12;
+	margin: 0;
+	font-size: 18px;
+	line-height: 1.3;
+}
+/* The consent row reads as one line: the box, then its wording and link. */
+.mlsimport-contact-form__consent {
+	grid-column: 1 / -1;
+	font-size: 13px;
+	color: var(--mli-muted, #666);
+}
+.mlsimport-contact-form__consent .mlsimport-property-lead-form__consent {
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+}
+.mlsimport-contact-form__message {
+	grid-column: 1 / -1;
+	font-size: 14px;
+}
+/* Below 600px the button becomes a full-width bar under the fields however its
+   Width and alignment are configured — matching how the fields collapse. */
+@media (max-width: 600px) {
+	/* Two classes deep so it outranks the --btn-* alignment rules above, which are
+	   themselves (0,2,0). */
+	.mlsimport-contact-form .mlsimport-contact-form__submit {
+		grid-column: span 12;
+		justify-self: stretch;
+	}
+}
+
+/* Map with listings. */
+.mlsimport-page-block--map .mlsimport-map {
+	width: 100%;
+	height: 420px;
+	border-radius: 8px;
+	background: #eef1f4;
+}
+
+/* ── Property card v2 — horizontal split (photo left, details right) ─────────── */
+.mlsimport-listing-card--v2 .mlsimport-listing-card__link {
+	display: grid;
+	grid-template-columns: 40% 1fr;
+	align-items: stretch;
+}
+.mlsimport-listing-card--v2 .mlsimport-listing-card__media {
+	height: 100%;
+	min-height: 180px;
+}
+.mlsimport-listing-card--v2 .mlsimport-listing-card__body {
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	gap: 6px;
+}
+/* The heart lives outside the link, so pull it back over the 40% photo column. */
+.mlsimport-listing-card--v2 .mlsimport-fav--heart {
+	right: calc( 60% + 10px );
+}
+@media ( max-width: 480px ) {
+	.mlsimport-listing-card--v2 .mlsimport-listing-card__link {
+		grid-template-columns: 1fr;
+	}
+	.mlsimport-listing-card--v2 .mlsimport-fav--heart {
+		right: 10px;
+	}
+}
+
+/* ── Property card v3 — full-bleed photo with overlaid details ───────────────── */
+.mlsimport-listing-card--v3 .mlsimport-listing-card__media {
+	position: relative;
+	height: 320px;
+}
+.mlsimport-listing-card--v3 .mlsimport-listing-card__overlay {
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	padding: 28px 16px 14px;
+	color: #fff;
+	background: linear-gradient( to top, rgba( 0, 0, 0, 0.72 ) 0%, rgba( 0, 0, 0, 0 ) 100% );
+}
+.mlsimport-listing-card--v3 .mlsimport-listing-card__title,
+.mlsimport-listing-card--v3 .mlsimport-listing-card__price,
+.mlsimport-listing-card--v3 .mlsimport-listing-card__specs {
+	color: #fff;
+}
+.mlsimport-listing-card--v3 .mlsimport-listing-card__price {
+	font-size: 20px;
+	font-weight: 700;
+}
+
+/* -------------------------------------------------------------------------
+   Category widgets — Category Slider + Display Categories.
+   A tile is the term featured image with the term name (and optional listing
+   count) overlaid, linking to the term archive. Look controls arrive as the
+   --mlsimport-cat-* custom properties emitted on the wrapper.
+   ------------------------------------------------------------------------- */
+.mlsimport-cat-tile {
+	position: relative;
+	display: block;
+	overflow: hidden;
+	height: var(--mlsimport-cat-height, 240px);
+	border-radius: var(--mlsimport-cat-radius, 8px);
+	text-decoration: none;
+	color: #fff;
+	background: #d7dde3;
+}
+
+.mlsimport-cat-tile__img {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	background-size: cover;
+	background-position: center;
+	background-repeat: no-repeat;
+	transition: transform 0.4s ease;
+}
+
+.mlsimport-cat-tile__img--empty {
+	display: block;
+	background: linear-gradient(135deg, #c9d2da, #aab6c0);
+}
+
+.mlsimport-cat-tile:hover .mlsimport-cat-tile__img {
+	transform: scale(1.06);
+}
+
+.mlsimport-cat-tile__overlay {
+	position: absolute;
+	inset: 0;
+	background: linear-gradient(to top, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0) 55%);
+}
+
+.mlsimport-cat-tile__body {
+	position: absolute;
+	inset: auto 0 0 0;
+	display: flex;
+	flex-direction: column;
+	padding: var(--mlsimport-cat-pad, 16px);
+}
+
+.mlsimport-cat-tile__title {
+	font-size: var(--mlsimport-cat-title-size, 18px);
+	font-weight: 600;
+	line-height: 1.2;
+	color: var(--mlsimport-cat-title-color, #fff);
+	margin-bottom: var(--mlsimport-cat-title-mb, 4px);
+}
+
+.mlsimport-cat-tile__tagline {
+	font-size: 13px;
+	opacity: 0.9;
+	color: var(--mlsimport-cat-title-color, #fff);
+	margin-bottom: var(--mlsimport-cat-tagline-mb, 0);
+}
+
+/* Display Categories — grid (fixed columns) or auto grid (min unit width). */
+.mlsimport-cat-list {
+	display: grid;
+	grid-template-columns: repeat(var(--mlsimport-cat-cols, 4), 1fr);
+	gap: var(--mlsimport-cat-gap, 16px);
+}
+
+.mlsimport-cat-list--autogrid {
+	grid-template-columns: repeat(auto-fill, minmax(var(--mlsimport-cat-min-width, 220px), 1fr));
+}
+
+@media (max-width: 980px) {
+	.mlsimport-cat-list:not(.mlsimport-cat-list--autogrid) {
+		grid-template-columns: repeat(2, 1fr);
+	}
+}
+
+@media (max-width: 600px) {
+	.mlsimport-cat-list:not(.mlsimport-cat-list--autogrid) {
+		grid-template-columns: 1fr;
+	}
+}
+
+/* The three designs key on the shared .mlsimport-cat--design-N modifier (on the outer
+   page-block wrapper), so ONE ruleset styles both the Display Categories grid AND the
+   Category Slider — the tile markup is identical in both. Simple black/white palette
+   throughout: a bottom scrim (design 1, on the tile default), a full dim (design 2),
+   and a solid caption bar (design 3) — all plain black, white text. */
+
+/* Design 2 — full dim overlay, title centred. */
+.mlsimport-cat--design-2 .mlsimport-cat-tile__overlay {
+	background: rgba(0, 0, 0, 0.4);
+}
+
+.mlsimport-cat--design-2 .mlsimport-cat-tile__body {
+	inset: 0;
+	align-items: center;
+	justify-content: center;
+	text-align: center;
+}
+
+/* Design 3 — solid caption bar + optional frame border (border vars are Display
+   Categories only; the slider leaves them unset, so its tiles simply have no border). */
+.mlsimport-cat--design-3 .mlsimport-cat-tile {
+	border: var(--mlsimport-cat-border-w, 0) solid var(--mlsimport-cat-border-c, #e0e0e0);
+}
+
+.mlsimport-cat--design-3 .mlsimport-cat-tile__overlay {
+	display: none;
+}
+
+.mlsimport-cat--design-3 .mlsimport-cat-tile__body {
+	background: rgba(0, 0, 0, 0.72);
+}
+
+/* Category Slider — Splide track of tiles. Fallback layout before Splide mounts
+   (and in the editor iframe, which does not load Splide onto the SSR preview):
+   a horizontal scroll-snap row instead of a raw bulleted <ul>. */
+.mlsimport-category-slider .splide__slide {
+	height: auto;
+	list-style: none;
+}
+
+/* Navigation arrows — the single-property gallery slider's treatment: a 50×50
+   semi-transparent white disc centred on the tile edges (Splide's default round
+   shape, centre position and chevron kept), so the two sliders read the same
+   instead of the bare grey Splide default. The Elementor Category Slider's Arrow
+   colour controls layer over this base.
+
+   opacity is pinned to 1 (translucency comes from the colour's own alpha) so the
+   arrow reads as the SAME colour resting and on hover — Splide's default hover
+   fades opacity 0.7 → 0.9, which made a Style-tab arrow colour look different on
+   hover. Disabled arrows stay dimmed. */
+.mlsimport-category-slider .splide__arrow {
+	width: 50px;
+	height: 50px;
+	background: #ffffff8c;
+	opacity: 1;
+}
+
+.mlsimport-category-slider .splide__arrow:disabled {
+	opacity: 0.35;
+}
+
+.mlsimport-category-slider:not(.is-initialized) .splide__track {
+	overflow: hidden;
+}
+
+.mlsimport-category-slider:not(.is-initialized) .splide__list {
+	display: flex;
+	gap: var(--mlsimport-cat-gap, 16px);
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	overflow-x: auto;
+	scroll-snap-type: x mandatory;
+}
+
+.mlsimport-category-slider:not(.is-initialized) .splide__slide {
+	flex: 0 0 calc(33.333% - 1rem);
+	min-width: 0;
+	scroll-snap-align: start;
+}
+
+@media (max-width: 640px) {
+	.mlsimport-category-slider:not(.is-initialized) .splide__slide {
+		flex-basis: 80%;
+	}
+}

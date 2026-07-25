@@ -1,4 +1,5 @@
-<?php 
+<?php
+// Guard: block direct web access — only load when WordPress is bootstrapped.
 if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Exit if accessed directly
 }
@@ -12,7 +13,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 
 /**
- * Description of class-mlsimport-item
+ * Registers the plugin's custom post type(s).
+ *
+ * File role: defines the `mlsimport_item` ("Import Tasks") custom post type — each post is
+ * one import task configuration processed by the cron/import pipeline. create_custom_post_type()
+ * builds the CPT arguments and delegates to register_single_post_type(), which calls
+ * register_post_type(); optional custom capabilities are wired through assign_capabilities().
  *
  * @author cretu
  */
@@ -22,11 +28,25 @@ class Mlsimport_Item {
 	// put your code here
 
 
+	/**
+	 * Constructor — no initialization required.
+	 */
 	public function __construct() {
 	}
 
+	/**
+	 * Build the arguments for and register a single custom post type.
+	 *
+	 * Assembles the labels and args arrays from a $fields definition, optionally applies a
+	 * custom rewrite rule and a fine-grained capability map, registers the post type, then
+	 * detaches the default category/post_tag taxonomies from mlsimport_item.
+	 *
+	 * @param array $fields Post-type definition (slug, singular/plural labels, args, flags).
+	 * @return void
+	 */
 	private function register_single_post_type( $fields ) {
 
+		// Human-readable admin labels, derived from the singular/plural names in $fields.
 		$labels = array(
 			'name'                  => $fields['plural'],
 			'singular_name'         => $fields['singular'],
@@ -53,6 +73,7 @@ class Mlsimport_Item {
 			'archive_title'         => $fields['plural'],
 		);
 
+		// register_post_type() arguments; each flag falls back to a sensible default when unset in $fields.
 		$args = array(
 			'labels'              => $labels,
 			'description'         => ( isset( $fields['description'] ) ) ? $fields['description'] : '',
@@ -64,6 +85,7 @@ class Mlsimport_Item {
 			'query_var'           => ( isset( $fields['query_var'] ) ) ? $fields['query_var'] : true,
 			'show_in_admin_bar'   => ( isset( $fields['show_in_admin_bar'] ) ) ? $fields['show_in_admin_bar'] : true,
 			'capability_type'     => ( isset( $fields['capability_type'] ) ) ? $fields['capability_type'] : 'post',
+			'map_meta_cap'        => ! empty( $fields['map_meta_cap'] ),
 			'has_archive'         => ( isset( $fields['has_archive'] ) ) ? $fields['has_archive'] : true,
 			'hierarchical'        => ( isset( $fields['hierarchical'] ) ) ? $fields['hierarchical'] : true,
 			'supports'            => ( isset( $fields['supports'] ) ) ? $fields['supports'] : array(
@@ -85,6 +107,7 @@ class Mlsimport_Item {
 			'taxonomies'          => array( 'category', 'post_tag' ),
 		);
 
+		// Apply a custom permalink rewrite rule when the definition supplies one.
 		if ( isset( $fields['rewrite'] ) ) {
 
 			/**
@@ -94,6 +117,7 @@ class Mlsimport_Item {
 			$args['rewrite'] = $fields['rewrite'];
 		}
 
+		// When custom capabilities are requested, replace the default cap set with a granular map.
 		if ( $fields['custom_caps'] ) {
 
 			/**
@@ -145,13 +169,20 @@ class Mlsimport_Item {
 			$this->assign_capabilities( $args['capabilities'], $fields['custom_caps_users'] );
 		}
 
+		// Register the post type with WordPress using the assembled slug and args.
 		register_post_type( $fields['slug'], $args );
+
+		// Dedicated capability type: only administrators receive the caps.
+		if ( ! empty( $fields['map_meta_cap'] ) ) {
+			$this->grant_admin_capabilities( $fields['slug'] );
+		}
 
 		/**
 		 * Register Taxnonmies if any
 		 *
 		 * @link https://codex.wordpress.org/Function_Reference/register_taxonomy
 		 */
+		// Import tasks are not taxonomy-organized: detach the default tag and category taxonomies.
 		unregister_taxonomy_for_object_type( 'post_tag', 'mlsimport_item' );
 		unregister_taxonomy_for_object_type( 'category', 'mlsimport_item' );
 
@@ -160,16 +191,56 @@ class Mlsimport_Item {
 
 
 	/**
+	 * Grant a post type's primitive capabilities to the administrator role.
+	 *
+	 * Import Tasks use a dedicated capability type so ordinary post
+	 * capabilities (author/editor) never reach them; the caps therefore have
+	 * to be granted explicitly, and only administrators get them. Meta caps
+	 * (edit_post/read_post/delete_post) are skipped — map_meta_cap resolves
+	 * those to the primitives at check time. Idempotent: roles are only
+	 * written when a capability is actually missing.
+	 *
+	 * @param string $slug Registered post type slug.
+	 * @return void
+	 */
+	private function grant_admin_capabilities( $slug ) {
+		$role      = get_role( 'administrator' );
+		$post_type = get_post_type_object( $slug );
+		if ( ! $role || ! $post_type ) {
+			return;
+		}
+
+		$meta_caps = array( 'edit_post', 'read_post', 'delete_post' );
+		foreach ( (array) $post_type->cap as $core_cap => $capability ) {
+			if ( in_array( $core_cap, $meta_caps, true ) || 'read' === $capability ) {
+				continue;
+			}
+			if ( ! $role->has_cap( $capability ) ) {
+				$role->add_cap( $capability );
+			}
+		}
+	}
+
+	/**
 	 * Assign capabilities to users
+	 *
+	 * Grants every capability in the map to each named role so those roles can see and manage
+	 * the custom post type (without this even administrators cannot access it).
 	 *
 	 * @link https://codex.wordpress.org/Function_Reference/register_post_type
 	 * @link https://typerocket.com/ultimate-guide-to-custom-post-types-in-wordpress/
+	 *
+	 * @param array $caps_map Map of WordPress cap key => custom capability string.
+	 * @param array $users    Role slugs (e.g. 'administrator') to receive the capabilities.
+	 * @return void
 	 */
 	public function assign_capabilities( $caps_map, $users ) {
 
+		// Loop over each target role slug.
 		foreach ( $users as $user ) {
 			$user_role = get_role( $user );
 
+			// Add every mapped capability to that role.
 			foreach ( $caps_map as $cap_map_key => $capability ) {
 				$user_role->add_cap( $capability );
 			}
@@ -180,7 +251,13 @@ class Mlsimport_Item {
 
 
 	/**
-	 * Create post types
+	 * Create post types.
+	 *
+	 * Defines the mlsimport_item ("Import Tasks") post type configuration and registers it.
+	 * Typically hooked to 'init'. Built as an array of definitions so more CPTs can be added
+	 * to the loop later.
+	 *
+	 * @return void
 	 */
 	public function create_custom_post_type() {
 
@@ -193,8 +270,10 @@ class Mlsimport_Item {
 		 * @link https://github.com/JoeSz/WordPress-Plugin-Boilerplate-Tutorial/blob/9fb56794bc1f8aebfe04e99b15881db0c4bc61bd/mlsimport/includes/class-mlsimport-post_types.php#L230
 		 */
 
+		// Base slug used in the permalink rewrite structure below.
 		$custom_slug = 'mlsimport';
 
+		// One definition per custom post type; currently just the mlsimport_item task type.
 		$post_types_fields = array(
 			array(
 				'slug'                => 'mlsimport_item',
@@ -213,14 +292,17 @@ class Mlsimport_Item {
 					'ep_mask'    => EP_PERMALINK,
 				),
 				'menu_position'       => 21,
-				'public'              => true,
+				'public'              => false,
 				'publicly_queryable'  => false,
 				'exclude_from_search' => true,
 				'show_ui'             => true,
 				'show_in_menu'        => true,
 				'query_var'           => true,
 				'show_in_admin_bar'   => true,
-				'show_in_nav_menus'   => true,
+				'show_in_nav_menus'   => false,
+				// Admin-only boundary: dedicated caps, granted solely to administrators.
+				'capability_type'     => array( 'mlsimport_item', 'mlsimport_items' ),
+				'map_meta_cap'        => true,
 				'supports'            => array(
 					'title',
 
@@ -235,6 +317,7 @@ class Mlsimport_Item {
 		);
 
 		// loop torugh custom post type array and register
+		// Register each defined post type in turn.
 		foreach ( $post_types_fields as $fields ) {
 			$this->register_single_post_type( $fields );
 		}

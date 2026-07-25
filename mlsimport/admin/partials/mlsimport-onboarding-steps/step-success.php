@@ -2,6 +2,15 @@
 /**
  * Template for the Success step of the MLSImport onboarding wizard
  *
+ * Final step, shown after setup completes. Summarizes the created import
+ * (configuration name, number of properties imported, whether auto-updates
+ * are on) and presents quick links, recommended next steps, and resource
+ * links. A display template with no AJAX action of its own; included by
+ * mlsimport_render_onboarding_step().
+ *
+ * NOTE: comments here live only inside PHP regions; inline HTML/CSS below is
+ * left uncommented because it is emitted verbatim to the page.
+ *
  * @link       https://mlsimport.com/
  * @since      6.1.0
  *
@@ -14,23 +23,29 @@ if (!defined('WPINC')) {
     die;
 }
 
+// Load the import id saved by the earlier onboarding steps (0 if none).
 // Get saved data
 $user_data = get_option('mlsimport_onboarding_user_data', array());
 $import_id = isset($user_data['import_id']) ? $user_data['import_id'] : 0;
 
+// Defaults for the import summary block, overridden below when an id exists.
 // Get import details if available
 $import_title = '';
 $property_count = 0;
 $auto_update = false;
 
+// Only resolve import details when an import was actually created.
 if ($import_id) {
+    // Title of the import task post and its auto-update (cron) flag.
     $import_title = get_the_title($import_id);
     $auto_update = get_post_meta($import_id, 'mlsimport_item_stat_cron', true);
     
     // Count imported properties
+    // Resolve the theme's property post type via the environment adapter.
     global $mlsimport;
     $post_type = $mlsimport->admin->env_data->get_property_post_type();
-    
+
+    // Query every property stamped with this import id in its inserted meta.
     $args = array(
         'post_type' => $post_type,
         'post_status' => 'any',
@@ -43,16 +58,19 @@ if ($import_id) {
             ),
         ),
     );
-    
+
+    // Run the query and read the total matched count for the summary.
     $query = new WP_Query($args);
     $property_count = $query->found_posts;
     wp_reset_postdata();
 }
 
+// Read the active theme name to tailor copy to the detected theme.
 // Get the current theme
 $current_theme = wp_get_theme();
 $theme_name = $current_theme->get('Name');
 
+// Map of supported theme slugs to human-facing labels.
 // Detect supported theme
 $supported_themes = array(
     'WpResidence' => 'WP Residence',
@@ -61,14 +79,17 @@ $supported_themes = array(
     'Wpestate' => 'WP Estate',
 );
 
+// Default label, replaced when the active theme matches a supported one.
 $detected_theme = 'your theme';
 foreach ($supported_themes as $theme_key => $theme_label) {
+    // Exact case-insensitive match OR the slug appearing as a substring.
     if (strtolower($theme_name) === strtolower($theme_key) || strpos(strtolower($theme_name), strtolower($theme_key)) !== false) {
         $detected_theme = $theme_label;
         break;
     }
 }
 
+// Post-setup shortcut cards: title, description, admin URL, and dashicon.
 // Define quick links
 $quick_links = array(
     array(
@@ -97,6 +118,7 @@ $quick_links = array(
     ),
 );
 
+// Recommended follow-up actions, rendered as a numbered list.
 // Define next steps
 $next_steps = array(
     array(
@@ -117,6 +139,7 @@ $next_steps = array(
     ),
 );
 
+// External help links (docs, KB, support, videos) shown at the bottom.
 // Define resources
 $resources = array(
     array(
@@ -162,7 +185,7 @@ $resources = array(
         </div>
     </div>
     
-    <?php if ($import_id && $property_count > 0) : ?>
+    <?php if ($import_id && $property_count > 0) : /* summary only when an import exists AND imported at least one property */ ?>
         <div class="mlsimport-import-summary">
             <h3><?php _e('Import Summary', 'mlsimport'); ?></h3>
             <div class="mlsimport-summary-grid">
@@ -176,7 +199,7 @@ $resources = array(
                 </div>
                 <div class="mlsimport-summary-item">
                     <div class="mlsimport-summary-value">
-                        <?php echo $auto_update ? esc_html__('Enabled', 'mlsimport') : esc_html__('Disabled', 'mlsimport'); ?>
+                        <?php /* auto-update label reflects the cron flag */ echo $auto_update ? esc_html__('Enabled', 'mlsimport') : esc_html__('Disabled', 'mlsimport'); ?>
                     </div>
                     <div class="mlsimport-summary-label"><?php _e('Auto Updates', 'mlsimport'); ?></div>
                 </div>
@@ -187,7 +210,7 @@ $resources = array(
     <div class="mlsimport-quick-links">
         <h3><?php _e('Quick Links', 'mlsimport'); ?></h3>
         <div class="mlsimport-links-grid">
-            <?php foreach ($quick_links as $link) : ?>
+            <?php /* render each quick-link card */ foreach ($quick_links as $link) : ?>
                 <a href="<?php echo esc_url($link['url']); ?>" class="mlsimport-quick-link">
                     <div class="mlsimport-quick-link-icon">
                         <span class="dashicons <?php echo esc_attr($link['icon']); ?>"></span>
@@ -204,7 +227,7 @@ $resources = array(
     <div class="mlsimport-next-steps">
         <h3><?php _e('Recommended Next Steps', 'mlsimport'); ?></h3>
         <div class="mlsimport-steps-list">
-            <?php foreach ($next_steps as $index => $step) : ?>
+            <?php /* render each recommended next step, numbered from 1 */ foreach ($next_steps as $index => $step) : ?>
                 <div class="mlsimport-next-step">
                     <div class="mlsimport-step-number"><?php echo esc_html($index + 1); ?></div>
                     <div class="mlsimport-step-content">

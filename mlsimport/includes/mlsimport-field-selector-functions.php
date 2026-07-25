@@ -135,6 +135,7 @@ function mlsimport_sort_all_fields_by_order(array $options): array {
 
     asort($options['field_order']); // Sort field_order by index
 
+    // Every parallel field array reordered the same way, keyed by field name.
     $targets = [
         'mls-fields',
         'mls-fields-admin',
@@ -149,6 +150,7 @@ function mlsimport_sort_all_fields_by_order(array $options): array {
         if (!empty($options[$target]) && is_array($options[$target])) {
             $ordered = [];
 
+            // First pass: emit values in field_order sequence.
             foreach ($options['field_order'] as $field_key => $index) {
                 if (isset($options[$target][$field_key])) {
                     $ordered[$field_key] = $options[$target][$field_key];
@@ -472,6 +474,7 @@ function calculate_mls_fields_stats(  $options ) {
  */
 
  function render_mls_field_stats( $stats ) {
+    // Counts list: total field count and how many are marked for import.
     echo '<div class="mlsimport-field-stats">';
     echo '<ul>';
     echo '<li>' . esc_html( sprintf( __( '%d fields total', 'mlsimport' ), $stats['total_fields'] ) ) . '</li>';
@@ -479,6 +482,7 @@ function calculate_mls_fields_stats(  $options ) {
   
     echo '</ul>';
 
+    // Bulk select-all / select-none buttons for the import and hidden-from-public columns.
     echo '<div class="mlsimport-button-action-wrapper">';
     echo '<button id="mlsimport-select-all-import" class="button mlsimport_button">' . esc_html__( 'Import - Select All', 'mlsimport' ) . '</button>';
     echo '<button id="mlsimport-select-none-import" class="button mlsimport_button">' . esc_html__( 'Import - Select None', 'mlsimport' ) . '</button>';
@@ -545,6 +549,9 @@ function render_mls_field_filters( $params ) {
  * @return   void
  */
 function render_mls_field_table_header() {
+    // One header cell per column rendered by render_mls_field_table_row():
+    // field name, import toggle, front-end label, hidden-from-public toggle,
+    // post-meta mapping, category/taxonomy mapping, and the move actions.
     echo '<thead>';
     echo '<tr>';
     echo '<th>' . esc_html__( 'Field', 'mlsimport' ) . '</th>';

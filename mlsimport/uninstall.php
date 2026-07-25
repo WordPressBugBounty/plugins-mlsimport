@@ -26,6 +26,10 @@
  */
 
 // If uninstall not called from WordPress, then exit.
+// Guard: WordPress only defines WP_UNINSTALL_PLUGIN when running the uninstall hook,
+// so any direct request to this file bails out here before any code runs.
 if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
 	exit;
 }
+// NOTE: past the guard the file currently performs no cleanup — the boilerplate skeleton
+// only guards its entry point; no options/CPT/meta removal is implemented here.

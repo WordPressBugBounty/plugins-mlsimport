@@ -23,6 +23,7 @@ class Mlsimport_Activity_List_Table extends WP_List_Table {
 	 * Sets up column definitions and table args.
 	 */
 	public function __construct() {
+		// Pass singular/plural labels to WP_List_Table; ajax disabled (full page reload per action).
 		parent::__construct(
 			array(
 				'singular' => __( 'activity record', 'mlsimport' ),
@@ -39,13 +40,15 @@ class Mlsimport_Activity_List_Table extends WP_List_Table {
 	 */
 	public function get_columns(): array {
 		return array(
-			'created_at'  => __( 'Date', 'mlsimport' ),
-			'action'      => __( 'Action', 'mlsimport' ),
-			'listing'     => __( 'Listing', 'mlsimport' ),
-			'listing_id'  => __( 'Listing ID', 'mlsimport' ),
-			'listing_key' => __( 'ListingKey', 'mlsimport' ),
-			'import_item' => __( 'Import Task', 'mlsimport' ),
-			'source'      => __( 'Source', 'mlsimport' ),
+			'created_at'     => __( 'Date', 'mlsimport' ),
+			'action'         => __( 'Action', 'mlsimport' ),
+			'listing'        => __( 'Listing', 'mlsimport' ),
+			'listing_mls_id' => __( 'MLS #', 'mlsimport' ),
+			'listing_status' => __( 'Status', 'mlsimport' ),
+			'listing_id'     => __( 'Listing ID', 'mlsimport' ),
+			'listing_key'    => __( 'ListingKey', 'mlsimport' ),
+			'import_item'    => __( 'Import Task', 'mlsimport' ),
+			'source'         => __( 'Source', 'mlsimport' ),
 		);
 	}
 
@@ -71,14 +74,18 @@ class Mlsimport_Activity_List_Table extends WP_List_Table {
 	 * @return string CSS class string.
 	 */
 	public static function action_badge_class( string $action ): string {
+		// Normalize casing/whitespace so 'Added', ' added ' etc. all match the known set.
 		$normalized = strtolower( trim( $action ) );
 
+		// Recognised action values that get a modifier CSS class.
 		$known = array( 'added', 'edited', 'deleted' );
 
+		// Known action: append the BEM-style modifier for per-action color.
 		if ( in_array( $normalized, $known, true ) ) {
 			return 'mlsimport-activity-action mlsimport-activity-action--' . $normalized;
 		}
 
+		// Unknown action: base badge class only.
 		return 'mlsimport-activity-action';
 	}
 
@@ -103,6 +110,7 @@ class Mlsimport_Activity_List_Table extends WP_List_Table {
 			 ORDER BY import_item_title ASC"
 		);
 
+		// Build id => title map from the distinct rows.
 		$options = array();
 		if ( ! empty( $rows ) ) {
 			foreach ( $rows as $row ) {
@@ -173,10 +181,10 @@ class Mlsimport_Activity_List_Table extends WP_List_Table {
 			$where .= $wpdb->prepare( ' AND import_item_id = %d', $filter_item );
 		}
 
-		// Match the search term against either the numeric Listing ID or the ListingKey.
+		// Match the search term against the MLS #, the ListingKey, or the numeric Listing ID.
 		if ( '' !== $filter_search ) {
 			$like   = '%' . $wpdb->esc_like( $filter_search ) . '%';
-			$where .= $wpdb->prepare( ' AND ( listing_key LIKE %s OR CAST(listing_id AS CHAR) LIKE %s )', $like, $like );
+			$where .= $wpdb->prepare( ' AND ( listing_mls_id LIKE %s OR listing_key LIKE %s OR CAST(listing_id AS CHAR) LIKE %s )', $like, $like, $like );
 		}
 
 		// --- Count total items for pagination ---
@@ -187,6 +195,7 @@ class Mlsimport_Activity_List_Table extends WP_List_Table {
 		$per_page = 50;
 		$current_page = $this->get_pagenum();
 
+		// Register pagination metadata so WP_List_Table renders the pager.
 		$this->set_pagination_args(
 			array(
 				'total_items' => $total_items,
@@ -195,6 +204,7 @@ class Mlsimport_Activity_List_Table extends WP_List_Table {
 			)
 		);
 
+		// Row offset for the current page's LIMIT clause.
 		$offset = ( $current_page - 1 ) * $per_page;
 
 		// --- Fetch items ---
@@ -209,6 +219,7 @@ class Mlsimport_Activity_List_Table extends WP_List_Table {
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 		$items = $wpdb->get_results( $sql, ARRAY_A );
 
+		// Feed rows to WP_List_Table (empty array when no results).
 		$this->items = $items ? $items : array();
 
 		// Set column headers.

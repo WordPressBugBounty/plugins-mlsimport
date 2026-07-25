@@ -20,7 +20,9 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @return bool
  */
 function mlsimport_is_proptx_provider( $mls_id ) {
+	// Coerce to int so numeric strings ("9001") compare by value.
 	$mls_id_int = (int) $mls_id;
+	// True only inside the 9000..9999 PropTx block (upper bound exclusive).
 	return $mls_id_int >= 9000 && $mls_id_int < 10000;
 }
 
@@ -37,10 +39,12 @@ function mlsimport_is_proptx_provider( $mls_id ) {
  * @return string
  */
 function mlsimport_format_odata_modification_time( $last_date ) {
+	// Empty marker passes through unchanged ("no incremental marker").
 	if ( '' === $last_date ) {
 		return '';
 	}
 
+	// Parse the stored value as UTC, then re-emit as a full DateTimeOffset (Z) literal.
 	$date_time = new DateTime( $last_date, new DateTimeZone( 'UTC' ) );
 	return $date_time->format( 'Y-m-d\TH:i:s.000\Z' );
 }

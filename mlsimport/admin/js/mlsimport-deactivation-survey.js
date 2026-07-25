@@ -9,19 +9,23 @@
 ( function ( $ ) {
 	'use strict';
 
+	// Server-provided config: plugin basename, options, i18n strings, ajax url, nonce.
 	var cfg = window.mlsimport_deact_survey || {};
 
 	$( function () {
 
 		// The Deactivate link inside the MLS Import plugin's row.
 		var $link = $( 'tr[data-plugin="' + cfg.plugin_basename + '"] span.deactivate a' );
+		// If the plugin's row/link isn't on this page, there's nothing to intercept.
 		if ( ! $link.length ) {
 			return;
 		}
 
+		// Holds the original deactivation URL captured when the link is clicked.
 		var deactivateUrl = '';
 
 		// --- build the modal once ------------------------------------------
+		// Build one radio option per configured reason.
 		var optionsHtml = '';
 		$.each( cfg.options || {}, function ( value, label ) {
 			optionsHtml +=
@@ -31,6 +35,7 @@
 				'</label>';
 		} );
 
+		// Assemble the (initially hidden) survey modal markup.
 		var $modal = $(
 			'<div id="mlsimport-exit-survey-modal" class="mlsimport-es-hidden">' +
 				'<div class="mlsimport-es-backdrop"></div>' +
@@ -51,10 +56,12 @@
 		);
 		$( 'body' ).append( $modal );
 
+		// Cache the Submit button and the free-text "other" field.
 		var $submit = $modal.find( '.mlsimport-es-submit' );
 		var $other  = $modal.find( '.mlsimport-es-other' );
 
 		// --- intercept the Deactivate click --------------------------------
+		// Prevent the immediate navigation, remember its URL, and open the modal.
 		$link.on( 'click', function ( e ) {
 			e.preventDefault();
 			deactivateUrl = $( this ).attr( 'href' );
@@ -67,6 +74,9 @@
 			$other.toggleClass( 'mlsimport-es-hidden', this.value !== 'other' );
 		} );
 
+		/**
+		 * Navigate to the original deactivation URL, completing the deactivation.
+		 */
 		function goDeactivate() {
 			if ( deactivateUrl ) {
 				window.location.href = deactivateUrl;
@@ -75,6 +85,7 @@
 
 		// Submit: send the answer, then deactivate regardless of the result.
 		$submit.on( 'click', function () {
+			// Disable to prevent double submits, then POST the chosen reason + details.
 			$submit.prop( 'disabled', true );
 			$.post( cfg.ajax_url, {
 				action:   'mlsimport_exit_survey_submit',

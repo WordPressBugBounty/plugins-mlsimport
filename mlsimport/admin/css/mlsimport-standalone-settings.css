@@ -1,0 +1,238 @@
+/**
+ * MLS Import Design Settings — two-level vertical menu layout.
+ *
+ * Left rail lists every screen: top-level items, and — for a section that has
+ * subtabs (e.g. Property Page) — its subtabs indented directly underneath it.
+ * The right panel shows only the selected screen's fields.
+ */
+
+/* Two-pane shell: left rail + right panel side by side, equal height. */
+.mlsimport-settings-tabs {
+	display: flex;
+	align-items: stretch;
+	gap: 0;
+}
+
+/* Left rail — fixed 210px column holding the stacked menu items. */
+.mlsimport-settings-tabs__menu {
+	flex: 0 0 210px;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	border-right: 1px solid #e0e0e0;
+	padding-right: 8px;
+}
+
+.mlsimport-settings-tabs__group {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+/* Base menu button (shared by top-level items, parents and subtabs). */
+.mlsimport-settings-tabs__item {
+	display: block;
+	width: 100%;
+	box-sizing: border-box;
+	padding: 8px 12px;
+	background: none;
+	border: none;
+	border-radius: 4px;
+	text-align: left;
+	font-size: 13px;
+	color: #1e1e1e;
+	cursor: pointer;
+}
+
+.mlsimport-settings-tabs__item:hover {
+	background: #f0f0f0;
+}
+
+.mlsimport-settings-tabs__item:focus-visible {
+	outline: 2px solid #3858e9;
+	outline-offset: -2px;
+}
+
+.mlsimport-settings-tabs__item.is-active {
+	background: #f0f6fc;
+	font-weight: 600;
+}
+
+/* Section header for a group of subtabs — reads as the parent of the items below. */
+.mlsimport-settings-tabs__item.is-parent {
+	color: #50575e;
+	font-weight: 600;
+}
+
+/* Subtab: indented under its parent, with a rail marking the nesting. */
+.mlsimport-settings-tabs__item.is-child {
+	margin-left: 12px;
+	width: calc( 100% - 12px );
+	padding-left: 14px;
+	border-left: 2px solid #e0e0e0;
+	border-radius: 0 4px 4px 0;
+}
+
+.mlsimport-settings-tabs__item.is-child.is-active {
+	border-left-color: #3858e9;
+}
+
+/* Right panel — fills remaining width and renders the active screen's fields. */
+.mlsimport-settings-tabs__panel {
+	flex: 1 1 auto;
+	min-width: 0;
+	padding: 8px 4px 4px 20px;
+	min-height: 320px;
+}
+
+/* Section title (e.g. "Social & Contact") — space it off from the fields below. */
+#mlsimport-standalone-app .mlsimport-settings-tabs__panel > .components-heading {
+	margin-bottom: 15px;
+}
+
+/* WP component input labels (TextControl, SelectControl, …) default to ALL-CAPS.
+   Render them in normal sentence case to match the field text and the button-group
+   headings (e.g. "Cards per row"), so no label shouts. */
+#mlsimport-standalone-app .components-base-control__label,
+#mlsimport-standalone-app .components-input-control__label {
+	text-transform: none;
+	letter-spacing: normal;
+}
+
+/* ===========================================================================
+   Match the shared wp-admin "2025" look (the field_options tab on
+   admin.php?page=mlsimport_plugin_options). This React page is built from
+   @wordpress/components, whose default chrome differs from the plugin's own
+   settings screens. The rules below re-skin those components — inputs, labels,
+   help text and buttons — to the SAME tokens defined in mlsimport-admin.css
+   (.mlsimport-2025-input, .mlsimport-label, .button.mlsimport_button), so both
+   surfaces read as one design system. Scoped to #mlsimport-standalone-app; the
+   #id selector out-specifies wp-components without needing !important.
+   =========================================================================== */
+
+/* Text / number / email / textarea / select — bordered, rounded, soft shadow,
+   mirroring input.mlsimport-2025-input and select.mlsimport-2025-select. */
+#mlsimport-standalone-app .components-text-control__input,
+#mlsimport-standalone-app .components-textarea-control__input,
+#mlsimport-standalone-app .components-select-control__input {
+	padding: 6px 12px;
+	min-height: 36px;
+	box-sizing: border-box;
+	background: #ffffff;
+	color: #111827;
+	border: 1px solid #dcdfe4;
+	border-radius: 8px;
+	box-shadow: 0px 1px 2px rgba( 0, 0, 0, 0.08 );
+}
+
+#mlsimport-standalone-app .components-textarea-control__input {
+	min-height: 0;
+}
+
+/* SelectControl is special: unlike TextControl (a plain <input> that carries its
+   own border), WP's SelectControl draws the *visible* border on a separate
+   overlay element, .components-input-control__backdrop — a 1px solid #949494 box
+   that sits on top of the <select>. So the border rules above only recolored the
+   hidden inner <select> border; the backdrop kept painting the darker WP default
+   over it. Style the backdrop itself to the 2025 token (light #dcdfe4, 8px
+   radius) so the select border matches the text inputs and the field_options
+   selects. The soft drop shadow lives on the inner <select>, re-asserted with
+   !important because the SelectControl emotion class forces box-shadow: none. */
+#mlsimport-standalone-app .components-input-control__backdrop {
+	border-color: #dcdfe4 !important;
+	border-radius: 8px !important;
+}
+
+#mlsimport-standalone-app .components-select-control__input {
+	box-shadow: 0px 1px 2px rgba( 0, 0, 0, 0.08 ) !important;
+}
+
+/* Focus: brand-indigo ring, consistent across every field. */
+#mlsimport-standalone-app .components-text-control__input:focus,
+#mlsimport-standalone-app .components-textarea-control__input:focus,
+#mlsimport-standalone-app .components-select-control__input:focus {
+	border-color: #635bff;
+	box-shadow: 0 0 0 1px #635bff;
+	outline: none;
+}
+
+/* Field labels — block, 14px, medium weight, dark text (matches .mlsimport-label
+   on the field_options tab). Covers BOTH label classes: TextControl/TextareaControl
+   use .components-base-control__label, while SelectControl renders its label as an
+   InputControl label (.components-input-control__label). WP components render both at
+   11px by default — smaller than the 12px help text, which reads as broken — so the
+   font-size is forced up with !important to beat the emotion-hashed default. */
+#mlsimport-standalone-app .components-base-control__label,
+#mlsimport-standalone-app .components-input-control__label {
+	display: block;
+	margin-bottom: 4px;
+	font-size: 14px !important;
+	font-weight: 500;
+	color: #111827;
+}
+
+/* Help / explanation text under a field — muted (matches .mls_explanations). */
+#mlsimport-standalone-app .components-base-control__help {
+	color: #6b7280;
+	font-size: 12px;
+}
+
+/* --- Buttons ---------------------------------------------------------------
+   Primary buttons take the indigo gradient of .button.mlsimport_button; the
+   bottom "Save changes" button (tagged .mlsimport-save-button) takes the green
+   save gradient (.button.mlsimport_button.save_data), exactly like the Save
+   Changes button on the field_options tab. Secondary/tertiary buttons become a
+   neutral bordered control on the same 8px-radius token. */
+#mlsimport-standalone-app .components-button.is-primary {
+	height: auto;
+	padding: 7px 30px;
+	color: #ffffff;
+	background: linear-gradient( 180deg, #635bff 0%, #4e36f5 100% );
+	border: 1px solid #15b79f;
+	border-radius: 8px;
+	box-shadow: rgba( 0, 0, 0, 0.08 ) 0px 1px 2px 0px, rgb( 78, 54, 245 ) 0px 0px 0px 1px inset, rgba( 255, 255, 255, 0.16 ) 0px 2px 0px 0px inset;
+}
+
+#mlsimport-standalone-app .components-button.is-primary:hover:not( :disabled ),
+#mlsimport-standalone-app .components-button.is-primary:focus:not( :disabled ) {
+	color: #ffffff;
+	background: linear-gradient( 180deg, #635bff 0%, #4e36f5 100% );
+	border: 1px solid #15b79f;
+	box-shadow: 0px 3px 14px rgba( 0, 0, 0, 0.08 ), inset 0px 0px 0px 1px #4e36f5, inset 0px 2px 0px 0px rgba( 255, 255, 255, 0.16 ), inset 0px 6px 10px 0px rgba( 255, 255, 255, 0.10 );
+}
+
+/* Save changes — green save gradient, and the taller 2025 button height
+   (57px, matching the field_options Save button). Only this button is tall;
+   the inline option-picker buttons stay at their default compact height. */
+#mlsimport-standalone-app .components-button.is-primary.mlsimport-save-button {
+	min-height: 57px;
+	background: linear-gradient( 180deg, #10b981 0%, #0c8a61 100% );
+	border: 1px solid #10b981;
+	box-shadow: rgba( 0, 0, 0, 0.08 ) 0px 1px 2px 0px, #10b981 0px 0px 0px 1px inset, rgba( 255, 255, 255, 0.16 ) 0px 2px 0px 0px inset;
+}
+
+#mlsimport-standalone-app .components-button.is-primary.mlsimport-save-button:hover:not( :disabled ),
+#mlsimport-standalone-app .components-button.is-primary.mlsimport-save-button:focus:not( :disabled ) {
+	background: linear-gradient( 180deg, #10b981 0%, #0c8a61 100% );
+	border: 1px solid #10b981;
+	box-shadow: 0px 3px 14px rgba( 0, 0, 0, 0.08 ), inset 0px 0px 0px 1px #10b981, inset 0px 2px 0px 0px rgba( 255, 255, 255, 0.16 ), inset 0px 6px 10px 0px rgba( 255, 255, 255, 0.10 );
+}
+
+/* Secondary / tertiary — white bordered button on the same rounded token. */
+#mlsimport-standalone-app .components-button.is-secondary,
+#mlsimport-standalone-app .components-button.is-tertiary {
+	height: auto;
+	padding: 7px 18px;
+	background: #ffffff;
+	color: #1e1e1e;
+	border: 1px solid #dcdfe4;
+	border-radius: 8px;
+	box-shadow: 0px 1px 2px rgba( 0, 0, 0, 0.08 );
+}
+
+#mlsimport-standalone-app .components-button.is-secondary:hover:not( :disabled ),
+#mlsimport-standalone-app .components-button.is-tertiary:hover:not( :disabled ) {
+	background: #f6f7f7;
+	color: #1e1e1e;
+	border-color: #c3c4c7;
+}

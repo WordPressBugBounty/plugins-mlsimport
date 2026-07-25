@@ -5,12 +5,17 @@
  * - Initial chunked save if no data exists
  * - Field-by-field saving on change
  * - Optimized ordering save
+ *
+ * Runs only on the field-mapping surfaces (the plugin Field Options tab and the
+ * onboarding field-mapping step). Fields save one AJAX call at a time through a
+ * serial queue so a large field catalog never fires hundreds of concurrent
+ * requests; failed saves retry with exponential backoff.
  */
 
 (function($) {
     'use strict';
     
-    // Configuration
+    // Tunables for chunking, debounce and retry behaviour.
     const CONFIG = {
         chunkSize: 50,          // Fields per chunk for bulk operations
         saveDelay: 500,         // Milliseconds to wait before saving after change (debounce)

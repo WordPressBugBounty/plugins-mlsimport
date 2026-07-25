@@ -1,8 +1,21 @@
 <?php
+/**
+ * Admin partial: "Import History" screen.
+ *
+ * Renders the import-activity log (last 30 days) via the
+ * Mlsimport_Activity_List_Table WP_List_Table, with search + action + import-task
+ * filters read from the query string. Administrator-only.
+ *
+ * @package    mlsimport
+ * @subpackage mlsimport/admin/partials
+ */
+
+// Block direct access outside of WordPress.
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+// Restrict this screen to administrators.
 if ( ! current_user_can( 'administrator' ) ) {
 	wp_die( esc_html__( 'You do not have permission to view this page.', 'mlsimport' ) );
 }
@@ -27,9 +40,11 @@ $filter_search = isset( $_GET['mlsimport_s'] ) // phpcs:ignore WordPress.Securit
 	? trim( sanitize_text_field( wp_unslash( $_GET['mlsimport_s'] ) ) ) // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 	: '';
 
+// Build the list table and populate it (applies the filters read above).
 $list_table = new Mlsimport_Activity_List_Table();
 $list_table->prepare_items();
 
+// Import-task options for the "Import Task" filter dropdown.
 $import_task_options = $list_table->get_import_task_options();
 ?>
 <div class="wrap">
@@ -40,7 +55,7 @@ $import_task_options = $list_table->get_import_task_options();
 		<input type="hidden" name="page" value="mlsimport_history">
 
 		<label for="mlsimport-search"><?php echo esc_html__( 'Search:', 'mlsimport' ); ?></label>
-		<input type="search" id="mlsimport-search" name="mlsimport_s" value="<?php echo esc_attr( $filter_search ); ?>" placeholder="<?php echo esc_attr__( 'Listing ID or ListingKey', 'mlsimport' ); ?>">
+		<input type="search" id="mlsimport-search" name="mlsimport_s" value="<?php echo esc_attr( $filter_search ); ?>" placeholder="<?php echo esc_attr__( 'MLS #, Listing ID or ListingKey', 'mlsimport' ); ?>">
 
 		<label for="mlsimport-action-filter"><?php echo esc_html__( 'Action:', 'mlsimport' ); ?></label>
 		<select id="mlsimport-action-filter" name="mlsimport_action">

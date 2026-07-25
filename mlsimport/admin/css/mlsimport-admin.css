@@ -1,5 +1,20 @@
 
+/*
+ * mlsimport-admin.css
+ * ---------------------------------------------------------------------------
+ * Main admin stylesheet for the MLSImport plugin. Styles the wp-admin screens:
+ * the import-task metaboxes, plugin settings/tools UI, field-mapping fieldsets,
+ * progress bars and log viewer, the 2025 card/tab layout, custom form controls
+ * (switches, styled checkboxes, gradient buttons), the deactivation exit-survey
+ * modal, and the activity-log / import-history banners.
+ * Also carries a few per-theme admin tweaks (WpResidence, WpEstate, Houzez,
+ * Real Homes) grouped under their own section headers below.
+ * CSS custom properties (design tokens) live in the :root block.
+ */
+
 /* Base styling */
+/* Design tokens: brand colours, status colours, text/border/background
+   palette, shadows, radius and transition speed reused throughout. */
 :root {
     --primary-color: #4F46E5;
     --primary-hover: #4338CA;
@@ -23,6 +38,7 @@
 
 /*Real Homes admin adjusments*/
 
+/* Constrain the thumbnail column image on the Real Homes property list table. */
 .post-type-property  .column-property-thumbnail img{
 	width: 130px;
 	height: auto;
@@ -38,6 +54,7 @@
 
 
 
+/* Field-mapping row title. */
 .mlsfield_import_title {
     margin: 0px 0px 10px 0px;
     font-size: 15px;
@@ -58,6 +75,7 @@
 	max-width: 600px;
 }
 
+/* Form field label (note: overridden later by the 2025 .mlsimport-label rule). */
 .mlsimport-label{
 	font-weight: 600;
 	display: inline-block;
@@ -67,6 +85,7 @@
 	font-size: 14px;
 }
 
+/* Helper / explanation text under fields. */
 .mls_explanations{
 	line-height: 1.6em;
 }
@@ -114,6 +133,7 @@ input.mlsimport_select_import_admin_all{
 
 
 
+/* Styled dropdown used in field mapping/settings: bordered, rounded, subtle shadow. */
 .wp-admin select.mlsimport-select{
     max-width: 450px;
     padding: 5px 12px;
@@ -133,6 +153,7 @@ input.mlsimport_select_import_admin_all{
 	padding: 3px 0px;
 }
 
+/* Grey rounded panel wrapping a group of import parameters. */
 .mlsimport_param_wrapper{
 	background-color: #f5f5f5;
 	padding:20px;
@@ -147,6 +168,8 @@ input.mlsimport_select_import_admin_all{
 }
 
 
+/* Field-mapping layout: each item is a vertical column; wrapper lays items in a
+   horizontal flex row with spacing. */
 .mlsimport-fieldset-item{
 	display: flex;
     flex-direction: column;
@@ -166,6 +189,7 @@ input.mlsimport_select_import_admin_all{
 	margin: 0px;
 }
 
+/* Zebra-stripe alternating fieldsets in the mandatory-fields list. */
 .mandatory_fields_wrapper .mlsimport-fieldset:nth-child(even){
 	background-color: #f7f7f7;
 }
@@ -175,6 +199,7 @@ input.mlsimport_select_import_admin_all{
 	padding: 10px;
 }
 
+/* "Select all" pill button (pink); darker on hover. */
 .mls_import_selec_all_class {
 	background-color: #cc3459;
 	color: #fff;
@@ -191,12 +216,16 @@ input.mlsimport_select_import_admin_all{
 	background-color: #a31034;
 }
 
+/* ===== Import progress bar + transfer controls + live log ===== */
+
+/* Outer progress wrapper (this selector is declared again below). */
 #mlsimport_myProgress_wrapper{
 	width:800px;
 	margin-top: 10px;
 /*    display:none;*/
 }
 
+/* "Stop transfer" button (red); note a later rule overrides display to none. */
 #mlsimport_transfer_stop{
 	padding: 7px;
 	background: #af3737;
@@ -206,6 +235,7 @@ input.mlsimport_select_import_admin_all{
 	cursor: pointer;
 }
 
+/* Progress fill bar — width is animated from 0% via JS as items import. */
 #mlsimport_myBar{
 	width: 0%;
 	height: 20px;
@@ -218,14 +248,17 @@ input.mlsimport_select_import_admin_all{
 /*    display:none;*/
 }
 
+/* Track background for the "monster" (full-width) progress bar. */
 #mlsimport_monster_myProgress {
 	width: 100%;
 	background-color: #cbc8c8;
 }
+/* Hide the stop button by default (JS shows it while a transfer runs). */
 #mlsimport_transfer_stop{
 	display: none;
 }
 
+/* Scrollable live import log panel. */
 #log_container{
 	width: 750px;
 	background: #f1f1f1;
@@ -280,6 +313,8 @@ input.mlsimport_select_import_admin_all{
 
 
 /*==WpResidence*/
+/* Cap uploaded property thumbnail preview size (selector name is misspelled
+   "thumb_wrapepr" to match the markup). */
 #property_uploaded_thumb_wrapepr img{
 	max-width: 200px;
 	max-height: 200px;
@@ -288,6 +323,8 @@ input.mlsimport_select_import_admin_all{
 table.media .column-title .media-icon img {
 	width:60px;
 }
+/* Admin message banners (notification / validated / warning). Base is a pink
+   box; individual variants below re-colour it. */
 .mlsimport_notification,
 .mlsimport_validated,
 .mlsimport_warning{
@@ -299,6 +336,7 @@ table.media .column-title .media-icon img {
 }
 
 
+/* Indigo "populate" info banner. */
 .mlsimport_populate_warning{
 	background: #4f46e5;
 	color: #fff;
@@ -308,6 +346,7 @@ table.media .column-title .media-icon img {
 }
 
 
+/* "Validated" variant: amber-tinted background with a warning left border. */
 .mlsimport_validated{
 	padding: 0.75rem 1rem;
     margin-bottom: 1rem;
@@ -329,6 +368,7 @@ table.media .column-title .media-icon img {
 }
 
 
+/* Scrollable status/output box inside the import-task metabox. */
 #mlsimport_item_status{
 	width: auto;
 	background-color: #f5f5f5;
@@ -339,6 +379,9 @@ table.media .column-title .media-icon img {
 }
 
 
+/* ===== iOS-style on/off toggle switch =====
+   Absolutely positioned track; the real checkbox is hidden and a .slider
+   pseudo-element renders the knob, translated on :checked. */
 label.mlsimport_switch {
 	position: absolute;
 	display: inline-block;
@@ -378,6 +421,7 @@ label.mlsimport_switch {
 	transition: .4s;
 }
 
+/* Checked state: blue track, and the knob slides right (translateX below). */
 .mlsimport_switch  input:checked + .slider {
 	background-color: #2196F3;
 }
@@ -395,6 +439,7 @@ label.mlsimport_switch {
 
 
 
+/* Rounded (pill) variant of the toggle track and knob. */
 .slider.round {
 	border-radius: 25px;
 }
@@ -411,6 +456,8 @@ label.mlsimport_switch {
 	margin-top: 15px;
 }
 
+/* Provider-specific credential fields hidden by default; JS reveals them when
+   the matching MLS provider (Trestle / ConnectMLS) is selected. */
 .fieldset_mlsimport_tresle_client_id,
 .fieldset_mlsimport_tresle_client_secret{
         display:none;
@@ -437,6 +484,7 @@ label.mlsimport_switch {
 }
 
 
+/* Sign-up / account CTA box shown when no account is connected. */
 .mlsimport_signup{
 	display: inline-block;
 	background-color: #f0f0f1;
@@ -458,6 +506,7 @@ label.mlsimport_switch {
 
 /*==Houzez*/
 
+/* Houzez property list thumbnail column sizing. */
 .column-thumbnail img {
 	max-width: 100%;
 	height: auto;
@@ -470,7 +519,10 @@ label.mlsimport_switch {
 
 
 /*==2025*/
+/* 2025 redesign: tabbed card UI. Tab panels are hidden by default and shown
+   when the active class is applied by the tab JS. */
 
+/* Tab content panel — hidden until activated. */
 .content-nav-tab{
 	display:none;
 	padding: 30px 15px;
@@ -479,6 +531,7 @@ label.mlsimport_switch {
 	border-top: 0px;
 }
 
+/* Active tab panel becomes a visible flex container. */
 .content-nav-tab-active{
 	display: flex;
 }
@@ -488,6 +541,7 @@ label.mlsimport_switch {
 	width: auto;
 }
 
+/* White rounded card with layered shadow (2025 card container). */
 .mlsimport_2025_card{
 	flex-direction: column;
 	align-items: center;
@@ -511,6 +565,7 @@ label.mlsimport_switch {
 }
 
 
+/* Tab strip container (overrides WP core nav-tab-wrapper border). */
 .nav-tab-wrapper.mlsimport-tab-wrapper{
 	border: none;
 	padding: 0px 15px;
@@ -532,6 +587,7 @@ label.mlsimport_switch {
     border: 1px solid #ccc;
 }
 
+/* Active tab: brand indigo background, white text. */
 .nav-tab-wrapper.mlsimport-tab-wrapper .nav-tab.nav-tab-active{
     background-color: #635BFF;
     color: #fff;
@@ -554,6 +610,9 @@ label.mlsimport_switch {
 .mlsimport_2025_card_admin_options:empty{
 	display: none;
 }
+/* ===== Numbered "steps" list =====
+   Uses a CSS counter to render circular numbered badges before each <li>
+   (see ::before rule) instead of native list markers. */
 .mlsimport-steps{
 	font-size: 16px;
     display: flex;
@@ -576,6 +635,7 @@ counter-increment: step-counter;
     line-height: 27px;
 }
 
+/* Circular numbered badge rendered from the CSS counter value. */
 .mlsimport-steps li::before {
     content: counter(step-counter);
     position: absolute;
@@ -594,6 +654,8 @@ counter-increment: step-counter;
 
 
 /*==2025 Inputs*/
+/* Shared styling for text/password/select inputs in the 2025 UI:
+   bordered, rounded, subtle shadow, inline-flex layout. */
 
 input[type=password].mlsimport-input.mlsimport-2025-input,
 input[type=text].mlsimport-input.mlsimport-2025-input,
@@ -614,6 +676,8 @@ input[type=text].mlsimport-input.mlsimport-2025-input,
 	flex-grow: 0;
 	display: inline-flex;
 }
+/* 2025 label override (later in the file, so it wins over the earlier
+   .mlsimport-label float rule for these screens). */
 .mlsimport-label {
     display: block;
     margin-bottom: 0px;
@@ -641,6 +705,7 @@ select.mlsimport-2025-select{
 	
 
 
+/* Default bordered look for fieldset inputs and the import "select all" boxes. */
 .mlsimport-fieldset-wrapper input,
 input[type=checkbox].mlsimport_select_import_admin_all,
 input[type=checkbox].mlsimport_select_import_all {
@@ -650,6 +715,12 @@ input[type=checkbox].mlsimport_select_import_all {
 }
 
 
+/* ===== Gradient action buttons =====
+   Primary (indigo), save_data (green), secondary (dark), warning_action
+   (amber) and error_action (red) share the same gradient + inset-shadow
+   recipe, each with a matching :hover that deepens the shadow. */
+
+/* Primary button: indigo gradient with layered inset highlights. */
 .button.mlsimport_button{
 	font-size: 14px;
 	position: relative;
@@ -675,6 +746,7 @@ input[type=checkbox].mlsimport_select_import_all {
 	box-shadow: 0px 3px 14px rgba(0, 0, 0, 0.08), inset 0px 0px 0px 1px #4e36f5,inset 0px 2px 0px 0px rgba(255, 255, 255, 0.16) , inset 0px 6px 10px 0px rgba(255, 255, 255, 0.10);
 }
 
+/* Save button: green success gradient. */
 .button.save_data {
     background: linear-gradient(180deg, var(--success-color) 0%, #0C8A61 100%);
     border: 1px solid var(--success-color);
@@ -688,6 +760,7 @@ input[type=checkbox].mlsimport_select_import_all {
 }
 
 
+/* Secondary button: dark slate gradient. */
 .button.secondary {
 	background: linear-gradient(180deg, #32383e 0%, #25292e 100%);
 	border: 1px solid #32383e;
@@ -704,6 +777,7 @@ input[type=checkbox].mlsimport_select_import_all {
 
 
 
+ /* Warning button: amber gradient. */
  .button.warning_action {
 	background: linear-gradient(180deg, #fb9c0c 0%, #d0810a 100%);
 	border: 1px solid #fb9c0c;
@@ -717,6 +791,7 @@ input[type=checkbox].mlsimport_select_import_all {
  }
 
 
+ /* Error/danger button: red gradient. */
  .button.error_action {
 	background: linear-gradient(180deg, #bb241a 0%, #9b1e16 100%);
 	border: 1px solid #bb241a;
@@ -743,6 +818,10 @@ input[type=checkbox].mlsimport_select_import_all {
 
 
 
+ /* ===== Custom SVG checkboxes =====
+    Native appearance is removed; a :before pseudo-element paints an inline
+    SVG (unchecked = grey outline, checked = filled indigo box with a tick),
+    both embedded as data: URIs below. */
  input[type=checkbox].mlsimport-import-checkbox,
  input[type=checkbox].mlsimport-admin-checkbox {
 	 appearance: none;
@@ -772,6 +851,7 @@ input[type=checkbox].mlsimport_select_import_all {
 	 margin: 0px;
  }
  
+ /* Checked state swaps in the filled indigo box + white tick SVG. */
  input[type=checkbox].mlsimport-import-checkbox:checked:before,
  input[type=checkbox].mlsimport-admin-checkbox:checked:before {
 	 background-image: url("data:image/svg+xml;utf8,<svg fill='none' height='24' viewBox='0 0 24 24' width='24' xmlns='http://www.w3.org/2000/svg'><rect fill='%23635bff' height='20' rx='6' width='20' x='2' y='2'></rect><path d='M7.55566 11.7222L10.5186 14.7778L16.4446 8.66669' stroke='white' stroke-linecap='round' stroke-linejoin='round' stroke-width='2'></path></svg>");
@@ -780,6 +860,8 @@ input[type=checkbox].mlsimport_select_import_all {
 
 
 /* Initial save progress overlay */
+/* Fixed, viewport-centered modal card (translate(-50%,-50%) trick); high
+   z-index keeps it above the admin UI while the initial save runs. */
 .mlsimport-save-progress {
     position: fixed;
     top: 50%;
@@ -814,6 +896,7 @@ input[type=checkbox].mlsimport_select_import_all {
         overflow: hidden;
 }
 
+/* Animated fill inside the save progress bar (width driven by JS). */
 .mlsimport-save-progress-bar .progress-fill {
         width: 0%;
         height: 100%;
@@ -823,6 +906,8 @@ input[type=checkbox].mlsimport_select_import_all {
 }
 
 /* Deactivation exit survey modal */
+/* Full-screen overlay (inset:0) centering the survey card; very high z-index
+   sits above the plugins-list deactivate flow. .mlsimport-es-hidden toggles it. */
 #mlsimport-exit-survey-modal {
         position: fixed;
         inset: 0;
@@ -834,6 +919,7 @@ input[type=checkbox].mlsimport_select_import_all {
 #mlsimport-exit-survey-modal.mlsimport-es-hidden {
         display: none;
 }
+/* Semi-transparent dim layer behind the survey card. */
 .mlsimport-es-backdrop {
         position: absolute;
         inset: 0;
@@ -856,6 +942,7 @@ input[type=checkbox].mlsimport_select_import_all {
         margin: 0 0 16px;
         color: #555;
 }
+/* Selectable reason row in the exit survey. */
 .mlsimport-es-option {
         display: block;
         padding: 8px 10px;
@@ -949,6 +1036,7 @@ input[type=checkbox].mlsimport_select_import_all {
         font-weight: 700;
 }
 
+/* Per-action tinted stat pills: added (green), edited (amber), deleted (red). */
 .mlsimport-activity-stat--added   { background: #ecfdf5; color: #047857; }
 .mlsimport-activity-stat--edited  { background: #fffbeb; color: #b45309; }
 .mlsimport-activity-stat--deleted { background: #fef2f2; color: #b91c1c; }
@@ -979,6 +1067,8 @@ input[type=checkbox].mlsimport_select_import_all {
         background: #f6f7f7;
 }
 
+/* Per-task name cell: grows to fill, truncates with an ellipsis when long
+   (min-width:0 lets the flex item shrink below its content width). */
 .mlsimport-activity-banner__task {
         flex: 1 1 auto;
         min-width: 0;
@@ -1007,10 +1097,12 @@ input[type=checkbox].mlsimport_select_import_all {
         color: #ffffff;
 }
 
+/* Solid per-action count chips: added/edited/deleted colours. */
 .mlsimport-activity-chip--added   { background: #10B981; }
 .mlsimport-activity-chip--edited  { background: #F59E0B; color: #1a1a1a; }
 .mlsimport-activity-chip--deleted { background: #EF4444; }
 
+/* Muted styling for a zero-count chip. */
 .mlsimport-activity-chip.is-zero {
         background: #f0f0f1;
         color: #8c8f94;
@@ -1099,6 +1191,7 @@ input[type=checkbox].mlsimport_select_import_all {
         white-space: nowrap;
 }
 
+/* Added-action badge (green). */
 .mlsimport-activity-action--added {
         background-color: #10B981;
         color: #ffffff;
@@ -1129,6 +1222,7 @@ input[type=checkbox].mlsimport_select_import_all {
         border-radius: 8px;
         box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.08);
 }
+/* Chip tray showing currently selected City/County values. */
 .mlsimport-selected-chips {
         display: flex;
         flex-wrap: wrap;
@@ -1136,6 +1230,7 @@ input[type=checkbox].mlsimport_select_import_all {
         max-width: 450px;
         margin: 6px 0;
 }
+/* Collapse the tray when nothing is selected. */
 .mlsimport-selected-chips:empty {
         display: none;
 }
@@ -1150,6 +1245,7 @@ input[type=checkbox].mlsimport_select_import_all {
         font-size: 12px;
         line-height: 1.8;
 }
+/* Round "x" remove button inside a selected chip. */
 .mlsimport-chip-remove {
         display: inline-flex;
         align-items: center;

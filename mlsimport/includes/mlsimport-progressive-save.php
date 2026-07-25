@@ -148,6 +148,15 @@ add_action('init', 'mlsimport_register_progressive_save_handlers');
 
 
 
+/**
+ * AJAX handler to save one chunk of the field-selection grid.
+ *
+ * Verifies the 'mlsimport_field_selector_nonce' nonce AND requires the
+ * 'administrator' capability. Merges the posted chunk of fields (import/admin/
+ * label/postmeta/taxonomy flags) into mlsimport_admin_fields_select, assigning
+ * each field an incrementing field_order index, then refreshes the theme's
+ * custom-field registration.
+ */
 function mlsimport_ajax_save_field_chunk() {
     // Check nonce
     if (!isset($_POST['security']) || !wp_verify_nonce($_POST['security'], 'mlsimport_field_selector_nonce')) {
@@ -201,6 +210,8 @@ function mlsimport_ajax_save_field_chunk() {
         $options['mls-fields-map-taxonomy'] = array();
     }
 
+    // Seed the order counter: start at 0 for a new order map, otherwise continue
+    // after the fields already recorded so this chunk appends to the sequence.
     if (!isset($options['field_order'])) {
         $options['field_order'] = array();
         $i = 0;
@@ -211,6 +222,8 @@ function mlsimport_ajax_save_field_chunk() {
 
 
     // Process fields in the chunk
+    // For each posted field, copy whichever sub-values are present into their
+    // parallel arrays, then stamp its position in field_order.
     foreach ($_POST['fields'] as $field_key => $field_data) {
      
         
@@ -407,7 +420,12 @@ function mlsimport_ajax_check_initial_save_needed() {
 }
 
 /**
- * AJAX handler to save an individual field option
+ * AJAX handler to save an individual field option.
+ *
+ * NOTE: this function's name is garbled ('ssswsd2option') and it is never
+ * registered with add_action(), so it is unreachable dead code — an apparent
+ * earlier copy of mlsimport_ajax_save_field_option() below. Unlike that live
+ * handler it verifies the nonce but performs no capability check.
  */
 function mlsimport_ajax_save_field_ssswsd2option() {
     // Check nonce
@@ -599,6 +617,15 @@ function mlsimport_ajax_save_field_option() {
 
 
 
+/**
+ * AJAX handler to move a field to a new position in the order.
+ *
+ * Verifies the 'mlsimport_field_selector_nonce' nonce AND requires the
+ * 'administrator' capability. Takes a moving index, a target index and a
+ * before/after position, recomputes field_order via
+ * mlsimport_compute_field_order_after_move(), reorders every parallel field
+ * array through mlsimport_sort_all_fields_by_order(), and persists the result.
+ */
 function mlsimport_ajax_save_field_position() {
     // Verify nonce
     if (!isset($_POST['security']) || !wp_verify_nonce($_POST['security'], 'mlsimport_field_selector_nonce')) {
@@ -631,9 +658,12 @@ function mlsimport_ajax_save_field_position() {
 
 
     // Validate the requested indexes against the current order.
+    // asort keeps key=>index pairs but reorders them by index value; the
+    // resulting key list is the field sequence the two indexes point into.
     $order_map = $options['field_order'];
     asort($order_map); // Sort by index.
     $ordered_keys = array_keys($order_map);
+    // Both the moving and target positions must exist in the current sequence.
     if (!isset($ordered_keys[$moving_index]) || !isset($ordered_keys[$target_index])) {
         wp_send_json_error('Invalid indexes');
     }

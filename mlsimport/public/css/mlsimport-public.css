@@ -1,46 +1,65 @@
+/*
+ * mlsimport-public.css
+ * Shared public-facing stylesheet for imported MLS listings. Contains small,
+ * theme-agnostic image/sizing tweaks that normalise how imported property
+ * photos render across the supported themes (Real Homes, WpEstate, Houzez) and
+ * on the map infobox popups. Grouped by target theme/component below.
+ */
+
+/* Constrain the listing thumbnail image to the full width of its wrapper. */
 .listing-image-wrap .listing-thumb .img-fluid{
 width:100%;
 }
+/* Real Homes: cap flexslider gallery slide height. */
 /*// real homes*/
 .flexslider .slides img {
 	max-height: 700px;
 }
 
 
+/* Fixed width for property-item card images. */
 .property-item  img{
 	width:488px;
 
 }
 
+/* WPestate: cap the main single-listing carousel slide height. */
 /*
 WPestate*/
 #carousel-listing .slick-slide img {
 	max-height: 550px;
 }
 
+/* WPestate: cap the carousel navigation thumbnail height. */
 #carousel-listing-nav img {
 	max-height: 90px;
 }
 
 
+/* Map infobox popup: photo/text alignment tweaks. */
 /*mlsimport infobox photo alignment*/
 
+/* Infobox title font size (id selector). */
 #infobox_title {
 	font-size: 13px;
 }
 
+/* Infobox price text size (forced over theme styles). */
 .prop_pricex{
 	font-size:13px!important;
 }
 
+/* Ensure the infobox image keeps a minimum height. */
 .infobox_wrapper_image img{
 	min-height:85px;
 }
 
+/* Fixed height for the infobox title block. */
 .infobox_title{
 	height:30px;
 }
 
+/* Imported listing cards: float image left and cap its height. */
 /*mlsimport imported listings photos alignment*/
 .property_listing .listing-unit-img-wrapper,
 .property_listing .carousel{
@@ -50,13 +69,17 @@ WPestate*/
 
 
 
+/* Houzez-specific overrides below. */
 /*===houzez*/
 
+/* PhotoSwipe lightbox tweaks. */
 /*photoswipe*/
 
+/* Neutralise PhotoSwipe zoom scaling (forced). */
 .pswp__zoom-wrap{
 		transform: scale(1)!important;
 }
+/* Centre the PhotoSwipe image within the viewport. */
 .pswp__img {
 
 	top: 50%!important;
@@ -65,7 +88,9 @@ WPestate*/
 }
 
 
+/* Houzez unit/listing cards. */
 /*unit cards*/
+/* Fixed-height card header with hidden overflow on a black backdrop. */
 .item-header {
 	height: 200px;
 	overflow: hidden;
@@ -73,6 +98,7 @@ WPestate*/
 	width: 100%;
 }
 
+/* Card thumbnail: fill the fixed 200px header, cropping to cover. */
 .listing-image-wrap .listing-thumb .img-fluid {
 	width: 100%;
 	height: 200px;

@@ -1,0 +1,92 @@
+/**
+ * Standalone property favorites — the card heart, the single-page saved state and
+ * the "My saved properties" view. The heart is rendered by mlsimport-favorites.js /
+ * the mlsimport_card_after_media hook. The saved fill tracks the site accent from
+ * whichever token the surrounding surface defines — --mli-accent on the listing
+ * grids, --mlsimport-accent on the single-property page — both of which the
+ * plugin's "Main Color" design setting re-themes.
+ */
+
+/* The card heart fires as a direct child of the card (outside the <a> link), so
+   the card is the positioning context for the top-right overlay. */
+.mlsimport-listing-card {
+	position: relative;
+}
+
+/* Card heart — icon-only, floated top-right over the photo. :hover/:focus repeat
+   the resting selector so a theme's pink `button:hover`/`:focus` reset (Hello
+   Elementor's reset.css) can't fill the heart; the :hover white/scale below wins. */
+.mlsimport-fav--heart,
+.mlsimport-fav--heart:hover,
+.mlsimport-fav--heart:focus {
+	position: absolute;
+	top: 10px;
+	right: 10px;
+	z-index: 2;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 25px;
+	height: 25px;
+	padding: 0;
+	border: 0;
+	border-radius: 50%;
+	background: rgba( 255, 255, 255, 0.92 );
+	color: #33373d;
+	cursor: pointer;
+	box-shadow: 0 1px 4px rgba( 0, 0, 0, 0.22 );
+	transition: transform 0.12s ease, background 0.12s ease, color 0.12s ease;
+}
+
+.mlsimport-fav--heart:hover {
+	transform: scale( 1.08 );
+	background: #fff;
+}
+
+.mlsimport-fav--heart .mlsimport-property-icon {
+	width: 15px;
+	height: 15px;
+}
+
+/* Saved state — fill the heart. Applies on both the card and the single-page
+   button (both carry .mlsimport-fav).
+
+   A heart means the same thing everywhere, so it is the same colour everywhere:
+   --mli-accent, the LISTING-GRID accent. That token is defined on .mlsimport-listings
+   / .mlsimport-page-block, and cards inside a property section — Similar Listings
+   above all — sit in neither wrapper, so the fallback is what those hearts actually
+   render. It must therefore be the grids' own default (mlsimport-listings.css:16),
+   NOT the pink literal it used to be and NOT the property page's --mlsimport-accent:
+   either one repaints the heart a different colour the moment it leaves a grid, which
+   is the bug. When a Main Color is set, brand_color_css() defines --mli-accent on
+   :root as well, so branded sites match on every surface too. */
+.mlsimport-fav.is-saved {
+	color: var( --mli-accent, #1a73e8 );
+}
+
+.mlsimport-fav.is-saved .mlsimport-property-icon {
+	fill: currentColor;
+	stroke: currentColor;
+}
+
+.mlsimport-fav:focus-visible {
+	outline: 2px solid var( --mli-accent, #1a73e8 );
+	outline-offset: 2px;
+}
+
+/* "My saved properties" view. */
+.mlsimport-saved__status {
+	padding: 24px 0;
+	color: #6b7178;
+	text-align: center;
+}
+
+.mlsimport-saved .mlsimport-results__empty {
+	padding: 40px 0;
+	color: #6b7178;
+	text-align: center;
+}
+
+.mlsimport-saved .mlsimport-results__pager {
+	margin-top: 24px;
+}

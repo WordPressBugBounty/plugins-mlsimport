@@ -1,10 +1,23 @@
 <?php
+/**
+ * Activity log: the custom wp_mlsimport_activity table plus its admin banner.
+ *
+ * Records one row per listing add / edit / delete (with a snapshot of the
+ * listing title, URL, MLS #, status and the owning import task), aggregates the
+ * last 24 hours into a cached summary, renders a dismissible admin banner from
+ * it, and prunes rows older than 30 days on the daily reconciliation cron. The
+ * table is created / migrated via dbDelta() keyed on MLSIMPORT_ACTIVITY_DB_VERSION.
+ *
+ * @package Mlsimport
+ */
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
 // B1 — Schema version. Bump to trigger dbDelta re-run via mlsimport_maybe_upgrade_activity_table().
-define( 'MLSIMPORT_ACTIVITY_DB_VERSION', '1.0' );
+// 1.1 — added listing_mls_id + listing_status columns (issue #160).
+define( 'MLSIMPORT_ACTIVITY_DB_VERSION', '1.1' );
 
 /**
  * Returns the prefixed activity table name.
@@ -35,6 +48,8 @@ function mlsimport_create_activity_table(): void {
   action VARCHAR(10) NOT NULL,
   listing_id BIGINT UNSIGNED NOT NULL DEFAULT 0,
   listing_key VARCHAR(191) NOT NULL DEFAULT '',
+  listing_mls_id VARCHAR(191) NOT NULL DEFAULT '',
+  listing_status VARCHAR(50) NOT NULL DEFAULT '',
   listing_title VARCHAR(255) NOT NULL DEFAULT '',
   listing_url VARCHAR(255) NOT NULL DEFAULT '',
   import_item_id BIGINT UNSIGNED NOT NULL DEFAULT 0,
@@ -99,9 +114,12 @@ function mlsimport_normalize_activity_source( string $raw ): string {
  * @param string $listing_key     MLS ListingKey
  * @param int    $import_item_id  mlsimport_item post ID (0 if unknown)
  * @param string $source          raw label, e.g. 'normal' | 'cron' | 'import' | 'reconciliation'
+ * @param string $mls_id          MLS # (RESO ListingId). For 'deleted' rows, an empty value is
+ *                                back-filled from the listing's most recent prior row.
+ * @param string $status          Listing status. Same delete back-fill behaviour as $mls_id.
  * @return void
  */
-function mlsimport_record_activity( string $action, int $listing_id, string $listing_key, int $import_item_id, string $source = '' ): void {
+function mlsimport_record_activity( string $action, int $listing_id, string $listing_key, int $import_item_id, string $source = '', string $mls_id = '', string $status = '' ): void {
 	$valid_actions = [ 'added', 'edited', 'deleted' ];
 
 	if ( ! in_array( $action, $valid_actions, true ) ) {
@@ -130,10 +148,37 @@ function mlsimport_record_activity( string $action, int $listing_id, string $lis
 	// Cap listing_key to its column width.
 	$listing_key_capped = mb_substr( $listing_key, 0, 191 );
 
+	// A delete fires for a listing no longer in the feed, so the caller has only the
+	// post ID — not a fresh MLS # / status. Back-fill each empty value from this
+	// listing's most recent prior row so the deleted row stays identifiable by MLS #
+	// and last-known status. Explicitly-passed values are never overwritten.
+	if ( 'deleted' === $action && '' !== $listing_key_capped && ( '' === $mls_id || '' === $status ) ) {
+		$prior = $wpdb->get_row(
+			$wpdb->prepare(
+				'SELECT listing_mls_id, listing_status FROM ' . mlsimport_activity_table_name() . ' WHERE listing_key = %s ORDER BY id DESC LIMIT 1',
+				$listing_key_capped
+			)
+		);
+		if ( $prior ) {
+			if ( '' === $mls_id ) {
+				$mls_id = (string) $prior->listing_mls_id;
+			}
+			if ( '' === $status ) {
+				$status = (string) $prior->listing_status;
+			}
+		}
+	}
+
+	// Cap MLS # and status to their column widths.
+	$mls_id_capped = mb_substr( $mls_id, 0, 191 );
+	$status_capped = mb_substr( $status, 0, 50 );
+
 	$data = [
 		'action'            => $action,
 		'listing_id'        => $listing_id,
 		'listing_key'       => $listing_key_capped,
+		'listing_mls_id'    => $mls_id_capped,
+		'listing_status'    => $status_capped,
 		'listing_title'     => $listing_title,
 		'listing_url'       => $listing_url,
 		'import_item_id'    => $import_item_id,
@@ -146,6 +191,8 @@ function mlsimport_record_activity( string $action, int $listing_id, string $lis
 		'%s', // action
 		'%d', // listing_id
 		'%s', // listing_key
+		'%s', // listing_mls_id
+		'%s', // listing_status
 		'%s', // listing_title
 		'%s', // listing_url
 		'%d', // import_item_id

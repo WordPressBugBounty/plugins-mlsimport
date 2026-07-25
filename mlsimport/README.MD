@@ -1,24 +1,36 @@
-=== MLSImport - Download and synchronize real estate data from various MLS (Multiple Listing Services) ===
+=== MLSImport: IDX Plugin & MLS Plugin for Real Estate Listings ===
 Contributors: mlsimport
-Tags: Multiple Listing Services, MLS Integration, MLS, Real Estate, Real Estate properties, MLS Data Download, Real Estate Data, MLS Integration, Property Listings, Data Synchronization, MLS Connectivity, Real Estate Software,  Real Estate Listings, MLS API, Data Import, Real Estate Solutions, Property Search, Real Estate Agents, MLS Access,  MLS Automation, Property Database, MLS Services, Real Estate Professionals, MLS Plugin
+Tags: idx, idx-plugin, mls, real-estate, wordpress-idx
 Requires at least: 5.2
-Tested up to: 7.0
+Tested up to: 7.0.2
 Requires PHP: 7.4
-Stable Tag: 6.3.8
+Stable tag: 7.0.7
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
-MlsImport is an MLS Wordpress plugin that lets you download and synchronize real estate data from various MLSs (Multiple Listing Services). It works by calling  MLSimport API/your MLS API, reading the data from your Multiple Listing Association, and transforming it into a WordPress-like format. You will need a valid access token from your MLS to use this plugin and an MLSImport account. Currently, the plugin only works for <a href="https://wpresidence.net/" target="_blank">WPResidence</a>, Houzes, Real Homes, and <a href="https://wpestate.org/" target="_blank">WpEstate Wordpress Themes</a>. 
 
-If you are the owner of a real estate theme and want to be integrated with MLSimport, feel free to contact us
+IDX and MLS plugin for WordPress. Import and sync real estate listings from 800+ MLS via the RESO Web API, on any theme.
+
 == Description ==
 
 [youtube https://www.youtube.com/watch?v=3WSb8BDA07c]
 
-Connect your real estate website with <a href="https://mlsimport.com/" target="_blank">MLSImport.com plugin</a> to effortlessly sync, import, and manage MLS property listings, providing your users with up-to-date and accurate real estate information directly on your site. 
+Connect your real estate website with <a href="https://mlsimport.com/" target="_blank">MLSImport.com plugin</a> to effortlessly sync, import, and manage MLS property listings, providing your users with up-to-date and accurate real estate information directly on your site.
 
-<h3>Built on the latest RESO API Technology</h3>
+MlsImport is an IDX and MLS plugin for WordPress that downloads and synchronizes real estate listings from 800+ MLS (Multiple Listing Services) using the modern RESO Web API. It works by calling the MLSimport API and your MLS API, reading the data from your Multiple Listing Association, and transforming it into a WordPress-like format. You will need a valid access token from your MLS to use this plugin and an MLSImport account. The plugin now runs on ANY WordPress theme through its built-in standalone mode, and additionally offers deep, native integration with <a href="https://wpresidence.net/" target="_blank">WPResidence</a>, Houzez, Real Homes, and <a href="https://wpestate.org/" target="_blank">WpEstate</a>.
 
-The MLS Import plugin provides an up-to-date method for linking your website to the MLS Reso Web API server. You can leave behind the old IDX solutions that rely on RETS, as they are no longer effective or relevant.
+<h3>Works with any WordPress theme (IDX for Gutenberg &amp; Elementor)</h3>
+
+MLS Import now includes a built-in standalone mode that renders its own property search, IDX listing cards, half-map search, single-property pages and agent profiles on ANY WordPress theme — no dedicated real estate theme required. Place listings anywhere on your site with shortcodes, Gutenberg blocks or Elementor widgets.
+
+<h3>Deep integration with the top real estate themes</h3>
+
+Prefer a dedicated real estate theme? MLS Import also offers deep, native integration with <a href="https://wpresidence.net/" target="_blank">WPResidence</a>, <a href="https://wpestate.org/" target="_blank">WpEstate</a>, Houzez and Real Homes, importing MLS listings directly into each theme's own property format so they behave exactly like listings you added by hand.
+
+If you are the owner of a real estate theme and want to be integrated with MLSimport, feel free to contact us.
+
+<h3>A modern WordPress IDX plugin built on the RESO Web API</h3>
+
+MLS Import is a modern WordPress IDX plugin that links your website to the MLS through the RESO Web API. Instead of embedding a slow third-party IDX iframe or relying on the old RETS protocol, it imports and synchronizes real MLS listings directly into your own WordPress site — for faster pages, full control of your content, and better SEO because the listings live on your own domain.
 
 <a href="https://mlsimport.com/reso-standard-explained-in-detail/" target="_blank">RESO Standard Explained in Detail</a> 
 
@@ -51,7 +63,13 @@ We can establish connections with more than 800 MLS markets in the United States
 == Frequently Asked Questions ==
 
 =What themes can I use with the MLS Import plugin?=
-MLS Import works with the best Real Estate WordPress themes. The currently supported themes are <a href="https://wpresidence.net/" target="_blank">WpResidence</a>, <a href="https://wpestate.org/" target="_blank">WpEstate</a>, Houzez, and  Real Homes. More themes will be added soon.
+Any WordPress theme. MLS Import's built-in standalone mode renders its own property search, listings, maps, single-property pages and agent profiles on any theme, placed with shortcodes, Gutenberg blocks or Elementor widgets. For a deeper, native integration it also imports directly into the best real estate themes — <a href="https://wpresidence.net/" target="_blank">WpResidence</a>, <a href="https://wpestate.org/" target="_blank">WpEstate</a>, Houzez, and Real Homes.
+
+=Is MLSImport a WordPress IDX plugin?=
+Yes. MLSImport is a modern WordPress IDX plugin and MLS plugin: it connects to your MLS through the RESO Web API and imports IDX/MLS listings directly into WordPress as native content — unlike legacy IDX plugins that embed a third-party iframe. That means faster pages, full control over your listing content, and better SEO, because the listings live on your own domain.
+
+=What is the difference between an IDX plugin and MLSImport?=
+Traditional IDX plugins display MLS data inside an embedded frame hosted elsewhere, so the listings never really belong to your site. MLSImport imports and synchronizes the MLS listings into your own WordPress database, then keeps them up to date automatically — giving you IDX-style property search and listing pages that are fully yours.
 
 =Will you import thousands of images?=
 No, we do not import thousands of images (or any image). We ensure images are served from your MLS, so your server is not overcrowded with photos.
@@ -69,7 +87,7 @@ You control how many listings you want to import and have special filters availa
 
 == Installation ==
 1. Review our video tutorials here https://www.youtube.com/@mlsimport3513
-2. Install and enable the plugin by searching for 'MlsImport' in your plugin install page
+2. Install and enable the IDX plugin by searching for 'MlsImport' in your WordPress plugin install page
 3. Signup with <a href="https://mlsimport.com/">MLSImport.com</a> and get your credentials
 4. Make sure you have valid MLS access credentials
 5. Under your WordPress admin's "MLS Import Settings" section, use the MLSImport.com credentials, select your MLS from the list, and add your MLS access credentials.
@@ -78,14 +96,54 @@ You control how many listings you want to import and have special filters availa
 8. Create and publish a new 'MLS Import Task". Pick your property type, status, counties, or cities, and click start import when ready.
 
 == Use of 3rd party services ==
-This plugin will connect via REST API to mlsimport.com and https://requests.mlsimport.com to get real estate data from your MLS. It will send your connection details and reply with real estate prepared to be imported into your website. 
+This IDX plugin will connect via REST API to mlsimport.com and https://requests.mlsimport.com to get real estate data from your MLS. It will send your connection details and reply with real estate prepared to be imported into your website. 
 Automated daily diagnostic report (telemetry): once per day, installations connected to a valid MLSImport account send an automated diagnostic "heartbeat" to the MLSImport service (https://requests.mlsimport.com). It helps us monitor the health of your installation and lets our support team detect problems — such as a stopped cron job, a failing MLS connection, or imports that produce no listings — before they affect your site. The report contains: an anonymous installation ID, your MLSImport account name and site URL, plugin / PHP / WordPress versions and the active theme, counts of listings imported / updated / deleted over the last 7 days, sync and MLS-feed health, the number of active listings and basic data-completeness percentages, your import-task settings, the dates of recent MLSImport admin-page activity, and onboarding progress. It does not collect any information about your site's visitors. Installations that are not connected to an MLSImport account send no telemetry.
 
 Read the terms and conditions of using MLSimport APIs here : https://mlsimport.com/terms-conditions/
 
+
+== For developers: Standalone hooks ==
+In standalone (theme-agnostic) mode, the plugin renders its own search, cards, half-map, single-property page and agents on any theme. That front-end exposes a WooCommerce-style layer of action and filter hooks so themes and add-ons can extend, reorder, restyle, and react to MLSImport without editing plugin core: one `add_filter`/`add_action` applies on every surface (shortcode, block, Elementor, PHP template), because they all route through one section dispatcher and one query executor.
+
+See `docs/standalone-hooks-guide.md` for the detailed guide (a worked example for every hook), `docs/standalone-hooks.md` for the at-a-glance signature tables, `includes/standalone/mlsimport-hooks.php` for the canonical machine-readable list, and `docs/adr/0006-standalone-hook-conventions.md` for the naming/argument conventions. Themes override templates by copying them into a `mlsimport/` sub-directory (the WooCommerce pattern).
+
 == Changelog ==
-= 6.3.5 =
-* Reconciliation fix: stopped the daily reconciliation from deleting listings that are still live in the MLS when a task's field mapping stores the status in a different taxonomy than the theme default (e.g. property_status on Houzez). The status taxonomy is now resolved from the StandardStatus field mapping instead of being hardcoded, preventing add/delete cycling.
+= 7.0.7 =
+* Fixed the "search your MLS" field in the setup wizard not offering any suggestions — the wizard's scripts were not being loaded on the page, so the MLS autocomplete never started.
+
+= 7.0.6 =
+* Fixed a fatal error on plugin activation ("Failed opening required ... myclabs/deep-copy") caused by a development autoloader being included in the release package.
+
+= 7.0.4 =
+* Standalone (theme-agnostic) mode — the plugin can now render its own real-estate front-end on ANY WordPress theme, not only WpResidence, WpEstate, Houzez and Real Homes. It ships its own property search, listing cards, half-map search, single-property page, saved-properties view and agent / team profiles.
+* Page-building blocks — Property List, Property Slider, Featured Property, Map with Listings, Half Map, List Properties by ID, Team Directory, Category Slider and Display Categories, each available as a shortcode, a Gutenberg block and an Elementor widget, all sharing the same rendering, filters and card-style controls.
+* Category & taxonomy widgets — display any listing taxonomy (city, type, status, …) as image tiles, using a new per-term featured image and per-term HTML description.
+* Developer hooks — a WooCommerce-style layer of action / filter hooks lets themes and add-ons extend, reorder and restyle every standalone surface without editing plugin core; templates can be overridden by copying them into a theme's `mlsimport/` folder. See the standalone hooks guide under `docs/`.
+* PropTx / AMPRE (TRREB) MLS provider support.
+* Reconciliation & sync hardening — fixed cases where reconciliation could delete live or standalone listings when a status taxonomy was remapped, and stopped the add / delete / add cycling of in-filter listings during sync.
+* Import fidelity — fixed the gallery being wiped on update when the media was unchanged, routed hidden-from-public fields to the correct metabox and corrected the RealEstateListing JSON-LD (provider and datePosted).
+* Numerous front-end polish fixes across the property page, maps, mortgage calculator, search form, contact forms and accent-colour theming.
+
+= 6.3.8 =
+* PropTx / AMPRE (TRREB) MLS provider wiring; featured-image / gallery fix.
+* Activity banner now counts unique properties.
+
+= 6.3.7 =
+* Maintenance release.
+
+= 6.3.6 =
+* Trestle / Cotality readable enum labels — status and category values from Trestle can now come through as human-readable text ("Active Under Contract" instead of "ActiveUnderContract", "Commercial Lease" instead of "CommercialLease"). Status matching, status protection and the daily reconciliation now treat the spaced and non-spaced forms as equal, so existing import tasks keep working and live listings are not wrongly skipped or deleted during the switch. Requires the matching MLSImport backend update to take effect.
+
+= 6.3.1 =
+* Import History: added search by Listing ID or ListingKey.
+* Activity banner: now always visible to administrators (not only when there was activity in the last 24 hours); clearer "property/properties" wording and a "Task Name:" label in the per-task breakdown.
+* Bright MLS support — added Bright MLS as a dedicated provider  with its own Client ID / Client Secret credential fields, correct credential gating in the admin and onboarding "Account" step, and a per-MLS field-correlation map that aliases RESO field names to Bright's own names (e.g. CountyOrParish to County) when building the request URL.
+* Multi-select location filters — new searchable, type-to-filter dropdown component; City, County and Postal Code (ZIP) can now take multiple values (sent to the backend as RESO "or" groups), including multi-ZIP support in import tasks.
+* Daily telemetry / diagnostic heartbeat — connected installs send one structured health heartbeat per UTC day to the SaaS user-activity endpoint. Payload covers an anonymous install ID, account/site, plugin/PHP/WordPress versions and active theme, 7-day import/update/delete counts, sync and feed health, active-listing count and data-completeness %, task settings, recent admin activity dates, and onboarding progress. No visitor data is collected, and nothing is sent if the site is not connected to an MLSImport account. Privacy disclosure added to the 3rd-party services section.
+* Activity log & History view — new wp_mlsimport_activity database table (with a versioned dbDelta upgrade path) logging every listing import / update / delete with listing ID, key, title, URL and source import task; new History admin page with a list-table view of recent activity.
+* Dashboard top banner — new banner on the admin pages surfacing import counts / status at a glance.
+* Deactivation survey — on plugin deactivation, a survey modal collects feedback on why the user is leaving.
+* Fixes & maintenance — ThemeImport image/gallery handling fix for WPResidence 5.0 (#532, later partly reverted); Composer autoload / installed.json regeneration cleanup; Tested up to WordPress 7.0.
 
 = 6.1.4 =
 Fix for ABOR on stale delete

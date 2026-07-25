@@ -1,0 +1,42 @@
+/*
+ * Elementor editor-only styling for MLSImport widget tiles.
+ *
+ * Every widget's get_icon() returns "mlsimport-note eicon-*": the eicon draws the
+ * glyph, .mlsimport-note stamps an "MLSImport" label across the top of the tile so
+ * our widgets are identifiable at a glance in the panel.
+ */
+
+/*
+ * Elementor's NUMBER control renders a fixed narrow <input>, so a full price
+ * (e.g. 1500000) is clipped. Controls carrying 'mlsimport-control-wide' (Price min
+ * + Price max on the Property List widget) stretch the input to the full row.
+ */
+.elementor-control.mlsimport-control-wide .elementor-control-input-wrapper {
+	width: 100%;
+	max-width: 100%;
+}
+
+.elementor-control.mlsimport-control-wide .elementor-control-input-wrapper input[type="number"] {
+	width: 100%;
+}
+
+i.mlsimport-note {
+	margin-top: 8px;
+}
+
+.elementor-element .mlsimport-note:after {
+	content: "MLSImport";
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: auto;
+	z-index: 1;
+	color: #a4afb7;
+	background: var(--e-a-bg-default);
+	font-size: 11px;
+	font-family: Roboto, Arial, Helvetica, Verdana, sans-serif;
+	padding: 2px;
+	border: var(--e-a-border-bold);
+	letter-spacing: 0.05em;
+	border-bottom-right-radius: 2px;
+}

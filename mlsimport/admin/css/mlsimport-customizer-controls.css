@@ -1,0 +1,64 @@
+/*
+ * mlsimport-customizer-controls.css
+ * ---------------------------------------------------------------------------
+ * Styles the custom "arrange sections" control shown in the WordPress
+ * Customizer for the standalone (theme-agnostic) design settings. The control
+ * renders active/inactive lists of page sections with per-item move/toggle
+ * actions so the user can order and enable/disable them.
+ */
+
+/* MLSImport Customizer "arrange sections" control. */
+/* Small uppercase group heading above each arranger list. */
+.mlsimport-arranger__heading {
+	margin: 12px 0 4px;
+	font-weight: 600;
+	text-transform: uppercase;
+	font-size: 11px;
+	letter-spacing: .04em;
+	color: #50575e;
+}
+/* Bordered container holding the sortable section items. */
+.mlsimport-arranger__list {
+	margin: 0 0 8px;
+	padding: 0;
+	list-style: none;
+	border: 1px solid #dcdcde;
+	border-radius: 3px;
+	min-height: 12px;
+	background: #fff;
+}
+/* Greyed background for the list of inactive/disabled sections. */
+.mlsimport-arranger__inactive {
+	background: #f6f7f7;
+}
+/* One section row: label on the left, action buttons on the right. */
+.mlsimport-arranger__item {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	padding: 6px 8px;
+	border-bottom: 1px solid #f0f0f1;
+	font-size: 13px;
+}
+/* Drop the divider on the final row. */
+.mlsimport-arranger__item:last-child {
+	border-bottom: 0;
+}
+/* Row action buttons (move up/down, toggle) kept together, no shrink. */
+.mlsimport-arranger__actions {
+	display: inline-flex;
+	gap: 6px;
+	flex: 0 0 auto;
+}
+.mlsimport-arranger__actions .button-link {
+	text-decoration: none;
+	font-size: 14px;
+	line-height: 1;
+	padding: 2px 4px;
+	color: #2271b1;
+}
+/* Bolded move (arrow) button glyphs. */
+.mlsimport-arranger__move {
+	font-weight: 700;
+}

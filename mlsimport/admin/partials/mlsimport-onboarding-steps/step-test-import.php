@@ -2,6 +2,16 @@
 /**
  * Template for the Test Import step of the MLSImport onboarding wizard
  *
+ * Runs a small verification import (a handful of listings) against the
+ * configured MLS. Shows the import name, current status, and the count of
+ * listings matching the saved filters, then offers a "Run Test Import" button
+ * that fires the mlsimport_run_test_import AJAX action and polls status via the
+ * mlsimport_logger_per_item AJAX action. This PHP region prepares the display
+ * data; the button/polling logic lives in the inline <script> below.
+ *
+ * NOTE: comments here live only inside PHP regions; the inline HTML/JS/CSS
+ * below is emitted verbatim and is intentionally left uncommented.
+ *
  * @link       https://mlsimport.com/
  * @since      6.1.0
  *
@@ -14,22 +24,27 @@ if (!defined('WPINC')) {
     die;
 }
 
+// Load the import id created by the earlier onboarding steps (0 if none).
 // Get saved data
 $user_data = get_option('mlsimport_onboarding_user_data', array());
 $import_id = isset($user_data['import_id']) ? $user_data['import_id'] : 0;
 
+// Read the import's spawn (run) status meta when an import exists.
 // Get import status
 $spawn_status = '';
 if ($import_id) {
     $spawn_status = get_post_meta($import_id, 'mlsimport_spawn_status', true);
 }
 
+// Determine whether any properties were already imported for this import.
 // Check if test has been run
 $test_completed = false;
 if ($import_id) {
+    // Resolve the theme's property post type via the environment adapter.
     global $mlsimport;
     $post_type = $mlsimport->admin->env_data->get_property_post_type();
-    
+
+    // Query all properties stamped with this import id.
     $args = array(
         'post_type' => $post_type,
         'post_status' => 'any',
@@ -42,17 +57,20 @@ if ($import_id) {
             ),
         ),
     );
-    
+
+    // Test counts as completed when at least one property was imported.
     $query = new WP_Query($args);
     $test_completed = $query->found_posts > 0;
     $imported_count = $query->found_posts;
     wp_reset_postdata();
 }
 
+// Read the active theme name to tailor advice copy.
 // Get the current theme to provide tailored advice
 $current_theme = wp_get_theme();
 $theme_name = $current_theme->get('Name');
 
+// Map of supported theme slugs to human-facing labels.
 // Detect supported theme
 $supported_themes = array(
     'WpResidence' => 'WP Residence',
@@ -61,30 +79,36 @@ $supported_themes = array(
     'Wpestate' => 'WP Estate',
 );
 
+// Default label, replaced when the active theme matches a supported one.
 $detected_theme = 'your theme';
 foreach ($supported_themes as $theme_key => $theme_label) {
+    // Exact case-insensitive match OR slug appearing as a substring.
     if (strtolower($theme_name) === strtolower($theme_key) || strpos(strtolower($theme_name), strtolower($theme_key)) !== false) {
         $detected_theme = $theme_label;
         break;
     }
 }
 
+// Read today's import log so recent lines/errors can be surfaced.
 // Get log file content if it exists
 $log_content = '';
 $log_path = WP_PLUGIN_DIR . '/mlsimport/logs/import_logs-' . date('Y-m-d') . '.log';
 if (file_exists($log_path)) {
     $log_content = file_get_contents($log_path);
     // Get the last few lines (up to 20)
+    // Split into lines, drop blanks, and keep only the last 20.
     $log_lines = explode(PHP_EOL, $log_content);
     $log_lines = array_filter($log_lines); // Remove empty lines
     $log_lines = array_slice($log_lines, -20); // Get last 20 lines
     $log_content = implode(PHP_EOL, $log_lines);
 }
 
+// Extract any "ERROR:" lines from the recent log into a list.
 // Get any import errors
 $import_errors = array();
 if (!empty($log_content)) {
     // Extract error messages
+    // Capture the text after each "ERROR:" marker.
     if (preg_match_all('/ERROR: (.+?)(?=\n|$)/i', $log_content, $matches)) {
         $import_errors = $matches[1];
     }
@@ -97,7 +121,7 @@ if (!empty($log_content)) {
             <?php _e('Now let\'s run a small test import to verify everything is working properly. We will import 5 listings from your MLS.', 'mlsimport'); ?>
         </p>
         
-        <?php if (!$import_id) : ?>
+        <?php if (!$import_id) : /* no import configured: show error and stop */ ?>
             <div class="mlsimport-error-message">
                 <p>
                     <?php _e('No import configuration found. Please go back to the previous step and try again.', 'mlsimport'); ?>
@@ -116,7 +140,8 @@ if (!empty($log_content)) {
                 </p>
                 <p>
                     <strong><?php _e('Status:', 'mlsimport'); ?></strong> 
-                    <?php 
+                    <?php
+                        // Status label: completed, in-progress, or ready to test.
                         if ($test_completed) {
                             echo '<span class="mlsimport-status-success">' . esc_html__('Test Completed 2', 'mlsimport') . '</span>';
                         } elseif ($spawn_status === 'started') {
@@ -129,12 +154,15 @@ if (!empty($log_content)) {
                 
                 <?php
                 // Get listing count based on filters
+                // Ask the MLS how many listings match this import's filters.
                 global $mlsimport;
                 $listing_count = 0;
                 
                 if ($import_id) {
+                    // Query the SaaS/MLS for a result count for this import.
                     $mlsrequest = $mlsimport->admin->mlsimport_make_listing_requests($import_id);
 
+                    // Read the numeric results count, defaulting to 0.
                     $listing_count = isset($mlsrequest['results']) ? intval($mlsrequest['results']) : 0;
                 }
                 ?>
@@ -142,12 +170,12 @@ if (!empty($log_content)) {
                 <p>
                     <strong><?php _e('Listings Found:', 'mlsimport'); ?></strong> 
                     <span class="mlsimport-listing-count"><?php echo esc_html($listing_count); ?></span>
-                    <?php if ($listing_count === 0): ?>
+                    <?php if ($listing_count === 0): /* warn when nothing matches the filters */ ?>
                         <span class="mlsimport-zero-warning"><?php _e('(No listings match your current filters)', 'mlsimport'); ?></span>
                     <?php endif; ?>
                 </p>
                 
-                <?php if ($test_completed) : ?>
+                <?php if ($test_completed) : /* show imported count once the test has run */ ?>
                     <p>
                         <strong><?php _e('Properties Imported:', 'mlsimport'); ?></strong> 
                         <?php echo esc_html($imported_count); ?>
@@ -155,7 +183,7 @@ if (!empty($log_content)) {
                 <?php endif; ?>
             </div>
             
-            <?php if ($listing_count === 0): ?>
+            <?php if ($listing_count === 0): /* no listings: prompt user to broaden filters */ ?>
                 <div class="mlsimport-zero-listings-warning">
                     <p>
                         <?php _e('Please go back and adjust your filters to broaden your search.', 'mlsimport'); ?>
@@ -166,7 +194,7 @@ if (!empty($log_content)) {
                 </div>
             <?php endif; ?>
             
-            <?php if (!$test_completed && $spawn_status !== 'started' && $listing_count > 0) : ?>
+            <?php if (!$test_completed && $spawn_status !== 'started' && $listing_count > 0) : /* show the Run button only when: not already completed, not currently running, and there are listings to import */ ?>
                 <div class="mlsimport-test-actions">
                     <button type="button" id="mlsimport-run-test"  data-post-number="<?php echo intval($listing_count);?>" data-post_id="<?php echo intval($import_id)?>" class="button mlsimport_button">
                         <?php _e('Run Test Import', 'mlsimport'); ?>
@@ -187,7 +215,7 @@ if (!empty($log_content)) {
             <div class="mlsimport-test-recommendations">
                 <h3><?php _e('Next Steps', 'mlsimport'); ?></h3>
                 
-                <?php if ($test_completed) : ?>
+                <?php if ($test_completed) : /* completed: success copy and next actions */ ?>
                     <p>
                         <?php echo sprintf(
                             __('Congratulations! You\'ve successfully imported properties from your MLS into %s.', 'mlsimport'),
@@ -199,11 +227,11 @@ if (!empty($log_content)) {
                         <li><?php _e('Your import configuration has been saved and will update automatically', 'mlsimport'); ?></li>
                         <li><?php _e('You can create additional import configurations with different criteria later', 'mlsimport'); ?></li>
                     </ul>
-                <?php elseif ($spawn_status === 'started') : ?>
+                <?php elseif ($spawn_status === 'started') : /* running: ask user to wait */ ?>
                     <p>
                         <?php _e('The import is currently in progress. Please wait for it to complete before continuing.', 'mlsimport'); ?>
                     </p>
-                <?php else : ?>
+                <?php else : /* not yet run: prompt to start the test */ ?>
                     <p>
                         <?php _e('Please run the test import to verify your MLS connection and configuration.', 'mlsimport'); ?>
                     </p>

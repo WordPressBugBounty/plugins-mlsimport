@@ -22,9 +22,11 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @return string Lowercased, space-free comparison key.
  */
 function mlsimport_normalize_status_enum( $value ) {
+	// Non-string input has no comparable status; normalize to empty.
 	if ( ! is_string( $value ) ) {
 		return '';
 	}
 
+	// Trim, lowercase, then drop spaces so "Active Under Contract" == "ActiveUnderContract".
 	return str_replace( ' ', '', strtolower( trim( $value ) ) );
 }

@@ -22,7 +22,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 	<?php
 		// Grab all options
 		$options = get_option( $this->plugin_name );
+		// Default tab when none is requested in the URL.
 		$active_tab = 'display_options';
+	// Active tab comes from ?tab= (sanitised); highlights the matching nav link below.
 	if ( isset( $_GET['tab'] ) ) {
 		$active_tab = sanitize_text_field  ( wp_unslash(  $_GET['tab'] ) );
 	}
@@ -35,7 +37,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	</div>
 
 
-	<?php 
+	<?php
+	// Extra CSS class applied only to the first tab's card wrapper.
 	$extra_class='';
 	if ( 'display_options' === $active_tab ) {
 		$extra_class='mlsimport_2025_card_admin_options';
@@ -43,6 +46,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	
 	<div class="content-nav-tab  <?php echo esc_attr($extra_class);?>   mlsimport_2025_card mlsimport_2025_card_left_oriented <?php echo  'display_options' === $active_tab  ? 'content-nav-tab-active' : ''; ?>">
 		<?php
+		// Tab 1 panel — load the MLS/RESO API options partial only when active.
 		if ( 'display_options' ===  $active_tab  ) {
 			include_once '' . $this->plugin_name . '-admin-options.php';
 		}
@@ -62,6 +66,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 		
 	<div class="content-nav-tab  mlsimport_2025_card mlsimport_2025_card_left_oriented <?php echo 'field_options' === $active_tab  ? 'content-nav-tab-active' : ''; ?>">    
 		<?php
+		// Tab 2 panel — load the field-selection partial only when active.
 		if ( 'field_options' === $active_tab  ) {
 			include_once '' . $this->plugin_name . '-admin-fields-select.php';
 		}
@@ -72,12 +77,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 	
 	<div class="content-nav-tab  mlsimport_2025_card  mlsimport_2025_card_left_oriented <?php echo  'administrative_options' === $active_tab  ? 'content-nav-tab-active' : ''; ?>">
 		<?php
+		// Tab 3 panel — load the Tools / administrative options partial only when active.
 		if ( 'administrative_options' === $active_tab  ) {
 			include_once '' . $this->plugin_name . '-administrative-options.php';
 		}
 		?>
 	</div>
-	
-	   
-	
+
 </div>

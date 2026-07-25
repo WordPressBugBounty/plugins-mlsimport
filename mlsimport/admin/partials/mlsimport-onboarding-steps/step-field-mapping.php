@@ -2,6 +2,17 @@
 /**
  * Template for the Field Mapping step of the MLSImport onboarding wizard
  *
+ * Lets the user choose which MLS (RESO) fields to import and how they map to
+ * theme post meta / taxonomies. If MLS metadata has been fetched
+ * (mlsimport_mls_metadata_populated === 'yes') it renders the full field
+ * selection interface (render_mls_field_selection_interface()); otherwise it
+ * shows a "please stand by" / "not connected" message and exposes a nonce so
+ * client-side JS can poll the SaaS metadata endpoint. Field selections save to
+ * the mlsimport_admin_fields_select option group via options.php.
+ *
+ * NOTE: comments here live only inside PHP regions; the inline HTML/JS/CSS
+ * below is emitted verbatim and is intentionally left uncommented.
+ *
  * @link       https://mlsimport.com/
  * @since      6.1.0
  *
@@ -13,6 +24,7 @@
 if (!defined('WPINC')) {
     die;
 }
+// Resolve the theme's property post type via the environment adapter (if available).
 // Get post type
 $post_type = '';
 global $mlsimport;
@@ -21,24 +33,32 @@ if (method_exists($mlsimport->admin->env_data, 'get_property_post_type')) {
 }
 
 
+// Previously saved selections for this onboarding step, if any.
 // Get saved data
 $field_data = mlsimport_get_onboarding_step_data('field-mapping');
 
+// Template preset (essential/standard/complete) and any custom field list.
 // Set default values
 $template = isset($field_data['template']) ? $field_data['template'] : 'standard';
 $custom_fields = isset($field_data['custom_fields']) ? $field_data['custom_fields'] : array();
 
+// Raw MLS field metadata and theme schema JSON cached in options by the SaaS fetch.
 // Get MLS metadata from API
 $mlsimport_mls_metadata_mls_data = get_option('mlsimport_mls_metadata_mls_data', '');
 $mlsimport_mls_metadata_theme_schema = get_option('mlsimport_mls_metadata_theme_schema', '');
+// Taxonomies registered for the property post type (used for term mapping).
 // Get taxonomies
 $available_taxonomies = mlsimport_get_custom_post_type_taxonomies($post_type);
 
+// Flag ('yes') indicating the MLS metadata fetch has completed.
 $mlsimport_mls_metadata_populated = get_option( 'mlsimport_mls_metadata_populated', '' );
 
+// Decode the MLS field metadata JSON into an array when stored as a string.
 // Parse metadata
 $mls_data = is_string($mlsimport_mls_metadata_mls_data) ? json_decode($mlsimport_mls_metadata_mls_data, true) : $mlsimport_mls_metadata_mls_data;
+// Hard-coded theme schema mapping RESO fields to this theme's meta/taxonomies.
 $theme_schema= mlsimport_hardocde_theme_schema();
+// Preset options controlling how many fields are pre-selected for the user.
 // Define template options
 $template_options = array(
     'essential' => array(
@@ -51,6 +71,7 @@ $template_options = array(
         'description' => __('A balanced selection of fields suitable for most real estate websites.', 'mlsimport'),
         'field_count' => 30,
     ),
+    // Complete preset: count of actual MLS fields, or "700+" when unknown.
     'complete' => array(
         'title' => __('Complete', 'mlsimport'),
         'description' => __('Import all available fields for the most comprehensive property listings.', 'mlsimport'),
@@ -58,10 +79,12 @@ $template_options = array(
     ),
 );
 
+// Read the active theme name to tailor advice copy.
 // Get the current theme to provide tailored advice
 $current_theme = wp_get_theme();
 $theme_name = $current_theme->get('Name');
 
+// Map of supported theme slugs to human-facing labels.
 // Detect supported theme
 $supported_themes = array(
     'WpResidence' => 'WP Residence',
@@ -70,8 +93,10 @@ $supported_themes = array(
     'Wpestate' => 'WP Estate',
 );
 
+// Default label, replaced when the active theme matches a supported one.
 $detected_theme = 'your theme';
 foreach ($supported_themes as $theme_key => $theme_label) {
+    // Exact case-insensitive match OR slug appearing as a substring.
     if (strtolower($theme_name) === strtolower($theme_key) || strpos(strtolower($theme_name), strtolower($theme_key)) !== false) {
         $detected_theme = $theme_label;
         break;
@@ -80,7 +105,8 @@ foreach ($supported_themes as $theme_key => $theme_label) {
 
 
 
-if ( 'yes' === $mlsimport_mls_metadata_populated ) { 
+// Branch: metadata is ready -> render the full field selection interface.
+if ( 'yes' === $mlsimport_mls_metadata_populated ) {
     ?>
    <form method="post" name="cleanup_options" action="options.php">
     <?php
@@ -88,27 +114,33 @@ if ( 'yes' === $mlsimport_mls_metadata_populated ) {
     ?>
 
         <?php
+           // Emit the settings-group nonce/hidden fields and any registered sections.
            settings_fields( 'mlsimport_admin_fields_select' );
            do_settings_sections( 'mlsimport_admin_fields_select' );
-        
+
+           // Ensure SaaS connection/setup state is initialized before rendering.
            global $mlsimport;
            $mlsimport->admin->mlsimport_saas_setting_up();
            
    
            // Add this to the beginning of the form processing
+           // Load the currently saved field-selection options (empty array default).
            $options = get_option('mlsimport_admin_fields_select', array());
   
 
             // Ensure all arrays are initialized
-            if (!is_array($options) || 
+            // When no options are saved yet, seed them from the MLS metadata.
+            if (!is_array($options) ||
+                // First clause: not an array at all. Second: an empty array.
                 (is_array($options) && empty($options)) ) {
 
+                // Decode the cached MLS field metadata into a property-field map.
                 $mlsimport_mls_metadata_mls_data = get_option( 'mlsimport_mls_metadata_mls_data', '' );
                 $metadata_api_call_data_service_property = json_decode( $mlsimport_mls_metadata_mls_data, true );
                 $options = array();
        
              
-        
+                // Initialize each sub-array the field selector expects.
                 if (!isset($options['mls-fields'])) {
                     $options['mls-fields'] = array();
                 }
@@ -129,16 +161,20 @@ if ( 'yes' === $mlsimport_mls_metadata_populated ) {
                     $options['mls-fields-map-taxonomy'] = array();
                 }
 
-              
-                $order_item=0; 
+                // Running display-order counter assigned per field below.
+                $order_item=0;
+                // Guard: fall back to an empty list if the JSON did not decode to an array.
                 if (!is_array($metadata_api_call_data_service_property)) {
                     $metadata_api_call_data_service_property = [];
                 }
+                // Sort fields alphabetically by key for a stable order.
                 ksort($metadata_api_call_data_service_property);
-         
+
+                // Seed default per-field option values for every MLS field.
                 foreach ( $metadata_api_call_data_service_property as $key => $value ) {
                     $description = 'no description ';
-                    
+
+                    // Default: field not imported, next order index, no admin/meta/label.
                     $options['mls-fields'][ $key ]=0;
                     $options['field_order'][ $key ]=$order_item++;
                     $options['mls-fields-admin'][ $key ]=0 ;
@@ -146,9 +182,11 @@ if ( 'yes' === $mlsimport_mls_metadata_populated ) {
              
                     $options['mls-fields-label'][ $key ]='';
 
+                    // If the theme schema defines this field, pre-select it for import.
                     if ( array_key_exists( $key, $theme_schema ) ) {
                         $options['mls-fields'][ $key ]=1;
 
+                        // Taxonomy-typed fields get their taxonomy name; others blank.
                         if( isset( $theme_schema[$key]['type']) && $theme_schema[$key]['type']=='taxonomy'  ){
                             $options['mls-fields-map-taxonomy'][ $key ]=$theme_schema[$key]['name'];
                         }else{
@@ -165,6 +203,7 @@ if ( 'yes' === $mlsimport_mls_metadata_populated ) {
   
       
      
+// Parameters controlling how the shared field-selection UI is rendered here.
 // Set up render parameters
 $render_params = array(
     'page' => 1,
@@ -197,6 +236,7 @@ $render_params = array(
             
             <form method="post" name="mlsimport_onboarding_form" action="options.php">
                 <?php
+                    // Settings-group nonce/hidden fields and registered sections.
                     settings_fields('mlsimport_admin_fields_select');
                     do_settings_sections('mlsimport_admin_fields_select');
                     
@@ -204,6 +244,7 @@ $render_params = array(
                     echo '<input type="hidden" id="selected_template" name="selected_template" value="' . esc_attr($template) . '">';
                     
                     // Call the render function from admin
+                    // Render the shared drag-and-drop field selector when available.
                     if (function_exists('render_mls_field_selection_interface')) {
                         echo render_mls_field_selection_interface(
                             $options,
@@ -214,6 +255,7 @@ $render_params = array(
                     }
                     
                     // Add nonce field
+                    // Output the field-selector security nonce.
                     mlsimport_add_field_selector_nonce();
                 ?>
                 <input type="hidden" name="mlsimport_admin_fields_select[mls-fields-admin][force_rand]" value="<?php echo esc_attr(wp_rand()); ?>">
@@ -230,8 +272,10 @@ $render_params = array(
 </form>
     <?php
 } else {
+    // Branch: metadata not yet fetched -> show a waiting or not-connected message.
     // We don't have MLS metadata yet, show waiting message
     global $mlsimport;
+    // Cached SaaS API token; a non-empty token means we are connected and waiting.
     $token = $mlsimport->admin->mlsimport_saas_get_mls_api_token_from_transient();
     if ( trim( $token ) !== '' ) {
         ?>
@@ -242,6 +286,7 @@ $render_params = array(
         </div>
         <?php
     } else {
+        // No token: user is not connected to the MLSImport SaaS.
         esc_html_e( 'You are not connected to MLS Import', 'mlsimport' );
     }
     ?>

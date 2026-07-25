@@ -7,3 +7,10 @@ and open the template in the editor.
 	Created on : Nov 27, 2019, 3:25:02 PM
 	Author     : cretu
 */
+/*
+ * mlsimport-public-houzez.css
+ * Houzez-theme public stylesheet slot. Enqueued on the front end when the
+ * Houzez theme is active to hold Houzez-specific overrides for imported MLS
+ * listings. Currently a placeholder — no rules defined yet beyond the
+ * template/author header above.
+ */

@@ -1,11 +1,67 @@
-<?php 
+<?php
+/**
+ * Helper functions for the MLSImport plugin.
+ *
+ * Grab-bag of stand-alone utilities used across the admin/import layers:
+ *  - Standalone-mode detection (theme_id 990).
+ *  - The canonical RESO -> theme field-mapping schema (mlsimport_hardocde_theme_schema),
+ *    a large associative array telling the importer where each RESO field lands
+ *    (post meta, taxonomy, media, or post content/title).
+ *  - Taxonomy discovery for a post type, allowed-HTML whitelists, SaaS "ready to go
+ *    MLS" list fetching, recursive array sanitisation, the reconciliation cron entry
+ *    point, the Import Tasks admin list-table columns, and a plugin data reset routine.
+ *
+ * Loaded early in the bootstrap so these helpers are available to both admin and
+ * public code paths.
+ */
 if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Exit if accessed directly
 }
 
 
+/**
+ * Whether the site runs in standalone (theme-agnostic) mode — theme_id 990.
+ *
+ * Drives the standalone write path / front-end gating. Reads the configured
+ * theme from mlsimport_admin_options['mlsimport_theme_used'].
+ *
+ * @return bool
+ */
+function mlsimport_is_standalone_mode() {
+	$options = get_option( 'mlsimport_admin_options' );
+	return is_array( $options )
+		&& isset( $options['mlsimport_theme_used'] )
+		&& 990 === intval( $options['mlsimport_theme_used'] );
+}
+
+
+/**
+ * Hard-coded RESO -> theme field-mapping schema (fallback / reference map).
+ *
+ * Returns a large associative array keyed by RESO Data Dictionary field name
+ * (e.g. 'ListPrice', 'BedroomsTotal', 'City'). Each value is a descriptor array
+ * describing where that RESO field is written on the WordPress side:
+ *   - 'type'   => one of:
+ *                   'meta'     - stored as a post meta value ('name' = meta key),
+ *                   'taxonomy' - assigned as a term of taxonomy 'name'; an optional
+ *                                'insert' gives the fixed term label to add (used for
+ *                                boolean *YN flags, e.g. 'Has Garage'),
+ *                   'media'    - handled by the media/gallery importer,
+ *                   'content'  - written to the post content (PublicRemarks).
+ *   - 'name'   => the destination meta key / taxonomy slug / field on the theme side.
+ *   - 'insert' => (taxonomy only, optional) literal term label to insert when the
+ *                 RESO boolean is truthy.
+ *
+ * The keys are ordered alphabetically by RESO field name. Section markers below
+ * flag the larger logical clusters (agent/office contact blocks, distance-to-*,
+ * tax, etc.) but most fields are simple 1:1 meta passthroughs.
+ *
+ * @return array Field-name => descriptor map.
+ */
 function mlsimport_hardocde_theme_schema(){
+	// Build and return the full descriptor map in one literal array.
 	$theme_schema=  array(
+		// ---- Above/Below-grade area, access & accessibility (A) ----
 		'AboveGradeFinishedArea' => array(
 			'type' => 'meta',
 			'name' => 'abovegradefinishedarea',
@@ -63,6 +119,7 @@ function mlsimport_hardocde_theme_schema(){
 			'type' => 'meta',
 			'name' => 'architecturalstyle',
 		),
+		// ---- HOA / association fees & names ----
 		'AssociationAmenities' => array(
 			'type' => 'meta',
 			'name' => 'associationamenities',
@@ -138,6 +195,7 @@ function mlsimport_hardocde_theme_schema(){
 			'name' => 'property_features',
 			'insert' => 'Has Basement',
 		),
+		// ---- Bath / bedroom counts (BathroomsTotalInteger & BedroomsTotal map to theme core fields) ----
 		'BathroomsFull' => array(
 			'type' => 'meta',
 			'name' => 'bathroomsfull',
@@ -234,6 +292,7 @@ function mlsimport_hardocde_theme_schema(){
 			'type' => 'meta',
 			'name' => 'businesstype',
 		),
+		// ---- Buyer agent contact block (name/phone/email/license variants) ----
 		'BuyerAgent' => array(
 			'type' => 'meta',
 			'name' => 'buyeragent',
@@ -354,6 +413,7 @@ function mlsimport_hardocde_theme_schema(){
 			'type' => 'meta',
 			'name' => 'buyerfinancing',
 		),
+		// ---- Buyer office / brokerage block ----
 		'BuyerOffice' => array(
 			'type' => 'meta',
 			'name' => 'buyeroffice',
@@ -435,6 +495,7 @@ function mlsimport_hardocde_theme_schema(){
 			'type' => 'meta',
 			'name' => 'carrierroute',
 		),
+		// ---- Location taxonomies: City -> property_city, CityRegion -> property_area, etc. ----
 		'City' => array(
 			'type' => 'taxonomy',
 			'name' => 'property_city',
@@ -451,6 +512,7 @@ function mlsimport_hardocde_theme_schema(){
 			'type' => 'meta',
 			'name' => 'closeprice',
 		),
+		// ---- Co-buyer agent contact block ----
 		'CoBuyerAgent' => array(
 			'type' => 'meta',
 			'name' => 'cobuyeragent',
@@ -559,6 +621,7 @@ function mlsimport_hardocde_theme_schema(){
 			'type' => 'meta',
 			'name' => 'cobuyeragentvoicemailext',
 		),
+		// ---- Co-buyer office / brokerage block ----
 		'CoBuyerOffice' => array(
 			'type' => 'meta',
 			'name' => 'cobuyeroffice',
@@ -603,6 +666,7 @@ function mlsimport_hardocde_theme_schema(){
 			'type' => 'meta',
 			'name' => 'cobuyerofficeurl',
 		),
+		// ---- Co-listing agent contact block ----
 		'CoListAgent' => array(
 			'type' => 'meta',
 			'name' => 'colistagent',
@@ -711,6 +775,7 @@ function mlsimport_hardocde_theme_schema(){
 			'type' => 'meta',
 			'name' => 'colistagentvoicemailext',
 		),
+		// ---- Co-listing office / brokerage block ----
 		'CoListOffice' => array(
 			'type' => 'meta',
 			'name' => 'colistoffice',
@@ -894,6 +959,7 @@ function mlsimport_hardocde_theme_schema(){
 			'type' => 'meta',
 			'name' => 'disclosures',
 		),
+		// ---- DistanceTo* family: comments/numeric/units triplets for each amenity ----
 		'DistanceToBusComments' => array(
 			'type' => 'meta',
 			'name' => 'distancetobuscomments',
@@ -1460,6 +1526,7 @@ function mlsimport_hardocde_theme_schema(){
 			'type' => 'meta',
 			'name' => 'licensesexpense',
 		),
+		// ---- Listing agent contact block ----
 		'ListAgent' => array(
 			'type' => 'meta',
 			'name' => 'listagent',
@@ -1604,6 +1671,7 @@ function mlsimport_hardocde_theme_schema(){
 			'type' => 'meta',
 			'name' => 'listingurldescription',
 		),
+		// ---- Listing office / brokerage block ----
 		'ListOffice' => array(
 			'type' => 'meta',
 			'name' => 'listoffice',
@@ -1648,6 +1716,7 @@ function mlsimport_hardocde_theme_schema(){
 			'type' => 'meta',
 			'name' => 'listofficeurl',
 		),
+		// ---- Core theme fields: ListPrice/LivingArea/LotSize/Lat-Long map to theme meta keys ----
 		'ListPrice' => array(
 			'type' => 'meta',
 			'name' => 'property_price',
@@ -1768,6 +1837,7 @@ function mlsimport_hardocde_theme_schema(){
 			'type' => 'meta',
 			'name' => 'mapurl',
 		),
+		// ---- Media: routed to the gallery/attachment importer rather than a meta key ----
 		'Media' => array(
 			'type' => 'media',
 			'name' => 'media',
@@ -2143,6 +2213,7 @@ function mlsimport_hardocde_theme_schema(){
 			'type' => 'taxonomy',
 			'name' => 'property_action_category',
 		),
+		// ---- PublicRemarks -> the post content body (the public listing description) ----
 		'PublicRemarks' => array(
 			'type' => 'content',
 			'name' => 'content',
@@ -2428,6 +2499,7 @@ function mlsimport_hardocde_theme_schema(){
 			'type' => 'meta',
 			'name' => 'syndicationremarks',
 		),
+		// ---- Tax / assessment block ----
 		'TaxAnnualAmount' => array(
 			'type' => 'meta',
 			'name' => 'taxannualamount',
@@ -2622,6 +2694,7 @@ function mlsimport_hardocde_theme_schema(){
 			'type' => 'meta',
 			'name' => 'workmanscompensationexpense',
 		),
+		// ---- Year built / establishment & zoning (tail of the map) ----
 		'YearBuilt' => array(
 			'type' => 'meta',
 			'name' => 'yearbuilt',
@@ -2655,10 +2728,17 @@ function mlsimport_hardocde_theme_schema(){
 			'name' => 'zoningdescription',
 		),
 	);
+	// Hand the completed map back to the caller.
 	return $theme_schema;
 }
 
 
+/**
+ * Build a slug => label map of the taxonomies registered for a post type.
+ *
+ * @param string $post_type Post type name to inspect.
+ * @return array Associative array of taxonomy slug => human-readable label.
+ */
 function mlsimport_get_custom_post_type_taxonomies($post_type) {
     // Get the taxonomies associated with the custom post type
 	$taxonomies = get_object_taxonomies($post_type , 'objects');
@@ -2668,6 +2748,7 @@ function mlsimport_get_custom_post_type_taxonomies($post_type) {
     
     // Loop through the taxonomies and fill the array
     foreach ($taxonomies as $taxonomy_slug => $taxonomy) {
+        // Key by slug, store the taxonomy's display label.
         $taxonomy_array[$taxonomy_slug] = $taxonomy->label;
     }
     
@@ -2682,6 +2763,16 @@ function mlsimport_get_custom_post_type_taxonomies($post_type) {
  *
  */
 
+/**
+ * Whitelist of HTML tags/attributes allowed in MLSImport-rendered content.
+ *
+ * Intended for use with wp_kses() when echoing plugin-generated markup: keeps a
+ * small set of formatting tags plus the form controls (select/option/input/
+ * fieldset/label) the admin UI emits. (The preceding block comment is a stale
+ * copy/paste and does not describe this function.)
+ *
+ * @return array Tag => allowed-attributes map in wp_kses() format.
+ */
  function mlsimport_allowed_html_tags_content() {
     // Define the allowable HTML tags and their attributes
     $allowed_tags = array(
@@ -2757,21 +2848,37 @@ function mlsimport_get_custom_post_type_taxonomies($post_type) {
  *
  *
  */
+/**
+ * Fetch the SaaS list of "ready to go" MLS systems, formatted for an autocomplete.
+ *
+ * Result is cached in a 24h transient. On a fresh fetch the raw MLS list is turned
+ * into an array of {label, value} pairs (with a "My MLS is not on this list" entry
+ * prepended) and JSON-encoded; on API failure a single-element error array is returned.
+ *
+ * @return string|array JSON string of autofill pairs on success, or an array
+ *                      carrying an error message under key '0' on failure.
+ */
 function mlsimport_saas_request_list() {
 
+	// Serve from the cached transient when present.
 	$mls_data = get_transient( 'mlsimport_ready_to_go_mlsimport_data' );
 
+	// Cache miss: hit the SaaS API for the current MLS list.
 	if (  false === $mls_data  ) {
 		$theme_Start = new ThemeImport();
 		$values      = array();
 
+		// GET the MLS catalogue from the SaaS endpoint.
 		$answer = $theme_Start::globalApiRequestSaas( 'mls', $values, 'GET' );
 
+		// Success: reshape the list into autocomplete {label,value} pairs.
 		if ( isset( $answer['success'] ) &&  true === $answer['success']  ) {
 			$mls_data      = $answer['mls_list'];
+			// Prepend the "not listed" opt-out choice.
 			$mls_data['0'] = esc_html__( 'My MLS is not on this list', 'mlsimport' );
 
 			$autofill_array = array();
+			// Convert each key => label into a label/value pair.
 			foreach ( $mls_data as $key => $value ) {
 					$temp_array       = array(
 						'label' => $value,
@@ -2780,10 +2887,12 @@ function mlsimport_saas_request_list() {
 					$autofill_array[] = $temp_array;
 			}
 
+			// Encode the pairs and cache for 24 hours.
 			$mls_data = wp_json_encode( $autofill_array );
 
 			set_transient( 'mlsimport_ready_to_go_mlsimport_data', $mls_data, 60 * 60 * 24 );
                 } else {
+                        // Failure: return a single-entry array carrying the error message.
                         $mls_data = array();
                         $error_message = isset( $answer['error_message'] ) && ! empty( $answer['error_message'] )
                                 ? $answer['error_message']
@@ -2801,9 +2910,20 @@ function mlsimport_saas_request_list() {
  *
  *
  * */
+/**
+ * Recursively sanitise a value (scalar or nested array) for safe storage.
+ *
+ * Walks arrays depth-first, applying sanitize_text_field( wp_unslash() ) to every
+ * leaf; a scalar input is sanitised directly.
+ *
+ * @param mixed $data Array or scalar to sanitise.
+ * @return mixed Sanitised value of the same shape as the input.
+ */
 function mlsimport_sanitize_multi_dimensional_array($data){
+	// Arrays: recurse into each element.
 	if ( is_array( $data ) ) {
         foreach ( $data as $key => $value ) {
+            // Nested array -> recurse; otherwise sanitise the leaf value.
             if ( is_array( $value ) ) {
                 $data[ $key ] = mlsimport_sanitize_multi_dimensional_array( $value );
             } else {
@@ -2812,6 +2932,7 @@ function mlsimport_sanitize_multi_dimensional_array($data){
             }
         }
     } else {
+        // Scalar input: sanitise directly.
         $data = sanitize_text_field( wp_unslash( $data) );
     }
 
@@ -2828,8 +2949,17 @@ function mlsimport_sanitize_multi_dimensional_array($data){
  *
  * */
 
+/**
+ * Cron entry point for the daily SaaS reconciliation pass.
+ *
+ * Bails out early unless at least one non-trashed import task has a title, then
+ * kicks off reconciliation when an MLS name is configured.
+ *
+ * @return void
+ */
 function mlsimport_saas_reconciliation_event_function() {
 
+	// Pull the API token (side effect: ensures a fresh token) and plugin options.
 	global $mlsimport, $wpdb;
 	$token   = $mlsimport->admin->mlsimport_saas_get_mls_api_token_from_transient();
 	$options = get_option( 'mlsimport_admin_options' );
@@ -2842,10 +2972,12 @@ function mlsimport_saas_reconciliation_event_function() {
 		   AND post_title != ''
 		 LIMIT 1"
 	);
+	// No titled task -> nothing to reconcile, abort.
 	if ( ! $has_titled_task ) {
 		return;
 	}
 
+	// Only reconcile when an MLS name is configured.
 	if ( isset( $options['mlsimport_mls_name'] ) && '' !==  $options['mlsimport_mls_name']  ) {
 		$mlsimport->admin->mlsimport_saas_start_doing_reconciliation();
 	}
@@ -2860,20 +2992,36 @@ function mlsimport_saas_reconciliation_event_function() {
  *
  * */
 
+// Register the custom admin list-table columns for the Import Tasks post type.
 add_filter( 'manage_edit-mlsimport_item_columns', 'mlsimport_items_columns_admin' );
 
+// Guard against redeclaration when the filter/file is loaded more than once.
 if ( ! function_exists( 'mlsimport_items_columns_admin' ) ) :
 
+	/**
+	 * Add MLSImport-specific columns to the Import Tasks admin list table.
+	 *
+	 * Drops the default comments column and appends Import Parameters, Last action
+	 * and Auto Update Enabled columns.
+	 *
+	 * @param array $columns Existing column id => label map.
+	 * @return array Modified column map.
+	 */
 	function mlsimport_items_columns_admin( $columns ) {
+		// Keep a copy of two columns starting at offset 2 (to re-append later).
 		$slice = array_slice( $columns, 2, 2 );
+		// Remove the comments column from both the full set and the slice.
 		unset( $columns['comments'] );
 		unset( $slice['comments'] );
+		// Trim the original column set down to the first two entries.
 		$splice = array_splice( $columns, 2 );
 
+		// Append the plugin's own columns.
 		$columns['mlsimport_items_params'] = esc_html__( 'Import Parameters', 'mlsimport' );
 		$columns['mlsimport_last_action']  = esc_html__( 'Last action', 'mlsimport' );
 		$columns['mlsimport_autoupdates']  = esc_html__( 'Auto Update Enabled', 'mlsimport' );
 
+		// Return the plugin columns followed by the preserved slice (reversed).
 		return array_merge( $columns, array_reverse( $slice ) );
 	}
 
@@ -2890,14 +3038,25 @@ endif; // end   wpestate_my_columns
  *
  *
  * */
+/**
+ * Flatten an import-parameter value into a comma-separated display string.
+ *
+ * Arrays are joined with commas (trailing comma trimmed); scalars pass through.
+ *
+ * @param mixed $value Array of values or a single scalar.
+ * @return string Comma-separated (or scalar) display string.
+ */
 function mlsimport_populate_columns_params_display_value( $value ) {
 	$display_value = '';
+	// Array: concatenate each element with a comma separator.
 	if ( is_array( $value ) ) {
 		foreach ( $value as $key_item => $item_name ) :
 			$display_value .= $item_name . ',';
 		endforeach;
+		// Drop the trailing comma left by the loop.
 		$display_value = rtrim( $display_value, ',' );
 	} else {
+		// Scalar: use as-is.
 		$display_value = $value;
 	}
 
@@ -2912,10 +3071,22 @@ function mlsimport_populate_columns_params_display_value( $value ) {
  *
  * */
 
+/**
+ * Echo the configured import parameters for one Import Task into the admin column.
+ *
+ * Iterates the MLS field definitions and, for each non-hidden field, prints the
+ * task's stored value. Fields NOT in the $select_all_none list show "ALL" when
+ * their per-field checkbox meta is set; the rest always show the raw stored value.
+ *
+ * @param int $postID Import Task post ID.
+ * @return void Output is echoed directly.
+ */
 function mlsimport_populate_columns_params_display( $postID ) {
+	// Field definitions come from the admin class.
 	global $mlsimport;
 	$field_import = $mlsimport->admin->mlsimport_saas_return_mls_fields();
 
+        // Fields whose stored value is always shown verbatim (never collapsed to "ALL").
         $select_all_none = array(
                 'InternetAddressDisplayYN',
                 'InternetEntireListingDisplayYN',
@@ -2938,22 +3109,28 @@ function mlsimport_populate_columns_params_display( $postID ) {
                 'SubdivisionName',
 
         );
+	// Walk every defined MLS field for this task.
 	foreach ( $field_import as $key => $field ) :
+		// Skip fields flagged hidden.
 		if ( ! empty( $field['hidden'] ) ) {
 			continue;
 		}
 		$display_value = '';
+		// Derive the per-field meta keys (value + its "check" companion).
 		$name_check    = strtolower( 'mlsimport_item_' . $key . '_check' );
 		$name          = strtolower( 'mlsimport_item_' . $key );
 
+		// Read the stored value and its checkbox flag.
 		$value       = get_post_meta( $postID, $name, true );
 		$value_check = get_post_meta( $postID, $name_check, true );
 
+		// Normalise the checkbox flag to 0/1.
 		$is_checkbox_admin = 0;
 		if ( 1 ===  intval($value_check)  ) {
 			$is_checkbox_admin = 1;
 		}
 
+		// For collapsible fields a set checkbox means "ALL"; otherwise show the value.
 		if ( ! in_array( $key, $select_all_none ) ) {
 			if ( 1 === intval($is_checkbox_admin)  ) {
 				$display_value = esc_html__( 'ALL', 'mlsimport' );
@@ -2961,12 +3138,15 @@ function mlsimport_populate_columns_params_display( $postID ) {
 				$display_value = mlsimport_populate_columns_params_display_value( $value );
 			}
 		} else {
+			// Always-verbatim fields: print the stored value.
 			$display_value = mlsimport_populate_columns_params_display_value( $value );
 		}
 
+		// Render "<Label> : <value>" only when there is something to show.
 		if ( '' !==  $display_value  ) { ?>
 			<strong>
 				<?php
+				// Field label with the leading "Select " prefix stripped.
 				print esc_html(  ucfirst( str_replace( 'Select ', '', $field['label'] ) ) );
 				?>
 			 :</strong>
@@ -2979,14 +3159,28 @@ function mlsimport_populate_columns_params_display( $postID ) {
 
 
 
+// Render cell contents for the custom Import Tasks columns.
 add_action( 'manage_posts_custom_column', 'mlsimport_populate_columns' );
+// Guard against redeclaration.
 if ( ! function_exists( 'mlsimport_populate_columns' ) ) :
 
+	/**
+	 * Output the value for each custom Import Tasks admin column.
+	 *
+	 * Handles the three plugin columns: import parameters (price range + field
+	 * params), last action date, and whether auto-update (cron) is enabled.
+	 *
+	 * @param string $column Column id being rendered.
+	 * @return void Output is echoed directly.
+	 */
 	function mlsimport_populate_columns( $column ) {
 
+		// Current row's post is available via the global.
 		global $post;
 
+		// Import Parameters column: price range then the field parameter list.
 		if ( 'mlsimport_items_params' === $column ) {
+			// Read the configured min/max price filters as floats.
 			$mlsimport_item_min_price = floatval( get_post_meta( $post->ID, 'mlsimport_item_min_price', true ) );
 			$mlsimport_item_max_price = floatval( get_post_meta( $post->ID, 'mlsimport_item_max_price', true ) );
 			?>
@@ -3006,18 +3200,24 @@ if ( ! function_exists( 'mlsimport_populate_columns' ) ) :
 			<?php echo esc_html($mlsimport_item_max_price); ?><br>
 			<?php
 	
+			// Then the per-field import parameters.
 			mlsimport_populate_columns_params_display( $post->ID );
 		} elseif ( 'mlsimport_last_action' === $column ) {
+			// Last action column: date of the most recent import activity.
 			$last_date = get_post_meta( $post->ID, 'mlsimport_last_date', true );
 			if ( '' !==  $last_date  ) {
+				// Have a date: show it with an explanatory note.
 				print esc_html($last_date) . ' </br>';
 				esc_html_e( 'On this date we found new or edited listings.', 'mlsimport' );
 			} else {
+				// No date recorded (sync likely disabled).
 				esc_html_e( 'Not available - sync option may be off.', 'mlsimport' );
 			}
 		} elseif ( 'mlsimport_autoupdates' === $column ) {
+			// Auto Update column: reflects the cron-enabled meta flag.
 			$mlsimport_item_stat_cron = esc_html( get_post_meta( $post->ID, 'mlsimport_item_stat_cron', true ) );
 
+			// Positive flag -> "yes", otherwise "no".
 			if ( intval( $mlsimport_item_stat_cron ) > 0 ) {
 				?>
 				yes
@@ -3033,23 +3233,37 @@ endif;
 
 
 
+/**
+ * Wipe all MLSImport-created options and transients from the database.
+ *
+ * Deletes every option whose name begins with "mlsimport_" (both single-site and
+ * network variants) and every matching transient (site and normal). Does NOT touch
+ * imported posts/terms — options and transients only.
+ *
+ * @return bool Always true.
+ */
 function mlsimport_reset_plugin_data() {
     
 
     global $wpdb;
 
     // Remove all options stored by MLSImport
+    // Collect every option name prefixed with "mlsimport_".
     $option_names = $wpdb->get_col( $wpdb->prepare( "SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE %s", $wpdb->esc_like( 'mlsimport_' ) . '%' ) );
+    // Delete each as both a normal and a network option.
     foreach ( $option_names as $option_name ) {
         delete_option( $option_name );
         delete_site_option( $option_name );
     }
 
     // Remove transients created by MLSImport
+    // Match both normal and site transient row-name prefixes.
     $transient_patterns = array( '_transient_mlsimport_%', '_site_transient_mlsimport_%' );
     foreach ( $transient_patterns as $pattern ) {
+        // Find the raw option rows backing these transients.
         $names = $wpdb->get_col( $wpdb->prepare( "SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE %s", $pattern ) );
         foreach ( $names as $name ) {
+            // Strip the storage prefix and delete via the matching transient API.
             if ( strpos( $name, '_site_transient_' ) === 0 ) {
                 $transient = substr( $name, strlen( '_site_transient_' ) );
                 delete_site_transient( $transient );

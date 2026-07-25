@@ -1,5 +1,15 @@
 <?php 
+/**
+ * MLS provider adapter: Bridge (Bridge Data Output API, RESO standard).
+ *
+ * One of the per-provider adapters in enviroment/ that sit between an MLS data
+ * source and the active theme importer. This class is a thin subtype of
+ * ResoBase; it holds a reference to the theme importer so provider-specific
+ * mapping can delegate to the theme adapter. Bridge currently adds no
+ * behaviour of its own beyond holding that reference.
+ */
 if ( ! defined( 'ABSPATH' ) ) {
+	// Block direct web access — only load when WordPress is bootstrapped.
 	exit; // Exit if accessed directly
 }
 
@@ -17,9 +27,16 @@ if ( ! defined( 'ABSPATH' ) ) {
 class BridgeResoClass extends ResoBase {
 
 
+		// Active theme adapter (e.g. ResidenceClass) this provider maps RESO fields through.
 		public $theme_importer;
 
+	/**
+	 * Store the theme importer so RESO-to-theme mapping can delegate to it.
+	 *
+	 * @param object $theme_importer The active theme adapter instance.
+	 */
 	public function __construct( $theme_importer ) {
+		// Keep the theme adapter reference for later field mapping.
 		$this->theme_importer = $theme_importer;
 	}
 }
