@@ -1,6 +1,6 @@
 <?php
 /**
- * Live mode: normalize a provider response body into { records, total }.
+ * Direct MLS access: normalize a provider response into { records, total }.
  *
  * Pure functions — no WordPress, no network. Family 1 providers all answer
  * with the standard OData envelope: @odata.count + value[]. Provider-family
@@ -17,10 +17,8 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Parse a raw response body into records + total.
  *
  * @param string $body   Raw HTTP response body.
- * @param array  $config Per-MLS config (type, …) — kept as the family-dispatch
- *                       seam; every current provider answers one of the two
- *                       envelopes below (Rapattoni's PropertyPictures quirk is
- *                       normalized later, in live-map-reso).
+ * @param array  $config Per-MLS config retained for call compatibility. Provider
+ *                       adapters normalize any family-specific record fields.
  * @return array{records:array,total:int}|null Null when the body is not a
  *         usable listing payload (bad JSON or a provider error envelope) —
  *         callers treat null as "keep the warm cache".
@@ -53,8 +51,12 @@ function mlsimport_live_parse_response( string $body, array $config ): ?array { 
 		);
 	}
 
-	// Generic RESO OData envelope: @odata.count + value[].
-	$records = isset( $data['value'] ) && is_array( $data['value'] ) ? array_values( $data['value'] ) : array();
+	// Generic RESO OData requires a real value[] member. An unrelated JSON
+	// object is an invalid response, not a successful zero-listing result.
+	if ( ! array_key_exists( 'value', $data ) || ! is_array( $data['value'] ) ) {
+		return null;
+	}
+	$records = array_values( $data['value'] );
 	// @odata.count when present, otherwise the page's own record count.
 	$total   = isset( $data['@odata.count'] ) && is_numeric( $data['@odata.count'] )
 		? (int) $data['@odata.count']
@@ -64,39 +66,6 @@ function mlsimport_live_parse_response( string $body, array $config ): ?array { 
 		'records' => $records,
 		'total'   => $total,
 	);
-}
-
-/**
- * Group BrightMedia rows into standard RESO Media arrays, keyed by their
- * listing's ResourceRecordKey — the shape mlsimport_live_media_urls() reads.
- * HiRes URL preferred, plain MediaURL the fallback (as the AWS media fetch
- * normalizes).
- *
- * @param array $rows BrightMedia value[] rows.
- * @return array<string,array> ListingKey => Media[].
- */
-function mlsimport_live_brightmls_media_map( array $rows ): array {
-	$map = array();
-	// Group every media row under its listing's ResourceRecordKey.
-	foreach ( $rows as $row ) {
-		// Skip rows we can't attribute to a listing.
-		if ( ! is_array( $row ) || ! isset( $row['ResourceRecordKey'] ) ) {
-			continue;
-		}
-		// Prefer the hi-res URL; fall back to the plain one; skip if neither.
-		$url = ! empty( $row['MediaURLHiRes'] ) ? $row['MediaURLHiRes'] : ( $row['MediaURL'] ?? '' );
-		if ( '' === (string) $url ) {
-			continue;
-		}
-		// Append a standard RESO-Media-shaped entry under this listing's key.
-		$map[ (string) $row['ResourceRecordKey'] ][] = array(
-			'MediaURL'      => (string) $url,
-			'Order'         => $row['MediaDisplayOrder'] ?? null,
-			'MediaCategory' => $row['MediaCategory'] ?? null,
-			'MediaType'     => $row['MediaType'] ?? null,
-		);
-	}
-	return $map;
 }
 
 /**

@@ -796,6 +796,8 @@ a.mlsimport-pager__btn:hover {
 	width: 100%;
 	height: 200px;
 	object-fit: cover;
+	/* See .mlsimport-agent-card__img — a centred crop decapitates a portrait. */
+	object-position: top center;
 }
 
 .mlsimport-agent-card__name {
@@ -830,11 +832,33 @@ a.mlsimport-pager__btn:hover {
 	transform: translateY(-2px);
 }
 
+/* The photo box owns the height, not the image, so a card with a portrait and a
+   card with the empty placeholder occupy exactly the same space — otherwise a
+   single agent without a photo makes its whole row lose its baseline. */
+.mlsimport-agent-card--dir .mlsimport-agent-card__photo {
+	display: block;
+	height: 240px;
+	overflow: hidden;
+	line-height: 0;
+}
+
 .mlsimport-agent-card__img {
 	display: block;
 	width: 100%;
-	height: 240px;
+	height: 100%;
 	object-fit: cover;
+	/* Anchor the crop to the top. object-fit:cover centres by default, which on a
+	   portrait crops through the chin and leaves a headless agent. */
+	object-position: top center;
+}
+
+/* `.mlsimport-agent-card__photo img` above is (0,1,1) and outranks the (0,1,0)
+   `__img` rule, so it would pin the tile image back to 200px inside its 240px
+   box and leave a strip of empty placeholder under every photo. Match its weight
+   so the image actually fills the box. */
+.mlsimport-agent-card--dir .mlsimport-agent-card__photo img {
+	height: 100%;
+	object-position: top center;
 }
 
 .mlsimport-agent-card__img--empty {

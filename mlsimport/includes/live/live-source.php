@@ -1,6 +1,6 @@
 <?php
 /**
- * Live mode: the read functions everything else calls.
+ * Direct MLS access: the read functions everything else calls.
  *
  * Only mlsimport_live_search() and mlsimport_live_get() talk HTTP to the
  * MLS; both go through the cache. Query building and response parsing stay
@@ -65,19 +65,9 @@ function mlsimport_live_get( string $listing_key ) {
 		return null;
 	}
 
-	if ( 'bridge' === ( $config['type'] ?? '' ) ) {
-		$query = '?ListingKey=' . rawurlencode( $listing_key );
-	} else {
-		$query = '?';
-		if ( ! empty( $config['expand'] ) ) {
-			$query .= '&$expand=' . $config['expand'];
-		}
-		$query .= '&$top=1&$filter=' . mlsimport_live_filter_list_segment(
-			mlsimport_live_field_alias( 'ListingKey', $config ),
-			array( $listing_key )
-		);
-		$query  = preg_replace( '/ and $/', '', $query );
-	}
+	$type     = isset( $config['type'] ) ? (string) $config['type'] : '';
+	$provider = Mlsimport_Provider_Family::adapter( $type, $config['mls_id'] ?? 0 );
+	$query    = $provider->build_direct_get_query( $listing_key, $config );
 
 	// 'q' keys the config shape too (dialect, $expand): a provider-type or
 	// expand change refetches instead of serving the stale-shaped record.
@@ -152,14 +142,9 @@ function mlsimport_live_keys( array $keys ) {
  * @return string
  */
 function mlsimport_live_endpoint( array $config ): string {
-	$base = isset( $config['api_import_url'] ) ? (string) $config['api_import_url'] : '';
-	if ( 'bridge' === ( $config['type'] ?? '' ) ) {
-		$native = preg_replace( '#/OData/([^/?]+)/Property/?#i', '/$1/listings', $base );
-		if ( is_string( $native ) && '' !== $native ) {
-			return $native;
-		}
-	}
-	return $base;
+	$type     = isset( $config['type'] ) ? (string) $config['type'] : '';
+	$provider = Mlsimport_Provider_Family::adapter( $type, $config['mls_id'] ?? 0 );
+	return $provider->direct_endpoint( $config );
 }
 
 /**
@@ -170,12 +155,14 @@ function mlsimport_live_endpoint( array $config ): string {
  */
 function mlsimport_live_request( string $query ) {
 	$config  = mlsimport_live_config();
+	$type    = isset( $config['type'] ) ? (string) $config['type'] : '';
+	$provider = Mlsimport_Provider_Family::adapter( $type, $config['mls_id'] ?? 0 );
 	$headers = mlsimport_live_auth_headers();
-	if ( array() === $config || array() === $headers ) {
+	if ( array() === $config || ! $provider->supports_direct_access() || array() === $headers ) {
 		return null;
 	}
 
-	$base = mlsimport_live_endpoint( $config );
+	$base = $provider->direct_endpoint( $config );
 	// The base URL may already carry a query part; keep exactly one '?'.
 	$url = false === strpos( $base, '?' )
 		? $base . $query
@@ -192,76 +179,28 @@ function mlsimport_live_request( string $query ) {
 		)
 	);
 
-	if ( is_wp_error( $response ) || 200 !== (int) wp_remote_retrieve_response_code( $response ) ) {
+	if ( is_wp_error( $response ) ) {
+		error_log( 'MLSImport Direct MLS request failed: request_failed' );
 		return null;
 	}
 
-	$result = mlsimport_live_parse_response( (string) wp_remote_retrieve_body( $response ), $config );
-
-	// BrightMLS media lives on a separate endpoint; attach it here, inside the
-	// cached request path, so the cache stores records WITH their media.
-	if ( is_array( $result ) && 'brightmls' === ( $config['type'] ?? '' ) && array() !== $result['records'] ) {
-		$result['records'] = mlsimport_live_attach_brightmls_media( $result['records'], $config, $headers );
+	$outcome = $provider->read_direct_response(
+		(int) wp_remote_retrieve_response_code( $response ),
+		(string) wp_remote_retrieve_body( $response )
+	);
+	if ( empty( $outcome['success'] ) ) {
+		$code = isset( $outcome['error']['code'] ) ? $outcome['error']['code'] : 'request_failed';
+		error_log( 'MLSImport Direct MLS request failed: ' . $code );
+		return null;
 	}
 
-	return $result;
-}
-
-/**
- * Attach BrightMedia rows as standard Media[] to records that lack media,
- * fetched from the separate media endpoint in chunks of 100 keys (the same
- * request the AWS media fetch runs). A failed media chunk degrades to
- * photo-less cards, never a failed search.
- *
- * @param array $records Raw RESO records from the listings response.
- * @param array $config  Per-MLS config (api_media_url).
- * @param array $headers Auth headers of the listings request.
- * @return array The records, media attached where the endpoint had it.
- */
-function mlsimport_live_attach_brightmls_media( array $records, array $config, array $headers ): array {
-	$keys = array();
-	foreach ( $records as $record ) {
-		if ( is_array( $record ) && empty( $record['Media'] ) && isset( $record['ListingKey'] ) ) {
-			$keys[] = (string) $record['ListingKey'];
-		}
-	}
-	if ( array() === $keys ) {
-		return $records;
+	$outcome = $provider->enrich_direct_media( $outcome, $config, $headers );
+	if ( ! empty( $outcome['warning']['code'] ) ) {
+		error_log( 'MLSImport Direct MLS warning: ' . $outcome['warning']['code'] );
 	}
 
-	$base = isset( $config['api_media_url'] ) ? trim( (string) $config['api_media_url'] ) : '';
-	if ( '' === $base ) {
-		// The fixed BrightMedia endpoint — the AWS media fetch's default.
-		$base = 'https://bright-reso.brightmls.com/RESO/OData/bright/BrightMedia';
-	}
-	// BrightMLS's OData server rejects a '/' immediately before '?'.
-	$base = rtrim( $base, '/' );
-
-	$map = array();
-	foreach ( array_chunk( $keys, 100 ) as $chunk ) {
-		$url      = $base . mlsimport_live_brightmls_media_query( $chunk );
-		$url      = str_replace( array( ' ', "'" ), array( '%20', '%27' ), $url );
-		$response = wp_remote_get(
-			$url,
-			array(
-				'timeout' => 20,
-				'headers' => $headers,
-			)
-		);
-		if ( is_wp_error( $response ) || 200 !== (int) wp_remote_retrieve_response_code( $response ) ) {
-			continue;
-		}
-		$data = json_decode( (string) wp_remote_retrieve_body( $response ), true );
-		if ( is_array( $data ) && ! empty( $data['value'] ) && is_array( $data['value'] ) ) {
-			$map += mlsimport_live_brightmls_media_map( $data['value'] );
-		}
-	}
-
-	foreach ( $records as $i => $record ) {
-		$key = is_array( $record ) && isset( $record['ListingKey'] ) ? (string) $record['ListingKey'] : '';
-		if ( '' !== $key && isset( $map[ $key ] ) ) {
-			$records[ $i ]['Media'] = $map[ $key ];
-		}
-	}
-	return $records;
+	return array(
+		'records' => $outcome['records'],
+		'total'   => $outcome['total'],
+	);
 }

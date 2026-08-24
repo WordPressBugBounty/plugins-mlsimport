@@ -192,6 +192,65 @@ function mlsimport_telemetry_set_once( string $key, $value ): void {
 }
 
 /**
+ * Record the outcome of one listings request into sync-health telemetry
+ * (GitHub issue #207).
+ *
+ * Called from the single choke point every import path routes through
+ * (Mlsimport_Admin::mlsimport_make_listing_requests()), with the already
+ * normalized API answer. Stamps last_sync_success when the pull returned a
+ * feed, so a cron run that dies later in its loop still leaves fresh
+ * success evidence — the previous end-of-loop-only stamp left actively
+ * syncing sites reporting last_successful_sync = "never".
+ *
+ * @param mixed $answer The normalized listings API answer array.
+ * @return void
+ */
+function mlsimport_telemetry_record_sync_result( $answer ): void {
+	// A successful pull always carries the feed count under 'results'.
+	if ( is_array( $answer ) && isset( $answer['results'] ) ) {
+		mlsimport_telemetry_set( 'last_sync_success', time() );
+		return;
+	}
+	// Anything else is a failed pull: stamp when it happened and a real
+	// failure class — previously every failure surfaced as "unknown".
+	mlsimport_telemetry_set( 'last_sync_failed', time() );
+	mlsimport_telemetry_set( 'last_sync_failed_code', mlsimport_telemetry_classify_sync_failure( $answer ) );
+}
+
+/**
+ * Map a failed listings answer to a short failure class for
+ * sync_health.last_failure_code. Pure — inspects only the answer shape and
+ * the message strings globalApiRequestCurlSaas() actually produces.
+ *
+ * @param mixed $answer The normalized failed listings API answer.
+ * @return string One of the short failure-class codes.
+ */
+function mlsimport_telemetry_classify_sync_failure( $answer ): string {
+	// A provider-rule rejection already carries a machine code under 'type'
+	// (set by mlsimport_make_listing_requests()) — pass it through as-is.
+	if ( is_array( $answer ) && ! empty( $answer['type'] ) ) {
+		return (string) $answer['type'];
+	}
+	$message = is_array( $answer ) && isset( $answer['message'] ) ? (string) $answer['message'] : '';
+	// The exact string ThemeImport returns when the SaaS JWT cannot be
+	// minted/refreshed (bad account credentials, token endpoint down).
+	if ( 'Token validation failed' === $message ) {
+		return 'token';
+	}
+	// WP_Error transport messages pass through verbatim; cURL timeouts read
+	// 'cURL error 28: Operation timed out after N milliseconds ...'.
+	if ( false !== stripos( $message, 'timed out' ) ) {
+		return 'timeout';
+	}
+	// AWS API Gateway rejections decode to {"message":"Unauthorized"} /
+	// {"message":"Forbidden"} with no 'results' key.
+	if ( false !== stripos( $message, 'unauthorized' ) || false !== stripos( $message, 'forbidden' ) ) {
+		return 'auth';
+	}
+	return 'api_error';
+}
+
+/**
  * Record the first-completion time of an onboarding-wizard step into the
  * 'onboarding_steps' map on mlsimport_telemetry_state. First completion wins;
  * re-running a step does not move the timestamp. Saved with autoload = 'no'.
@@ -220,6 +279,50 @@ function mlsimport_telemetry_mark_onboarding_step( string $step ): void {
 	// Stamp the step with the current epoch and persist (non-autoloaded).
 	$state['onboarding_steps'][ $step ] = time();
 	update_option( 'mlsimport_telemetry_state', $state, false );
+}
+
+// ---------------------------------------------------------------------------
+// §1 Import performance snapshot (GitHub issue #216)
+// ---------------------------------------------------------------------------
+
+/**
+ * Build the import-performance snapshot for one finished Import Run. Pure.
+ *
+ * Answers support's "is it us or the host?" question from data the run
+ * machinery already tracks:
+ * - elapsed_seconds: wall time from the run's started_at to its finish, across
+ *   every chunk worker — not just the finishing request.
+ * - workers: 1 + chunk hand-offs + watchdog revivals. Any revival means a
+ *   worker died without handing off, i.e. the host killed it.
+ * - queue_depth: pending worker actions at finish — backlog evidence.
+ * - peak_memory_mb: peak PHP memory of the finishing worker.
+ *
+ * @param array $run               Final Import Run record (started_at, source,
+ *                                 expected, handoffs, revive_count).
+ * @param array $result            Final public Import Run Result.
+ * @param int   $now               Finish time (Unix epoch).
+ * @param int   $peak_memory_bytes memory_get_peak_usage(true) of the finisher.
+ * @param int   $queue_depth       Pending worker actions for the import hook.
+ * @return array<string,int|string> The snapshot stored under 'last_import_run'.
+ */
+function mlsimport_telemetry_import_run_snapshot( array $run, array $result, int $now, int $peak_memory_bytes, int $queue_depth ): array {
+	// Wall time across the whole worker chain; guard against a missing or
+	// future started_at leaving a negative duration.
+	$started_at = (int) ( $run['started_at'] ?? $now );
+	return array(
+		'source'          => (string) ( $run['source'] ?? '' ),
+		'state'           => (string) ( $result['state'] ?? '' ),
+		'expected'        => (int) ( $run['expected'] ?? 0 ),
+		'saved'           => (int) ( $result['saved'] ?? 0 ),
+		'failed'          => (int) ( $result['failed'] ?? 0 ),
+		'elapsed_seconds' => max( 0, $now - $started_at ),
+		// One initial worker, plus one per chunk hand-off, plus one per
+		// watchdog revival (a revival is a worker the host killed).
+		'workers'         => 1 + (int) ( $run['handoffs'] ?? 0 ) + (int) ( $run['revive_count'] ?? 0 ),
+		'peak_memory_mb'  => (int) round( $peak_memory_bytes / 1048576 ),
+		'queue_depth'     => $queue_depth,
+		'finished_at'     => $now,
+	);
 }
 
 // ---------------------------------------------------------------------------
@@ -551,6 +654,15 @@ function mlsimport_telemetry_collect_payload(): array {
 	// --- data completeness ---
 	$completeness = mlsimport_telemetry_sample_completeness();
 
+	// --- import performance (issue #216) ---
+	// The latest finished-run snapshot, recorded at finish_run(). Null means
+	// no run has ever finished on this install — distinct from a missing field.
+	$import_performance = null;
+	if ( isset( $state['last_import_run'] ) && is_array( $state['last_import_run'] ) ) {
+		$import_performance                = $state['last_import_run'];
+		$import_performance['finished_at'] = mlsimport_telemetry_iso( (int) ( $import_performance['finished_at'] ?? 0 ) );
+	}
+
 	// --- configuration: import tasks ---
 	$raw_tasks_query = function_exists( 'get_posts' ) ? get_posts( array(
 		'post_type'      => 'mlsimport_item',
@@ -646,6 +758,7 @@ function mlsimport_telemetry_collect_payload(): array {
 				'with_coordinates_percent' => (int) $completeness['with_coordinates_percent'],
 			),
 		),
+		'import_performance' => $import_performance,
 		'engagement'    => array(
 			'last_admin_page_view'       => mlsimport_telemetry_iso( $last_admin_load ),
 			'last_import_task_page_view' => mlsimport_telemetry_iso( $last_import_task_load ),
@@ -807,17 +920,6 @@ function mlsimport_telemetry_track_field_management(): void {
 	update_option( 'mlsimport_telemetry_state', $state, false );
 }
 
-// Field-selector progressive-save AJAX actions — "managing import fields".
-// Priority 1 so the timestamp is recorded before the real save handler runs.
-foreach (
-	array(
-		'mlsimport_save_field_chunk',
-		'mlsimport_save_field_option',
-		'mlsimport_save_field_position',
-		'mlsimport_save_bulk_import',
-		'mlsimport_save_bulk_admin',
-	) as $mlsimport_field_action
-) {
-	add_action( 'wp_ajax_' . $mlsimport_field_action, 'mlsimport_telemetry_track_field_management', 1 );
-}
-unset( $mlsimport_field_action );
+// The single compact mutation endpoint is the Field Configuration activity
+// seam. Priority 1 records activity before validation/persistence runs.
+add_action( 'wp_ajax_mlsimport_change_field_configuration', 'mlsimport_telemetry_track_field_management', 1 );

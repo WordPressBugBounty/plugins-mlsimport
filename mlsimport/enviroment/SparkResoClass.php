@@ -2,8 +2,7 @@
 /**
  * SparkResoClass — RESO provider adapter for the Spark (FBS) MLS data source.
  *
- * Extends ResoBase. Holds a reference to the active theme importer so provider-specific
- * data handling can delegate to the current theme adapter. Currently a thin stub.
+ * Owns Spark identity, Stored timestamp formatting, and saved-token login.
  *
  * @package MLSImport
  */
@@ -26,6 +25,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class SparkResoClass extends ResoBase {
 
+		/** @var string Stable provider type saved for Spark. */
+		protected $provider_type = 'spark';
+
+		/** @var bool Spark sends its saved bearer token unchanged. */
+		protected $direct_uses_stored_token = true;
 
 		// The theme importer instance this provider delegates to.
 		public $theme_importer;
@@ -38,5 +42,10 @@ class SparkResoClass extends ResoBase {
 	public function __construct( $theme_importer ) {
 		// Keep the theme importer for provider-specific handling.
 		$this->theme_importer = $theme_importer;
+	}
+
+	/** Format Spark sync times with seconds and a UTC suffix. */
+	protected function format_stored_timestamp( $value ) {
+		return $this->format_utc_timestamp( $value, false, true );
 	}
 }

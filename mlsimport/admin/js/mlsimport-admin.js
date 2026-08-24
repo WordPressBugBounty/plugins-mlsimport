@@ -7,8 +7,8 @@
  * properties by taxonomy term, and provides the front-end MLS autocomplete.
  * All server calls go through admin-ajax (ajaxurl / mlsimport_vars.ajax_url).
  *
- * Provider id ranges used by the mlsimport_is_* helpers below decide which
- * credential fields are relevant for the chosen MLS.
+ * PHP's Provider Family module supplies the exact credential fields for the
+ * selected MLS; this file only applies their visibility.
  */
 jQuery( document ).ready(
 	function ($) {
@@ -45,88 +45,11 @@ jQuery( document ).ready(
 		* Show / hide input tokens on change
 		*/
 
-		// When the chosen MLS changes, reveal only the credential fieldset(s) that
-		// provider needs and hide the rest. Each branch below matches one provider
-		// family (by numeric id range) and shows its fields while hiding all others.
+		// When the chosen MLS changes, use the provider fields supplied by PHP.
 		jQuery( '#mlsimport_mls_name' ).on(
 			'change',
-			function (event) {
-
-				// Numeric id of the selected MLS drives which branch runs.
-				var selected_value = jQuery( '#mlsimport_mls_name' ).val();
-				selected_value     = parseInt( selected_value );
-
-		
-			
-                                if ( mlsimport_is_brightmls( selected_value ) ) {
-
-                                        jQuery( '.fieldset_mlsimport_mls_token' ).hide();
-                                        jQuery( '.fieldset_mlsimport_tresle_client_id, .fieldset_mlsimport_tresle_client_secret' ).hide();
-                                        jQuery( '.fieldset_mlsimport_connectmls_username, .fieldset_mlsimport_connectmls_password' ).hide();
-                                        jQuery( '.fieldset_mlsimport_rapattoni_client_id,.fieldset_mlsimport_rapattoni_client_secret,.fieldset_mlsimport_rapattoni_username,.fieldset_mlsimport_rapattoni_password ' ).hide();
-                                        jQuery( '.fieldset_mlsimport_paragon_client_id, .fieldset_mlsimport_paragon_client_secret' ).hide();
-                                        jQuery( '.fieldset_mlsimport_realtorca_client_id, .fieldset_mlsimport_realtorca_client_secret' ).hide();
-                                        jQuery( '.fieldset_mlsimport_brightmls_client_id, .fieldset_mlsimport_brightmls_client_secret' ).show();
-                                } else if ( mlsimport_is_connectmls( selected_value ) ) {
-
-                                        jQuery( '.fieldset_mlsimport_mls_token' ).hide();
-                                        jQuery( '.fieldset_mlsimport_tresle_client_id, .fieldset_mlsimport_tresle_client_secret' ).hide();
-                                        jQuery( '.fieldset_mlsimport_connectmls_username, .fieldset_mlsimport_connectmls_password' ).show();
-                                        jQuery( '.fieldset_mlsimport_rapattoni_client_id,.fieldset_mlsimport_rapattoni_client_secret,.fieldset_mlsimport_rapattoni_username,.fieldset_mlsimport_rapattoni_password ' ).hide();
-                                        jQuery( '.fieldset_mlsimport_paragon_client_id, .fieldset_mlsimport_paragon_client_secret' ).hide();
-                                        jQuery( '.fieldset_mlsimport_realtorca_client_id, .fieldset_mlsimport_realtorca_client_secret' ).hide();
-                                        jQuery( '.fieldset_mlsimport_brightmls_client_id, .fieldset_mlsimport_brightmls_client_secret' ).hide();
-                                } else if ( mlsimport_is_realtorca( selected_value ) ) {
-
-                                        jQuery( '.fieldset_mlsimport_mls_token' ).hide();
-                                        jQuery( '.fieldset_mlsimport_tresle_client_id, .fieldset_mlsimport_tresle_client_secret' ).hide();
-                                        jQuery( '.fieldset_mlsimport_connectmls_username, .fieldset_mlsimport_connectmls_password' ).hide();
-                                        jQuery( '.fieldset_mlsimport_rapattoni_client_id,.fieldset_mlsimport_rapattoni_client_secret,.fieldset_mlsimport_rapattoni_username,.fieldset_mlsimport_rapattoni_password ' ).hide();
-                                        jQuery( '.fieldset_mlsimport_paragon_client_id, .fieldset_mlsimport_paragon_client_secret' ).hide();
-                                        jQuery( '.fieldset_mlsimport_realtorca_client_id, .fieldset_mlsimport_realtorca_client_secret' ).show();
-                                        jQuery( '.fieldset_mlsimport_brightmls_client_id, .fieldset_mlsimport_brightmls_client_secret' ).hide();
-                                } else if ( mlsimport_is_paragon( selected_value ) ) {
-
-                                        jQuery( '.fieldset_mlsimport_mls_token' ).hide();
-                                        jQuery( '.fieldset_mlsimport_tresle_client_id, .fieldset_mlsimport_tresle_client_secret' ).hide();
-                                        jQuery( '.fieldset_mlsimport_connectmls_username, .fieldset_mlsimport_connectmls_password' ).hide();
-                                        jQuery( '.fieldset_mlsimport_rapattoni_client_id,.fieldset_mlsimport_rapattoni_client_secret,.fieldset_mlsimport_rapattoni_username,.fieldset_mlsimport_rapattoni_password ' ).hide();
-                                        jQuery( '.fieldset_mlsimport_paragon_client_id, .fieldset_mlsimport_paragon_client_secret' ).show();
-                                        jQuery( '.fieldset_mlsimport_realtorca_client_id, .fieldset_mlsimport_realtorca_client_secret' ).hide();
-                                        jQuery( '.fieldset_mlsimport_brightmls_client_id, .fieldset_mlsimport_brightmls_client_secret' ).hide();
-                                } else if ( mlsimport_is_rapattoni( selected_value ) ) {
-
-                                        jQuery( '.fieldset_mlsimport_mls_token' ).hide();
-                                        jQuery( '.fieldset_mlsimport_tresle_client_id,.fieldset_mlsimport_tresle_client_secret' ).hide();
-                                        jQuery( '.fieldset_mlsimport_connectmls_username, .fieldset_mlsimport_connectmls_password' ).hide();
-                                        jQuery( '.fieldset_mlsimport_rapattoni_client_id,.fieldset_mlsimport_rapattoni_client_secret,.fieldset_mlsimport_rapattoni_username,.fieldset_mlsimport_rapattoni_password ' ).show();
-                                        jQuery( '.fieldset_mlsimport_paragon_client_id, .fieldset_mlsimport_paragon_client_secret' ).hide();
-                                        jQuery( '.fieldset_mlsimport_realtorca_client_id, .fieldset_mlsimport_realtorca_client_secret' ).hide();
-                                        jQuery( '.fieldset_mlsimport_brightmls_client_id, .fieldset_mlsimport_brightmls_client_secret' ).hide();
-                                } else if ( mlsimport_is_trestle( selected_value ) ) {
-
-                                        jQuery( '.fieldset_mlsimport_mls_token' ).hide();
-                                        jQuery( '.fieldset_mlsimport_rapattoni_client_id,.fieldset_mlsimport_rapattoni_client_secret,.fieldset_mlsimport_rapattoni_username,.fieldset_mlsimport_rapattoni_password ' ).hide();
-                                        jQuery( '.fieldset_mlsimport_connectmls_username, .fieldset_mlsimport_connectmls_password' ).hide();
-                                        jQuery( '.fieldset_mlsimport_paragon_client_id, .fieldset_mlsimport_paragon_client_secret' ).hide();
-                                        jQuery( '.fieldset_mlsimport_realtorca_client_id, .fieldset_mlsimport_realtorca_client_secret' ).hide();
-                                        jQuery( '.fieldset_mlsimport_brightmls_client_id, .fieldset_mlsimport_brightmls_client_secret' ).hide();
-
-                                        jQuery( '.fieldset_mlsimport_tresle_client_id' ).show();
-                                        jQuery( '.fieldset_mlsimport_tresle_client_secret' ).show();
-                                } else {
-
-                                        jQuery( '.fieldset_mlsimport_mls_token' ).show();
-                                        jQuery( '.fieldset_mlsimport_rapattoni_client_id,.fieldset_mlsimport_rapattoni_client_secret,.fieldset_mlsimport_rapattoni_username,.fieldset_mlsimport_rapattoni_password ' ).hide();
-                                        jQuery( '.fieldset_mlsimport_connectmls_username, .fieldset_mlsimport_connectmls_password' ).hide();
-                                        jQuery( '.fieldset_mlsimport_paragon_client_id, .fieldset_mlsimport_paragon_client_secret' ).hide();
-                                        jQuery( '.fieldset_mlsimport_realtorca_client_id, .fieldset_mlsimport_realtorca_client_secret' ).hide();
-                                        jQuery( '.fieldset_mlsimport_brightmls_client_id, .fieldset_mlsimport_brightmls_client_secret' ).hide();
-
-                                        jQuery( '.fieldset_mlsimport_tresle_client_id' ).hide();
-                                        jQuery( '.fieldset_mlsimport_tresle_client_secret' ).hide();
-                                }
-
+			function () {
+				mlsimport_token_on_load();
 			}
 		);
 
@@ -647,19 +570,31 @@ jQuery( document ).ready(
                                                                 var width = progress * 100 / total;
                                                                 jQuery( '#mlsimport_item_progress .mlsimport-progress-bar-inner' ).css( 'width', width + '%' );
                                                         }
-                                                       // Finished (done, or no more logs): stop the poll and show the final status.
-                                                       if (data.is_done === 'done' || data.logs === '' ) {
+                                                       // Only the server's run state can end polling. An empty log is
+                                                       // valid while an Action Scheduler worker is still waiting.
+                                                       if (data.is_done === 'done') {
                                                                 console.log( 'kill interval' );
 
                                                                 clearInterval( log_refresh_interval_per_item );
-                                                                var message = (data.status === 'completed' && progress > 0) ? "Import completed!" : "Ready to import!";
+                                                                var message = "Ready to import!";
+                                                                if (data.status === 'completed') {
+                                                                        message = "Import completed!";
+                                                                        jQuery( '#mlsimport_item_progress .mlsimport-progress-bar-inner' ).css( 'width', '100%' );
+                                                                } else if (data.status === 'stopped') {
+                                                                        message = "Import stopped!";
+                                                                } else if (data.status === 'failed') {
+                                                                        var runError = data.result && data.result.error ? ': ' + data.result.error : '';
+                                                                        message = "Import failed" + runError;
+                                                                }
                                                                 jQuery( '#mlsimport_item_status' ).empty().append( message );
-                                                                jQuery( '#mlsimport_item_progress .mlsimport-progress-bar-inner' ).css( 'width', '100%' );
 
                                                         }else if(data.is_done==='wip'){
                                                                 // Work-in-progress: show current property number and memory usage.
                                                                 console.log('we do wip');
-                                                                jQuery( '#mlsimport_item_status' ).empty().append( 'Importing property: '+data.mlsimport_progress_properties+' of '+data.mlsimport_task_to_import+'. Memory used: '+data.memory+' MB.' );
+                                                                var runningMessage = data.status === 'waiting'
+                                                                        ? 'Waiting for the import worker to start.'
+                                                                        : 'Importing property: '+data.mlsimport_progress_properties+' of '+data.mlsimport_task_to_import+'. Memory used: '+data.memory+' MB.';
+                                                                jQuery( '#mlsimport_item_status' ).empty().append( runningMessage );
 
 							} else if (data.logs !== '') {
 								// Otherwise surface whatever raw log text the server returned.
@@ -800,157 +735,31 @@ function mlsimport_saas_get_metadata()
 
 
 /**
- * Provider detectors — each maps an MLS numeric id to a provider family so the
- * UI can decide which credential fieldset to show. Ranges are mutually exclusive.
- */
-
-/**
- * @param  {number|string} selected_value MLS id.
- * @return {boolean} True for BrightMLS (the single id 8001).
- */
-function mlsimport_is_brightmls( selected_value )
-{
-        return Number( selected_value ) === 8001;
-}
-
-/**
- * @param  {number|string} selected_value MLS id.
- * @return {boolean} True for ConnectMLS: 8000–8999 excluding BrightMLS (8001).
- */
-function mlsimport_is_connectmls( selected_value )
-{
-        selected_value = parseInt( selected_value );
-
-        // Non-numeric input is never ConnectMLS.
-        if ( isNaN( selected_value ) ) {
-                return false;
-        }
-
-        // In the 8000-range, but not the BrightMLS id.
-        return selected_value >= 8000 && selected_value < 9000 && Number( selected_value ) !== 8001;
-}
-
-/**
- * @param  {number|string} selected_value MLS id.
- * @return {boolean} True for Realtor.ca ids (7000–7999).
- */
-function mlsimport_is_realtorca( selected_value )
-{
-        return selected_value >= 7000 && selected_value < 8000;
-}
-
-/**
- * @param  {number|string} selected_value MLS id.
- * @return {boolean} True for Paragon ids (6000–6999).
- */
-function mlsimport_is_paragon( selected_value )
-{
-        return selected_value >= 6000 && selected_value < 7000;
-}
-
-/**
- * @param  {number|string} selected_value MLS id.
- * @return {boolean} True for Rapattoni ids (5000–5999).
- */
-function mlsimport_is_rapattoni( selected_value )
-{
-        return selected_value >= 5000 && selected_value < 6000;
-}
-
-/**
- * @param  {number|string} selected_value MLS id.
- * @return {boolean} True for Trestle ids (901–2999).
- */
-function mlsimport_is_trestle( selected_value )
-{
-        return selected_value > 900 && selected_value < 3000;
-}
-
-/**
- * Show/hide the credential fieldsets for the currently selected MLS on page load
- * (and whenever called after a selection). Mirrors the change-handler branches:
- * detects the provider family by id range and reveals only its fields.
+ * Show only the selected MLS's credential fields using PHP-generated config.
+ * JavaScript contains no provider rules; it applies the final field-name list.
  */
 function mlsimport_token_on_load()
 {
-        // Read and normalise the currently selected MLS id.
-        var selected_value = jQuery( '#mlsimport_mls_name' ).val();
-        selected_value     = parseInt( selected_value );
+	// PHP resolves the selected MLS to final credential field names. JavaScript
+	// only applies visibility and has no provider names or numeric ranges.
+	var providerConfig = window.mlsimport_vars && mlsimport_vars.provider_families
+		? mlsimport_vars.provider_families
+		: { by_mls_id: {}, all_credential_fields: [] };
+	var selectedId = String( jQuery( '#mlsimport_mls_name' ).val() || '' );
+	var family     = providerConfig.by_mls_id[ selectedId ];
 
-        console.log("on load "+selected_value);
-        // Match the provider family and show its fieldset(s), hiding all the rest.
-        if ( mlsimport_is_brightmls( selected_value ) ) {
-
-                jQuery( '.fieldset_mlsimport_mls_token' ).hide();
-                jQuery( '.fieldset_mlsimport_tresle_client_id' ).hide();
-                jQuery( '.fieldset_mlsimport_tresle_client_secret' ).hide();
-                jQuery( '.fieldset_mlsimport_connectmls_username, .fieldset_mlsimport_connectmls_password' ).hide();
-                jQuery( '.fieldset_mlsimport_rapattoni_client_id,.fieldset_mlsimport_rapattoni_client_secret,.fieldset_mlsimport_rapattoni_username,.fieldset_mlsimport_rapattoni_password ' ).hide();
-                jQuery( '.fieldset_mlsimport_paragon_client_id, .fieldset_mlsimport_paragon_client_secret' ).hide();
-                jQuery( '.fieldset_mlsimport_realtorca_client_id, .fieldset_mlsimport_realtorca_client_secret' ).hide();
-                jQuery( '.fieldset_mlsimport_brightmls_client_id, .fieldset_mlsimport_brightmls_client_secret' ).show();
-        } else if ( mlsimport_is_connectmls( selected_value ) ) {
-
-                jQuery( '.fieldset_mlsimport_mls_token' ).hide();
-                jQuery( '.fieldset_mlsimport_tresle_client_id' ).hide();
-                jQuery( '.fieldset_mlsimport_tresle_client_secret' ).hide();
-                jQuery( '.fieldset_mlsimport_connectmls_username, .fieldset_mlsimport_connectmls_password' ).show();
-                jQuery( '.fieldset_mlsimport_rapattoni_client_id,.fieldset_mlsimport_rapattoni_client_secret,.fieldset_mlsimport_rapattoni_username,.fieldset_mlsimport_rapattoni_password ' ).hide();
-                jQuery( '.fieldset_mlsimport_paragon_client_id, .fieldset_mlsimport_paragon_client_secret' ).hide();
-                jQuery( '.fieldset_mlsimport_realtorca_client_id, .fieldset_mlsimport_realtorca_client_secret' ).hide();
-                jQuery( '.fieldset_mlsimport_brightmls_client_id, .fieldset_mlsimport_brightmls_client_secret' ).hide();
-        } else if ( mlsimport_is_realtorca( selected_value ) ) {
-
-                jQuery( '.fieldset_mlsimport_mls_token' ).hide();
-                jQuery( '.fieldset_mlsimport_tresle_client_id' ).hide();
-                jQuery( '.fieldset_mlsimport_tresle_client_secret' ).hide();
-                jQuery( '.fieldset_mlsimport_connectmls_username, .fieldset_mlsimport_connectmls_password' ).hide();
-                jQuery( '.fieldset_mlsimport_rapattoni_client_id,.fieldset_mlsimport_rapattoni_client_secret,.fieldset_mlsimport_rapattoni_username,.fieldset_mlsimport_rapattoni_password ' ).hide();
-                jQuery( '.fieldset_mlsimport_paragon_client_id, .fieldset_mlsimport_paragon_client_secret' ).hide();
-                jQuery( '.fieldset_mlsimport_realtorca_client_id, .fieldset_mlsimport_realtorca_client_secret' ).show();
-                jQuery( '.fieldset_mlsimport_brightmls_client_id, .fieldset_mlsimport_brightmls_client_secret' ).hide();
-        } else if ( mlsimport_is_paragon( selected_value ) ) {
-
-                jQuery( '.fieldset_mlsimport_paragon_client_id, .fieldset_mlsimport_paragon_client_secret' ).show();
-                jQuery( '.fieldset_mlsimport_rapattoni_client_id,.fieldset_mlsimport_rapattoni_client_secret,.fieldset_mlsimport_rapattoni_username,.fieldset_mlsimport_rapattoni_password ' ).hide();
-                jQuery( '.fieldset_mlsimport_connectmls_username, .fieldset_mlsimport_connectmls_password' ).hide();
-                jQuery( '.fieldset_mlsimport_mls_token' ).hide();
-                jQuery( '.fieldset_mlsimport_tresle_client_id' ).hide();
-                jQuery( '.fieldset_mlsimport_tresle_client_secret' ).hide();
-                jQuery( '.fieldset_mlsimport_realtorca_client_id, .fieldset_mlsimport_realtorca_client_secret' ).hide();
-                jQuery( '.fieldset_mlsimport_brightmls_client_id, .fieldset_mlsimport_brightmls_client_secret' ).hide();
-        } else if ( mlsimport_is_rapattoni( selected_value ) ) {
-
-                jQuery( '.fieldset_mlsimport_rapattoni_client_id,.fieldset_mlsimport_rapattoni_client_secret,.fieldset_mlsimport_rapattoni_username,.fieldset_mlsimport_rapattoni_password ' ).show();
-                jQuery( '.fieldset_mlsimport_mls_token' ).hide();
-                jQuery( '.fieldset_mlsimport_tresle_client_id' ).hide();
-                jQuery( '.fieldset_mlsimport_tresle_client_secret' ).hide();
-                jQuery( '.fieldset_mlsimport_connectmls_username, .fieldset_mlsimport_connectmls_password' ).hide();
-                jQuery( '.fieldset_mlsimport_paragon_client_id, .fieldset_mlsimport_paragon_client_secret' ).hide();
-                jQuery( '.fieldset_mlsimport_realtorca_client_id, .fieldset_mlsimport_realtorca_client_secret' ).hide();
-                jQuery( '.fieldset_mlsimport_brightmls_client_id, .fieldset_mlsimport_brightmls_client_secret' ).hide();
-        } else if ( mlsimport_is_trestle( selected_value ) ) {
-
-                jQuery( '.fieldset_mlsimport_mls_token' ).hide();
-                jQuery( '.fieldset_mlsimport_tresle_client_id' ).show();
-                jQuery( '.fieldset_mlsimport_tresle_client_secret' ).show();
-                jQuery( '.fieldset_mlsimport_connectmls_username, .fieldset_mlsimport_connectmls_password' ).hide();
-                jQuery( '.fieldset_mlsimport_rapattoni_client_id,.fieldset_mlsimport_rapattoni_client_secret,.fieldset_mlsimport_rapattoni_username,.fieldset_mlsimport_rapattoni_password ' ).hide();
-                jQuery( '.fieldset_mlsimport_paragon_client_id, .fieldset_mlsimport_paragon_client_secret' ).hide();
-                jQuery( '.fieldset_mlsimport_realtorca_client_id, .fieldset_mlsimport_realtorca_client_secret' ).hide();
-                jQuery( '.fieldset_mlsimport_brightmls_client_id, .fieldset_mlsimport_brightmls_client_secret' ).hide();
-        } else {
-
-                jQuery( '.fieldset_mlsimport_mls_token' ).show();
-                jQuery( '.fieldset_mlsimport_tresle_client_id' ).hide();
-                jQuery( '.fieldset_mlsimport_tresle_client_secret' ).hide();
-                jQuery( '.fieldset_mlsimport_connectmls_username, .fieldset_mlsimport_connectmls_password' ).hide();
-                jQuery( '.fieldset_mlsimport_rapattoni_client_id,.fieldset_mlsimport_rapattoni_client_secret,.fieldset_mlsimport_rapattoni_username,.fieldset_mlsimport_rapattoni_password ' ).hide();
-                jQuery( '.fieldset_mlsimport_paragon_client_id, .fieldset_mlsimport_paragon_client_secret' ).hide();
-                jQuery( '.fieldset_mlsimport_realtorca_client_id, .fieldset_mlsimport_realtorca_client_secret' ).hide();
-                jQuery( '.fieldset_mlsimport_brightmls_client_id, .fieldset_mlsimport_brightmls_client_secret' ).hide();
-
-        }
+	providerConfig.all_credential_fields.forEach(
+		function (field) {
+			jQuery( '.fieldset_' + field ).hide();
+		}
+	);
+	if ( family && Array.isArray( family.credential_fields ) ) {
+		family.credential_fields.forEach(
+			function (field) {
+				jQuery( '.fieldset_' + field ).show();
+			}
+		);
+	}
 }
 
 

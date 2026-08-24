@@ -4,7 +4,7 @@ Tags: idx, idx-plugin, mls, real-estate, wordpress-idx
 Requires at least: 5.2
 Tested up to: 7.0.2
 Requires PHP: 7.4
-Stable tag: 7.0.7
+Stable tag: 7.1
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -103,6 +103,16 @@ Read the terms and conditions of using MLSimport APIs here : https://mlsimport.c
 
 
 == Changelog ==
+= 7.1 =
+* Import task health at a glance - new status column in the Import Tasks list showing each task's live state (synced, importing, sync overdue, stuck, failed, auto-sync off, never imported).
+* Sturdier imports - manual imports are now resumable, chunked runs with a watchdog; the hourly sync picks tasks in starvation order so no task is left behind; a completed manual import now seeds the sync watermark so new tasks start hourly-syncing right away.
+* Automatic incident alerts and import-health heartbeats to the MLSImport service, plus automatic token / activation recovery - so a stopped cron or failing import can be detected before it affects your site.
+* Import fields are gathered automatically - as soon as your MLSImport account and MLS connection are both confirmed, the plugin fetches your MLS's field metadata silently in the background instead of making you wait on the "Stand By" page.
+* Setup wizard fixes - an unrecognised theme no longer fails the system-requirements check (standalone mode works with any theme), the theme selector now pre-selects the site's own detected theme instead of defaulting to the first option, and the PHP memory requirement label was corrected to 256M.
+* Redesigned admin - the whole plugin admin was restyled to match the mlsimport.com portal design: unified field sizing and focus states, one active-state colour, and a cleaned-up Tools tab.
+* Provider adapters - dedicated Bright MLS and Centris (Quebec) adapter classes, and provider credential fields now only appear for the selected MLS's provider family.
+* Internal rebuild of the import engine - import task execution, daily reconciliation, stored-listing writing and field-mapping persistence were consolidated into dedicated, unit- and integration-tested modules.
+
 = 7.0.7 =
 * Fixed the "search your MLS" field in the setup wizard not offering any suggestions — the wizard's scripts were not being loaded on the page, so the MLS autocomplete never started.
 

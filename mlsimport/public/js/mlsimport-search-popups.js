@@ -22,6 +22,76 @@
 	'use strict';
 
 	/**
+	 * Whether any ancestor of el clips its overflow.
+	 *
+	 * @param {Element} el Element to walk up from.
+	 * @return {boolean} True when some ancestor would cut the popup off.
+	 */
+	function hasClippingAncestor( el ) {
+		// Walk to the document, stopping at the first ancestor that clips.
+		for ( var node = el.parentElement; node && node !== document.body; node = node.parentElement ) {
+			var style = window.getComputedStyle( node );
+			var flow  = style.overflow + ' ' + style.overflowX + ' ' + style.overflowY;
+			if ( flow.indexOf( 'hidden' ) > -1 || flow.indexOf( 'clip' ) > -1 || flow.indexOf( 'auto' ) > -1 || flow.indexOf( 'scroll' ) > -1 ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Re-anchor a popup to the viewport so a clipping ancestor cannot cut it off.
+	 *
+	 * The panels are position:absolute inside their field, which means ANY ancestor
+	 * with overflow hidden/clip/auto/scroll crops them — and WordPress core sets
+	 * `overflow: clip` on .wp-block-cover, the block most heroes (and therefore most
+	 * search forms) sit inside. A z-index cannot escape a clip, so when we detect a
+	 * clipping ancestor we switch the panel to position:fixed and follow the toggle
+	 * on scroll/resize. Pages without a clipping ancestor keep the simpler
+	 * absolutely-positioned behaviour untouched.
+	 *
+	 * @param {Element} panel  The popup element.
+	 * @param {Element} anchor The toggle the popup hangs from.
+	 * @return {Function|null} Call to restore the popup, or null when not needed.
+	 */
+	function floatFree( panel, anchor ) {
+		// Nothing to escape: leave the CSS positioning exactly as it was.
+		if ( ! panel || ! anchor || ! hasClippingAncestor( anchor ) ) {
+			return null;
+		}
+
+		// Pin the panel under the toggle in viewport coordinates.
+		function place() {
+			var rect = anchor.getBoundingClientRect();
+			panel.style.position = 'fixed';
+			panel.style.left     = rect.left + 'px';
+			panel.style.top      = ( rect.bottom + 4 ) + 'px';
+			panel.style.width    = rect.width + 'px';
+			panel.style.right    = 'auto';
+		}
+		place();
+
+		// Capture-phase scroll so the panel tracks any scrolling ancestor, not just the window.
+		window.addEventListener( 'scroll', place, true );
+		window.addEventListener( 'resize', place );
+
+		// Restore the stylesheet's own positioning when the popup closes.
+		return function () {
+			window.removeEventListener( 'scroll', place, true );
+			window.removeEventListener( 'resize', place );
+			panel.style.position = '';
+			panel.style.left     = '';
+			panel.style.top      = '';
+			panel.style.width    = '';
+			panel.style.right    = '';
+		};
+	}
+
+	// Shared with mlsimport-multiselect.js, whose dropdown has the same problem.
+	// Read at open time (not load time), so enqueue order does not matter.
+	window.mlsimportFloatFree = floatFree;
+
+	/**
 	 * Format a slider value for display. 'money' → "$1,234,567"; 'year' → "1985"
 	 * (no grouping); 'number' → "1,234 ft²". compact gives the short toggle form
 	 * ($900K, 1M ft²); years are never compacted. Mirrors the PHP
@@ -258,16 +328,25 @@
 		dMin.addEventListener( 'change', commitDisplay );
 		dMax.addEventListener( 'change', commitDisplay );
 
+		// Set while open when the panel had to escape a clipping ancestor.
+		var unfloat = null;
+
 		// Open the popup (repaint so handle positions use the now-visible rail width).
 		function open() {
 			root.classList.add( 'is-open' );
 			toggle.setAttribute( 'aria-expanded', 'true' );
+			// Escape any ancestor that would crop the panel (e.g. a Cover block hero).
+			unfloat = floatFree( root.querySelector( '.mlsimport-range__popup' ), toggle );
 			paint(); // rail has width now that the popup is visible.
 		}
 		// Close the popup.
 		function close() {
 			root.classList.remove( 'is-open' );
 			toggle.setAttribute( 'aria-expanded', 'false' );
+			if ( unfloat ) {
+				unfloat();
+				unfloat = null;
+			}
 		}
 		// Toggle button flips open/closed (stop propagation so the shared dismiss doesn't fire).
 		toggle.addEventListener( 'click', function ( e ) {
@@ -354,16 +433,30 @@
 			} );
 		} );
 
+		// Set while open when the panel had to escape a clipping ancestor.
+		var unfloat = null;
+
 		// Close the popup.
 		function close() {
 			root.classList.remove( 'is-open' );
 			toggle.setAttribute( 'aria-expanded', 'false' );
+			if ( unfloat ) {
+				unfloat();
+				unfloat = null;
+			}
 		}
 		// Toggle button flips open/closed (stop propagation so the shared dismiss doesn't fire).
 		toggle.addEventListener( 'click', function ( e ) {
 			e.stopPropagation();
 			root.classList.toggle( 'is-open' );
 			toggle.setAttribute( 'aria-expanded', root.classList.contains( 'is-open' ) ? 'true' : 'false' );
+			// Escape any ancestor that would crop the panel (e.g. a Cover block hero).
+			if ( root.classList.contains( 'is-open' ) ) {
+				unfloat = floatFree( root.querySelector( '.mlsimport-bedsbaths__popup' ), toggle );
+			} else if ( unfloat ) {
+				unfloat();
+				unfloat = null;
+			}
 		} );
 		// "Done" closes; "Reset" clears every group's hidden value.
 		root.querySelector( '.mlsimport-bedsbaths__done' ).addEventListener( 'click', close );

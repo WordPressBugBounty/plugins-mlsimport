@@ -1,6 +1,6 @@
 <?php
 /**
- * Live mode: translate standalone filter params into a provider OData query.
+ * Direct MLS access: translate standalone filter params into a provider query.
  *
  * Pure functions — no WordPress, no DB, no network — so the translation is
  * unit-testable per provider family. Input vocabulary is the standalone
@@ -28,12 +28,10 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @return string Query string beginning with '?'.
  */
 function mlsimport_live_build_query( array $params, array $config ): string {
-	// Dispatch on provider type: Bridge speaks its native API, all others OData.
-	$type = isset( $config['type'] ) ? strtolower( (string) $config['type'] ) : 'bridge';
-	if ( 'bridge' === $type ) {
-		return mlsimport_live_build_query_bridge( $params, $config );
-	}
-	return mlsimport_live_build_query_odata( $params, $config );
+	// Resolve one adapter and let it supply the provider-specific query rules.
+	$type = isset( $config['type'] ) ? strtolower( (string) $config['type'] ) : '';
+	return Mlsimport_Provider_Family::adapter( $type, $config['mls_id'] ?? 0 )
+		->build_direct_query( $params, $config );
 }
 
 /**
@@ -194,11 +192,23 @@ function mlsimport_live_build_query_bridge( array $params, array $config ): stri
  * @param array $config Per-MLS config (type, expand, field_corellation, …).
  * @return string Query string beginning with '?'.
  */
-function mlsimport_live_build_query_odata( array $params, array $config ): string {
+function mlsimport_live_build_query_odata( array $params, array $config, array $rules = array() ): string {
 	// $filter accumulates the OData $filter clauses (each ends ' and ');
 	// $alias resolves canonical RESO names to the provider's own names.
-	$type   = isset( $config['type'] ) ? strtolower( (string) $config['type'] ) : '';
 	$filter = '';
+	$rules  = array_merge(
+		array(
+			'skip_listing_type_filter' => false,
+			'pretty_enums'             => false,
+			'class_parameter'          => false,
+			'format_json'              => false,
+			'allow_expand'             => true,
+			'default_orderby'          => 'ListingKey',
+			'default_limit'            => 0,
+			'max_limit'                => 0,
+		),
+		$rules
+	);
 	$alias  = static function ( string $field ) use ( $config ): string {
 		return mlsimport_live_field_alias( $field, $config );
 	};
@@ -208,7 +218,7 @@ function mlsimport_live_build_query_odata( array $params, array $config ): strin
 	// listing_type holds RESO PropertyType values (see the standalone reso-map).
 	$vocab = mlsimport_live_param_vocabulary();
 	foreach ( $vocab['lists'] as $param => $field ) {
-		if ( 'rapattoni' === $type && 'listing_type' === $param ) {
+		if ( $rules['skip_listing_type_filter'] && 'listing_type' === $param ) {
 			// Rapattoni takes the class as a plain Class= parameter, not a
 			// PropertyType $filter (same rule as the AWS URL builder).
 			continue;
@@ -259,28 +269,28 @@ function mlsimport_live_build_query_odata( array $params, array $config ): strin
 
 	// Assemble the query string, starting with provider-specific flags.
 	$query = '?';
-	if ( 'trestle' === $type ) {
+	if ( $rules['pretty_enums'] ) {
 		// Trestle serves spaced enum labels with PrettyEnums=true — the same
 		// shape the saved enums (and so the search dropdowns) use, so filters
 		// must speak it too.
 		$query .= '&PrettyEnums=true';
 	}
-	if ( 'rapattoni' === $type && ! empty( $params['listing_type'] ) ) {
+	if ( $rules['class_parameter'] && ! empty( $params['listing_type'] ) ) {
 		$query .= '&Class=' . rawurlencode( (string) current( (array) $params['listing_type'] ) );
 	}
-	if ( 'brightmls' === $type ) {
+	if ( $rules['format_json'] ) {
 		// BrightMLS rejects $expand=Media — media comes from the separate
 		// BrightMedia endpoint (same rule as the AWS URL builder).
 		$query .= '&$format=json';
-	} elseif ( ! empty( $config['expand'] ) ) {
+	} elseif ( $rules['allow_expand'] && ! empty( $config['expand'] ) ) {
 		$query .= '&$expand=' . $config['expand'];
 	}
 
 	// Rapattoni has no ListingKey column to order by — its stable fallback is
 	// ListingKeyNumeric (same rule as the AWS URL builder).
 	$orderby = mlsimport_live_orderby( $params );
-	if ( 'rapattoni' === $type && 'ListingKey' === $orderby ) {
-		$orderby = 'ListingKeyNumeric';
+	if ( 'ListingKey' === $orderby ) {
+		$orderby = $rules['default_orderby'];
 	}
 	// Always request $orderby + $count (the total drives paging/clustering).
 	$query .= '&$orderby=' . $orderby;
@@ -288,14 +298,11 @@ function mlsimport_live_build_query_odata( array $params, array $config ): strin
 
 	// Page size ($top): 0 means "unset" until the provider rules below apply.
 	$limit = isset( $params['limit'] ) ? max( 1, (int) $params['limit'] ) : 0;
-	if ( $limit <= 0 && in_array( $type, array( 'realcomp', 'brightmls' ), true ) ) {
-		// Realcomp requires an explicit page size; BrightMLS's ~7M-row feed
-		// times out without one. Both default to the AWS builder's 25.
-		$limit = 25;
+	if ( $limit <= 0 && $rules['default_limit'] > 0 ) {
+		$limit = (int) $rules['default_limit'];
 	}
-	if ( 'rmls' === $type ) {
-		// RMLS hard-caps $top at 25.
-		$limit = $limit > 0 ? min( $limit, 25 ) : 25;
+	if ( $limit > 0 && $rules['max_limit'] > 0 ) {
+		$limit = min( $limit, (int) $rules['max_limit'] );
 	}
 	if ( $limit > 0 ) {
 		// $top + $skip paging (skip only past page 1).
@@ -365,28 +372,6 @@ function mlsimport_live_field_alias( string $field, array $config ): string {
 		return $map[ $field ];
 	}
 	return $field;
-}
-
-/**
- * The BrightMedia query for one chunk of listing keys. BrightMLS serves media
- * from a separate endpoint (api_media_url); keys go in unquoted, ordered by
- * record + display order — the same request the AWS media fetch builds.
- *
- * @param string[] $keys ListingKeys for this chunk (max 100 per request).
- * @return string Query string beginning with '?'.
- */
-function mlsimport_live_brightmls_media_query( array $keys ): string {
-	// The media columns the import needs from BrightMedia.
-	$select = 'MediaKey,ResourceRecordKey,MediaCategory,MediaType,'
-		. 'MediaDisplayOrder,PreferredPhotoYN,MediaURL,MediaURLHiRes,'
-		. 'MediaModificationTimestamp';
-
-	// Filter to this key chunk, ordered by record then display order (unquoted
-	// keys, per the AWS media fetch).
-	return '?$filter=ResourceRecordKey in (' . implode( ',', array_map( 'strval', $keys ) ) . ')'
-		. '&$orderby=ResourceRecordKey,MediaDisplayOrder'
-		. '&$select=' . $select
-		. '&$format=json';
 }
 
 /**

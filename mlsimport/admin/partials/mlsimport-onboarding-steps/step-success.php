@@ -34,17 +34,20 @@ $import_title = '';
 $property_count = 0;
 $auto_update = false;
 
+// Which post type holds the properties. Resolved HERE, not inside the branch
+// below: the "View Properties" quick link needs it whether or not an import was
+// created, and it does not depend on one. Resolving it in the branch left that
+// link pointing at `edit.php?post_type=` on every no-import render - right after
+// restart_wizard=1, or when the import steps are skipped (issue #249).
+global $mlsimport;
+$post_type = $mlsimport->admin->env_data->get_property_post_type();
+
 // Only resolve import details when an import was actually created.
 if ($import_id) {
     // Title of the import task post and its auto-update (cron) flag.
     $import_title = get_the_title($import_id);
     $auto_update = get_post_meta($import_id, 'mlsimport_item_stat_cron', true);
     
-    // Count imported properties
-    // Resolve the theme's property post type via the environment adapter.
-    global $mlsimport;
-    $post_type = $mlsimport->admin->env_data->get_property_post_type();
-
     // Query every property stamped with this import id in its inserted meta.
     $args = array(
         'post_type' => $post_type,
@@ -65,29 +68,9 @@ if ($import_id) {
     wp_reset_postdata();
 }
 
-// Read the active theme name to tailor copy to the detected theme.
-// Get the current theme
-$current_theme = wp_get_theme();
-$theme_name = $current_theme->get('Name');
-
-// Map of supported theme slugs to human-facing labels.
-// Detect supported theme
-$supported_themes = array(
-    'WpResidence' => 'WP Residence',
-    'houzez' => 'Houzez',
-    'RealHomes' => 'Real Homes',
-    'Wpestate' => 'WP Estate',
-);
-
-// Default label, replaced when the active theme matches a supported one.
-$detected_theme = 'your theme';
-foreach ($supported_themes as $theme_key => $theme_label) {
-    // Exact case-insensitive match OR the slug appearing as a substring.
-    if (strtolower($theme_name) === strtolower($theme_key) || strpos(strtolower($theme_name), strtolower($theme_key)) !== false) {
-        $detected_theme = $theme_label;
-        break;
-    }
-}
+// The theme name this step drops into its copy. One shared resolver, so the
+// wizard never disagrees with itself about which theme the site runs (#242).
+$detected_theme = mlsimport_theme_copy_label();
 
 // Post-setup shortcut cards: title, description, admin URL, and dashicon.
 // Define quick links
@@ -174,7 +157,7 @@ $resources = array(
         <div class="mlsimport-success-icon">
             <span class="dashicons dashicons-yes-alt"></span>
         </div>
-        <div class="mlsimport-success-message">
+        <div class="mlsimport-success-header-text">
             <h2><?php _e('Setup Complete!', 'mlsimport'); ?></h2>
             <p>
                 <?php echo sprintf(
@@ -253,9 +236,9 @@ $resources = array(
     display: flex;
     align-items: center;
     margin-bottom: 30px;
-    background-color: #ecf7ed;
+    background-color: var(--success-soft);
     padding: 25px;
-    border-radius: 4px;
+    border-radius: var(--radius-card);
 }
 
 .mlsimport-success-icon {
@@ -266,17 +249,21 @@ $resources = array(
     font-size: 50px;
     width: 50px;
     height: 50px;
-    color: #46b450;
+    color: var(--success-deep);
 }
 
-.mlsimport-success-message h2 {
+/* Text column of the success header. It is deliberately NOT
+   .mlsimport-success-message: that class is the standalone mint notice used on
+   the Welcome step, and reusing it here painted a second mint background plus a
+   stray green border-left bar inside the header block. */
+.mlsimport-success-header-text h2 {
     margin-top: 0;
     margin-bottom: 10px;
     font-size: 24px;
-    color: #46b450;
+    color: var(--success-deep);
 }
 
-.mlsimport-success-message p {
+.mlsimport-success-header-text p {
     font-size: 16px;
     margin: 0;
 }
@@ -284,7 +271,7 @@ $resources = array(
 /* Import Summary */
 .mlsimport-import-summary {
     margin-bottom: 40px;
-    background-color: #f9f9f9;
+    background-color: var(--background-soft);
     padding: 20px;
     border-radius: 4px;
 }
@@ -292,7 +279,7 @@ $resources = array(
 .mlsimport-import-summary h3 {
     margin-top: 0;
     margin-bottom: 20px;
-    border-bottom: 1px solid #eee;
+    border-bottom: 1px solid var(--border-color);
     padding-bottom: 10px;
 }
 
@@ -315,7 +302,7 @@ $resources = array(
 }
 
 .mlsimport-summary-label {
-    color: #666;
+    color: var(--text-secondary);
     font-size: 14px;
 }
 
@@ -329,7 +316,7 @@ $resources = array(
 .mlsimport-resources h3 {
     margin-top: 0;
     margin-bottom: 20px;
-    border-bottom: 1px solid #eee;
+    border-bottom: 1px solid var(--border-color);
     padding-bottom: 10px;
 }
 
@@ -343,8 +330,8 @@ $resources = array(
     display: flex;
     align-items: center;
     padding: 15px;
-    background-color: #f9f9f9;
-    border: 1px solid #eee;
+    background-color: var(--background-soft);
+    border: 1px solid var(--border-color);
     border-radius: 4px;
     text-decoration: none;
     color: inherit;
@@ -352,8 +339,8 @@ $resources = array(
 }
 
 .mlsimport-quick-link:hover {
-    background-color: #f0f0f0;
-    border-color: #ccc;
+    background-color: rgba(28, 25, 23, 0.06);
+    border-color: var(--border-color);
 }
 
 .mlsimport-quick-link-icon {
@@ -364,7 +351,7 @@ $resources = array(
     font-size: 24px;
     width: 24px;
     height: 24px;
-    color: #4f46e5;
+    color: var(--primary-color);
 }
 
 .mlsimport-quick-link-title {
@@ -374,7 +361,7 @@ $resources = array(
 
 .mlsimport-quick-link-description {
     font-size: 13px;
-    color: #666;
+    color: var(--text-secondary);
 }
 
 /* Next Steps */
@@ -392,8 +379,8 @@ $resources = array(
     display: flex;
     align-items: flex-start;
     padding: 15px;
-    background-color: #f9f9f9;
-    border: 1px solid #eee;
+    background-color: var(--background-soft);
+    border: 1px solid var(--border-color);
     border-radius: 4px;
 }
 
@@ -403,8 +390,8 @@ $resources = array(
     justify-content: center;
     width: 30px;
     height: 30px;
-    background-color: #4f46e5;
-    color: #fff;
+    background-color: var(--primary-color);
+    color: var(--background-white);
     border-radius: 50%;
     font-weight: 600;
     margin-right: 15px;
@@ -418,7 +405,7 @@ $resources = array(
 
 .mlsimport-step-description {
     font-size: 14px;
-    color: #666;
+    color: var(--text-secondary);
 }
 
 /* Resources */
@@ -436,8 +423,8 @@ $resources = array(
     display: flex;
     align-items: center;
     padding: 15px;
-    background-color: #f9f9f9;
-    border: 1px solid #eee;
+    background-color: var(--background-soft);
+    border: 1px solid var(--border-color);
     border-radius: 4px;
     text-decoration: none;
     color: inherit;
@@ -445,8 +432,8 @@ $resources = array(
 }
 
 .mlsimport-resource-link:hover {
-    background-color: #f0f0f0;
-    border-color: #ccc;
+    background-color: rgba(28, 25, 23, 0.06);
+    border-color: var(--border-color);
 }
 
 .mlsimport-resource-icon {
@@ -457,7 +444,7 @@ $resources = array(
     font-size: 24px;
     width: 24px;
     height: 24px;
-    color: #00a0d2;
+    color: var(--primary-color);
 }
 
 .mlsimport-resource-title {
@@ -467,7 +454,7 @@ $resources = array(
 
 .mlsimport-resource-description {
     font-size: 13px;
-    color: #666;
+    color: var(--text-secondary);
 }
 
 /* Finish Button */

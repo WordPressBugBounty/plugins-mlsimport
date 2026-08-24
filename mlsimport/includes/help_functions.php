@@ -2953,9 +2953,12 @@ function mlsimport_sanitize_multi_dimensional_array($data){
  * Cron entry point for the daily SaaS reconciliation pass.
  *
  * Bails out early unless at least one non-trashed import task has a title, then
- * kicks off reconciliation when an MLS name is configured.
+ * calls the one deep reconciliation interface when an MLS name is configured.
  *
- * @return void
+ * The same function handles the deduplicated one-hour retry hook. Trigger code
+ * intentionally owns no snapshot, status, batching, or deletion decisions.
+ *
+ * @return array<string, int|string>|null Reconciliation Outcome, or null when ineligible.
  */
 function mlsimport_saas_reconciliation_event_function() {
 
@@ -2974,13 +2977,23 @@ function mlsimport_saas_reconciliation_event_function() {
 	);
 	// No titled task -> nothing to reconcile, abort.
 	if ( ! $has_titled_task ) {
-		return;
+		return null;
 	}
 
 	// Only reconcile when an MLS name is configured.
 	if ( isset( $options['mlsimport_mls_name'] ) && '' !==  $options['mlsimport_mls_name']  ) {
-		$mlsimport->admin->mlsimport_saas_start_doing_reconciliation();
+		$environment = new Mlsimport_Reconciliation_WordPress_Environment(
+			static function () use ( $mlsimport ): array {
+				return $mlsimport->admin->mlsimport_saas_get_mls_reconciliation_data();
+			}
+		);
+
+		$outcome = ( new Mlsimport_Reconciliation( $environment ) )->reconcile_current_listings();
+		error_log( 'MLSImport reconciliation outcome: ' . wp_json_encode( $outcome ) );
+		return $outcome;
 	}
+
+	return null;
 }
 
 /*
@@ -3018,6 +3031,7 @@ if ( ! function_exists( 'mlsimport_items_columns_admin' ) ) :
 
 		// Append the plugin's own columns.
 		$columns['mlsimport_items_params'] = esc_html__( 'Import Parameters', 'mlsimport' );
+		$columns['mlsimport_task_health']  = esc_html__( 'Status', 'mlsimport' );
 		$columns['mlsimport_last_action']  = esc_html__( 'Last action', 'mlsimport' );
 		$columns['mlsimport_autoupdates']  = esc_html__( 'Auto Update Enabled', 'mlsimport' );
 
@@ -3202,6 +3216,28 @@ if ( ! function_exists( 'mlsimport_populate_columns' ) ) :
 	
 			// Then the per-field import parameters.
 			mlsimport_populate_columns_params_display( $post->ID );
+		} elseif ( 'mlsimport_task_health' === $column ) {
+			// Status column (GitHub issue #200): surface stuck, failed, and
+			// sync-overdue tasks directly in the list. All inputs are already
+			// recorded — the run status meta (state, progress, heartbeat, error),
+			// the sync watermark, and the auto-sync flag. The badge decision
+			// itself lives in the pure, unit-tested mlsimport_task_health().
+			$health_status = get_post_meta( $post->ID, 'mlsimport_import_run_status', true );
+			$health        = mlsimport_task_health(
+				is_array( $health_status ) ? $health_status : array(),
+				(string) get_post_meta( $post->ID, 'mlsimport_last_date', true ),
+				1 === (int) get_post_meta( $post->ID, 'mlsimport_item_stat_cron', true ),
+				time(),
+				// Watermarks are stored with wp_date() in site-local time, so
+				// the overdue cutoff must be built the same way to compare.
+				wp_date( 'Y-m-d\TH:i', time() - MLSIMPORT_TASK_HEALTH_OVERDUE_AFTER )
+			);
+			?>
+			<span class="mlsimport-task-health mlsimport-task-health--<?php echo esc_attr( $health['level'] ); ?>">
+				<?php echo esc_html( $health['label'] ); ?>
+			</span>
+			<p class="mlsimport-task-health__message"><?php echo esc_html( $health['message'] ); ?></p>
+			<?php
 		} elseif ( 'mlsimport_last_action' === $column ) {
 			// Last action column: date of the most recent import activity.
 			$last_date = get_post_meta( $post->ID, 'mlsimport_last_date', true );

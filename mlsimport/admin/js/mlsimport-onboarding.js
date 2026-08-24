@@ -407,6 +407,18 @@ jQuery(document).ready(function (jQuery) {
                 jQuery('#mlsimport_mls_name_front')
                     .closest('fieldset')
                     .before(response.data.html);
+
+                // MLS connection confirmed: gather the metadata + save the
+                // import-field configuration in the background right away, so
+                // the Field Mapping step is ready when the user reaches it.
+                // Fire-and-forget on purpose: the shared reloading helper
+                // would yank the wizard step from under the user on success.
+                if (response.data.connected) {
+                    jQuery.post(mlsimportOnboarding.ajaxurl, {
+                        action: 'mlsimport_saas_get_metadata_function',
+                        security: jQuery('#mlsimport_saas_get_metadata').val()
+                    });
+                }
             } else {
                 // Server reported failure
                 button.text(mlsimportOnboarding.strings.error);

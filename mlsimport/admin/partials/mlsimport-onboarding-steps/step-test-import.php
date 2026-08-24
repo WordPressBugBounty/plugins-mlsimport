@@ -65,29 +65,9 @@ if ($import_id) {
     wp_reset_postdata();
 }
 
-// Read the active theme name to tailor advice copy.
-// Get the current theme to provide tailored advice
-$current_theme = wp_get_theme();
-$theme_name = $current_theme->get('Name');
-
-// Map of supported theme slugs to human-facing labels.
-// Detect supported theme
-$supported_themes = array(
-    'WpResidence' => 'WP Residence',
-    'houzez' => 'Houzez',
-    'RealHomes' => 'Real Homes',
-    'Wpestate' => 'WP Estate',
-);
-
-// Default label, replaced when the active theme matches a supported one.
-$detected_theme = 'your theme';
-foreach ($supported_themes as $theme_key => $theme_label) {
-    // Exact case-insensitive match OR slug appearing as a substring.
-    if (strtolower($theme_name) === strtolower($theme_key) || strpos(strtolower($theme_name), strtolower($theme_key)) !== false) {
-        $detected_theme = $theme_label;
-        break;
-    }
-}
+// The theme name this step drops into its copy. One shared resolver, so the
+// wizard never disagrees with itself about which theme the site runs (#242).
+$detected_theme = mlsimport_theme_copy_label();
 
 // Read today's import log so recent lines/errors can be surfaced.
 // Get log file content if it exists
@@ -370,13 +350,13 @@ jQuery(document).ready(function($) {
 
 .mlsimport-section-inner h3 {
     margin-top: 0;
-    border-bottom: 1px solid #f0f0f0;
+    border-bottom: 1px solid var(--border-color);
     padding-bottom: 10px;
     margin-bottom: 15px;
 }
 
 .mlsimport-import-summary {
-    background-color: #f9f9f9;
+    background-color: var(--background-soft);
     padding: 15px;
     border-radius: 4px;
     margin-bottom: 20px;
@@ -387,17 +367,17 @@ jQuery(document).ready(function($) {
 }
 
 .mlsimport-status-success {
-    color: #46b450;
+    color: var(--success-deep);
     font-weight: 600;
 }
 
 .mlsimport-status-progress {
-    color: #f56e28;
+    color: var(--accent-color);
     font-weight: 600;
 }
 
 .mlsimport-status-pending {
-    color: #666;
+    color: var(--text-secondary);
     font-weight: 600;
 }
 
@@ -418,7 +398,7 @@ jQuery(document).ready(function($) {
     vertical-align: middle;
     border: 2px solid rgba(0, 0, 0, 0.1);
     border-radius: 50%;
-    border-top-color: #07d;
+    border-top-color: var(--primary-color);
     animation: mlsimport-spin 1s linear infinite;
     order:2;
 }
@@ -437,28 +417,28 @@ jQuery(document).ready(function($) {
 }
 
 .mlsimport-status-message.success {
-    background-color: #ecf7ed;
-    border-left: 4px solid #46b450;
+    background-color: var(--success-soft);
+    border-left: 4px solid var(--success-deep);
 }
 
 .mlsimport-status-message.error {
-    background-color: #fbeaea;
-    border-left: 4px solid #dc3232;
+    background-color: var(--error-soft);
+    border-left: 4px solid var(--error-color);
 }
 
 .mlsimport-status-message.warning {
-    background-color: #fff8e5;
-    border-left: 4px solid #ffb900;
+    background-color: var(--warning-soft);
+    border-left: 4px solid var(--warning-color);
 }
 
 .mlsimport-status-message.progress {
-    background-color: #f0f8ff;
-    border-left: 4px solid #00a0d2;
+    background-color: var(--background-light);
+    border-left: 4px solid var(--primary-color);
 }
 
 .mlsimport-status-message.pending {
-    background-color: #f9f9f9;
-    border-left: 4px solid #ccc;
+    background-color: var(--background-soft);
+    border-left: 4px solid var(--border-color);
 }
 
 .mlsimport-status-message p {
@@ -474,8 +454,8 @@ jQuery(document).ready(function($) {
 .mlsimport-log-container {
     max-height: 300px;
     overflow-y: auto;
-    background-color: #f5f5f5;
-    border: 1px solid #ddd;
+    background-color: var(--background-soft);
+    border: 1px solid var(--border-color);
     border-radius: 3px;
     padding: 10px;
     margin-bottom: 20px;
@@ -490,7 +470,7 @@ jQuery(document).ready(function($) {
 }
 
 .mlsimport-log-empty {
-    color: #666;
+    color: var(--text-secondary);
     font-style: italic;
 }
 
@@ -500,7 +480,7 @@ jQuery(document).ready(function($) {
 
 /* Error list */
 .mlsimport-error-list {
-    background-color: #fbeaea;
+    background-color: var(--error-soft);
     padding: 15px;
     border-radius: 4px;
     margin-top: 20px;
@@ -509,7 +489,7 @@ jQuery(document).ready(function($) {
 .mlsimport-error-list h4 {
     margin-top: 0;
     margin-bottom: 10px;
-    color: #dc3232;
+    color: var(--error-color);
 }
 
 .mlsimport-error-list ul {
@@ -523,8 +503,8 @@ jQuery(document).ready(function($) {
 
 /* Error message */
 .mlsimport-error-message {
-    background-color: #fbeaea;
-    border-left: 4px solid #dc3232;
+    background-color: var(--error-soft);
+    border-left: 4px solid var(--error-color);
     padding: 15px;
     margin-bottom: 20px;
 }
@@ -535,8 +515,8 @@ jQuery(document).ready(function($) {
 
 /* Next steps */
 .mlsimport-test-recommendations {
-    background-color: #f9f9f9;
-    border-left: 4px solid #4f46e5;
+    background-color: var(--background-soft);
+    border-left: 4px solid var(--primary-color);
     padding: 15px;
     margin-top: 20px;
 }

@@ -19,7 +19,7 @@
 	display: flex;
 	flex-direction: column;
 	gap: 2px;
-	border-right: 1px solid #e0e0e0;
+	border-right: 1px solid var(--border-color, rgba(28, 25, 23, 0.12));
 	padding-right: 8px;
 }
 
@@ -40,27 +40,37 @@
 	border-radius: 4px;
 	text-align: left;
 	font-size: 13px;
-	color: #1e1e1e;
+	color: var(--text-primary, #1c1917);
 	cursor: pointer;
 }
 
 .mlsimport-settings-tabs__item:hover {
-	background: #f0f0f0;
+	background: var(--background-soft, #f3efe7);
 }
 
 .mlsimport-settings-tabs__item:focus-visible {
-	outline: 2px solid #3858e9;
+	outline: 2px solid var(--primary-color, #1c1917);
 	outline-offset: -2px;
 }
 
+/* Selected screen. One active-state colour plugin-wide: the near-black
+   --primary-color fill, the same as the selected tab on
+   admin.php?page=mlsimport_plugin_options. This was the pastel --accent-soft,
+   which is the badge/checkbox accent, not an active state. */
 .mlsimport-settings-tabs__item.is-active {
-	background: #f0f6fc;
+	background: var(--primary-color, #1c1917);
+	color: #ffffff;
 	font-weight: 600;
+}
+
+.mlsimport-settings-tabs__item.is-active:hover {
+	background: var(--primary-hover, #33302b);
+	color: #ffffff;
 }
 
 /* Section header for a group of subtabs — reads as the parent of the items below. */
 .mlsimport-settings-tabs__item.is-parent {
-	color: #50575e;
+	color: var(--text-secondary, #6b6358);
 	font-weight: 600;
 }
 
@@ -69,12 +79,12 @@
 	margin-left: 12px;
 	width: calc( 100% - 12px );
 	padding-left: 14px;
-	border-left: 2px solid #e0e0e0;
+	border-left: 2px solid var(--border-color, rgba(28, 25, 23, 0.12));
 	border-radius: 0 4px 4px 0;
 }
 
 .mlsimport-settings-tabs__item.is-child.is-active {
-	border-left-color: #3858e9;
+	border-left-color: var(--primary-color, #1c1917);
 }
 
 /* Right panel — fills remaining width and renders the active screen's fields. */
@@ -115,12 +125,12 @@
 #mlsimport-standalone-app .components-text-control__input,
 #mlsimport-standalone-app .components-textarea-control__input,
 #mlsimport-standalone-app .components-select-control__input {
-	padding: 6px 12px;
-	min-height: 36px;
+	padding: 5px 12px;
+	min-height: 40px;
 	box-sizing: border-box;
 	background: #ffffff;
-	color: #111827;
-	border: 1px solid #dcdfe4;
+	color: var(--text-primary, #1c1917);
+	border: 1px solid rgba(28, 25, 23, 0.18);
 	border-radius: 8px;
 	box-shadow: 0px 1px 2px rgba( 0, 0, 0, 0.08 );
 }
@@ -134,26 +144,35 @@
    overlay element, .components-input-control__backdrop — a 1px solid #949494 box
    that sits on top of the <select>. So the border rules above only recolored the
    hidden inner <select> border; the backdrop kept painting the darker WP default
-   over it. Style the backdrop itself to the 2025 token (light #dcdfe4, 8px
+   over it. Style the backdrop itself to the 2025 token (rgba(28,25,23,0.18), 8px
    radius) so the select border matches the text inputs and the field_options
    selects. The soft drop shadow lives on the inner <select>, re-asserted with
    !important because the SelectControl emotion class forces box-shadow: none. */
 #mlsimport-standalone-app .components-input-control__backdrop {
-	border-color: #dcdfe4 !important;
+	border-color: rgba(28, 25, 23, 0.18) !important;
 	border-radius: 8px !important;
 }
 
 #mlsimport-standalone-app .components-select-control__input {
-	box-shadow: 0px 1px 2px rgba( 0, 0, 0, 0.08 ) !important;
+	box-shadow: 0px 1px 2px rgba( 28, 25, 23, 0.08 ) !important;
 }
 
-/* Focus: brand-indigo ring, consistent across every field. */
+/* Focus: an actual border in --primary-color, no glow — the same focus
+   affordance the plugin's own fields got in the Tools-tab pass. It used to be
+   an --accent-color ring; accent is reserved for badges and checked checkboxes.
+   The SelectControl backdrop is named too, since that overlay (not the inner
+   <select>) is what paints a select's visible border. */
 #mlsimport-standalone-app .components-text-control__input:focus,
 #mlsimport-standalone-app .components-textarea-control__input:focus,
 #mlsimport-standalone-app .components-select-control__input:focus {
-	border-color: #635bff;
-	box-shadow: 0 0 0 1px #635bff;
+	border-color: var(--primary-color, #1c1917);
+	box-shadow: 0px 1px 2px rgba( 0, 0, 0, 0.08 );
 	outline: none;
+}
+
+#mlsimport-standalone-app .components-input-control__input:focus ~ .components-input-control__backdrop,
+#mlsimport-standalone-app .components-select-control__input:focus ~ .components-input-control__backdrop {
+	border-color: var(--primary-color, #1c1917) !important;
 }
 
 /* Field labels — block, 14px, medium weight, dark text (matches .mlsimport-label
@@ -168,54 +187,59 @@
 	margin-bottom: 4px;
 	font-size: 14px !important;
 	font-weight: 500;
-	color: #111827;
+	color: var(--text-primary, #1c1917);
 }
 
 /* Help / explanation text under a field — muted (matches .mls_explanations). */
 #mlsimport-standalone-app .components-base-control__help {
-	color: #6b7280;
+	color: var(--text-secondary, #6b6358);
 	font-size: 12px;
 }
 
 /* --- Buttons ---------------------------------------------------------------
-   Primary buttons take the indigo gradient of .button.mlsimport_button; the
+   Primary buttons take the solid dark fill of .button.mlsimport_button; the
    bottom "Save changes" button (tagged .mlsimport-save-button) takes the green
-   save gradient (.button.mlsimport_button.save_data), exactly like the Save
+   save fill (.button.mlsimport_button.save_data), exactly like the Save
    Changes button on the field_options tab. Secondary/tertiary buttons become a
-   neutral bordered control on the same 8px-radius token. */
+   neutral bordered control on the same pill-radius token. */
 #mlsimport-standalone-app .components-button.is-primary {
 	height: auto;
 	padding: 7px 30px;
 	color: #ffffff;
-	background: linear-gradient( 180deg, #635bff 0%, #4e36f5 100% );
-	border: 1px solid #15b79f;
-	border-radius: 8px;
-	box-shadow: rgba( 0, 0, 0, 0.08 ) 0px 1px 2px 0px, rgb( 78, 54, 245 ) 0px 0px 0px 1px inset, rgba( 255, 255, 255, 0.16 ) 0px 2px 0px 0px inset;
+	background: var(--primary-color, #1c1917);
+	border: 1px solid var(--primary-color, #1c1917);
+	border-radius: 999px;
+	box-shadow: rgba( 28, 25, 23, 0.08 ) 0px 1px 2px 0px, rgba( 28, 25, 23, 0.08 ) 0px 0px 0px 1px inset, rgba( 255, 255, 255, 0.06 ) 0px 2px 0px 0px inset;
 }
 
 #mlsimport-standalone-app .components-button.is-primary:hover:not( :disabled ),
 #mlsimport-standalone-app .components-button.is-primary:focus:not( :disabled ) {
 	color: #ffffff;
-	background: linear-gradient( 180deg, #635bff 0%, #4e36f5 100% );
-	border: 1px solid #15b79f;
-	box-shadow: 0px 3px 14px rgba( 0, 0, 0, 0.08 ), inset 0px 0px 0px 1px #4e36f5, inset 0px 2px 0px 0px rgba( 255, 255, 255, 0.16 ), inset 0px 6px 10px 0px rgba( 255, 255, 255, 0.10 );
+	background: var(--primary-hover, #33302b);
+	border: 1px solid var(--primary-hover, #33302b);
+	box-shadow: 0 10px 24px -10px rgba( 0, 0, 0, .45 );
 }
 
-/* Save changes — green save gradient, and the taller 2025 button height
-   (57px, matching the field_options Save button). Only this button is tall;
-   the inline option-picker buttons stay at their default compact height. */
+/* Save changes — the same pastel mint save pill the rest of the plugin uses
+   (.button.mlsimport_button.save_data in mlsimport-admin.css): --success-soft
+   fill with --success-deep text. This button was a solid saturated
+   --success-color green, a fill no other MLSImport screen shows. The 57px
+   min-height goes with it, so Save stands at the same height as every other
+   button instead of towering over the panel it closes. */
 #mlsimport-standalone-app .components-button.is-primary.mlsimport-save-button {
-	min-height: 57px;
-	background: linear-gradient( 180deg, #10b981 0%, #0c8a61 100% );
-	border: 1px solid #10b981;
-	box-shadow: rgba( 0, 0, 0, 0.08 ) 0px 1px 2px 0px, #10b981 0px 0px 0px 1px inset, rgba( 255, 255, 255, 0.16 ) 0px 2px 0px 0px inset;
+	padding: 9px 24px;
+	background: var(--success-soft, #b8e6cc);
+	border: 1px solid var(--success-soft, #b8e6cc);
+	color: var(--success-deep, #1c5c3a);
+	box-shadow: 0px 1px 2px rgba( 0, 0, 0, 0.06 );
 }
 
 #mlsimport-standalone-app .components-button.is-primary.mlsimport-save-button:hover:not( :disabled ),
 #mlsimport-standalone-app .components-button.is-primary.mlsimport-save-button:focus:not( :disabled ) {
-	background: linear-gradient( 180deg, #10b981 0%, #0c8a61 100% );
-	border: 1px solid #10b981;
-	box-shadow: 0px 3px 14px rgba( 0, 0, 0, 0.08 ), inset 0px 0px 0px 1px #10b981, inset 0px 2px 0px 0px rgba( 255, 255, 255, 0.16 ), inset 0px 6px 10px 0px rgba( 255, 255, 255, 0.10 );
+	background: #a5dfc0;
+	border: 1px solid #a5dfc0;
+	color: var(--success-deep, #1c5c3a);
+	box-shadow: 0 8px 20px -10px rgba( 28, 92, 58, 0.5 );
 }
 
 /* Secondary / tertiary — white bordered button on the same rounded token. */
@@ -224,15 +248,81 @@
 	height: auto;
 	padding: 7px 18px;
 	background: #ffffff;
-	color: #1e1e1e;
-	border: 1px solid #dcdfe4;
-	border-radius: 8px;
-	box-shadow: 0px 1px 2px rgba( 0, 0, 0, 0.08 );
+	color: var(--text-primary, #1c1917);
+	border: 1px solid rgba(28, 25, 23, 0.18);
+	border-radius: 999px;
+	box-shadow: 0px 1px 2px rgba( 28, 25, 23, 0.08 );
 }
 
 #mlsimport-standalone-app .components-button.is-secondary:hover:not( :disabled ),
 #mlsimport-standalone-app .components-button.is-tertiary:hover:not( :disabled ) {
-	background: #f6f7f7;
-	color: #1e1e1e;
-	border-color: #c3c4c7;
+	background: var(--background-soft, #f3efe7);
+	color: var(--text-primary, #1c1917);
+	border-color: rgba(28, 25, 23, 0.18);
+}
+
+/* Colors screen — the Main Color control is wp-admin's own Iris picker
+   (button.wp-color-result), which core renders as a square grey .button with a
+   4px radius. It sat next to our 8px rounded fields as the one un-restyled
+   control on the page. Give it the same 40px height, border and radius as a
+   text field; the inline background-color core sets on the button is the swatch,
+   so only the border, radius and the text half are touched. */
+#mlsimport-standalone-app .wp-picker-container .wp-color-result.button {
+	height: 40px;
+	margin: 0;
+	border: 1px solid rgba(28, 25, 23, 0.18);
+	border-radius: 8px;
+	box-shadow: 0px 1px 2px rgba( 0, 0, 0, 0.08 );
+}
+
+#mlsimport-standalone-app .wp-picker-container .wp-color-result.button:focus,
+#mlsimport-standalone-app .wp-picker-container .wp-color-result.button:hover {
+	border-color: var(--primary-color, #1c1917);
+	box-shadow: 0px 1px 2px rgba( 0, 0, 0, 0.08 );
+}
+
+#mlsimport-standalone-app .wp-picker-container .wp-color-result-text {
+	background: #ffffff;
+	color: var(--text-primary, #1c1917);
+	border-left: 1px solid rgba(28, 25, 23, 0.18);
+	border-radius: 0 7px 7px 0;
+	line-height: 38px;
+}
+
+/* --- Focus / accent ---------------------------------------------------------
+   The selected option pill was ringed in WP admin blue (#3858e9): every
+   @wordpress/components control paints its focus ring, checkbox fill and
+   toggle from --wp-components-color-accent / --wp-admin-theme-color, neither
+   of which our tokens touched. Repoint both at --primary-color at the app
+   root, so anything core draws in "the accent" adopts the plugin's near-black
+   instead of leaking WP blue into a screen that has none. */
+#mlsimport-standalone-app {
+	--wp-admin-theme-color: var(--primary-color, #1c1917);
+	--wp-admin-theme-color-darker-10: var(--primary-hover, #33302b);
+	--wp-admin-theme-color-darker-20: var(--primary-hover, #33302b);
+	--wp-components-color-accent: var(--primary-color, #1c1917);
+	--wp-components-color-accent-darker-10: var(--primary-hover, #33302b);
+	--wp-components-color-accent-darker-20: var(--primary-hover, #33302b);
+}
+
+/* Keyboard focus on a button: a near-black ring OUTSIDE the pill, so it reads
+   on the dark primary fill as well as on the white secondary one. Plain :focus
+   is left alone — a mouse click on an option pill should not leave a ring
+   behind, which is what made the selected pill look permanently outlined. */
+#mlsimport-standalone-app .components-button:focus:not( :disabled ) {
+	outline: 2px solid transparent;
+	outline-offset: 0;
+}
+
+#mlsimport-standalone-app .components-button:focus-visible:not( :disabled ) {
+	outline: 2px solid var(--primary-color, #1c1917);
+	outline-offset: 2px;
+}
+
+/* Core paints an accent ring as a box-shadow on a focused secondary button, so
+   clicking an option pill left a ring on it. Hold the resting shadow on plain
+   :focus and let the outline above carry keyboard focus instead. */
+#mlsimport-standalone-app .components-button.is-secondary:focus:not( :disabled ),
+#mlsimport-standalone-app .components-button.is-tertiary:focus:not( :disabled ) {
+	box-shadow: 0px 1px 2px rgba( 28, 25, 23, 0.08 );
 }

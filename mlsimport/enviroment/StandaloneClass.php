@@ -1,4 +1,14 @@
 <?php
+/**
+ * Standalone Stored mode theme adapter.
+ *
+ * Stored Listing Write owns shared listing decisions and persistence. This
+ * adapter retains the Standalone post type, gallery representation, RESO route
+ * map, taxonomies, derived flat-table row, content filters, and agent linkage.
+ * Its projection intentionally receives the raw RESO property at write time.
+ *
+ * @package MLSImport
+ */
 if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Exit if accessed directly.
 }
@@ -16,8 +26,8 @@ require_once __DIR__ . '/../includes/standalone/class-mlsimport-standalone-row.p
  * Implements the same adapter contract as ResidenceClass, but RESO-anchored: it
  * routes a raw RESO property ($property['extra_meta'], PascalCase) into the
  * mlsimport_property post (meta + 9 taxonomies + content) and the mlsimport_listings
- * flat-table row, using the §9 routing map and the derivation helpers. The flat-table
- * upsert happens here (this method has $property), not correlationUpdateAfter (ADR-0002).
+ * flat-table row, using the §9 routing map and the derivation helpers. The raw
+ * property and flat-table upsert remain together at this write point (ADR-0017).
  */
 class StandaloneClass {
 
@@ -31,6 +41,15 @@ class StandaloneClass {
 	}
 
 	/**
+	 * Return the Standalone post type used for Managed Listing lookup/write.
+	 *
+	 * @return string Standalone Managed Listing post-type slug.
+	 */
+	public function property_post_type(): string {
+		return 'mlsimport_property';
+	}
+
+	/**
 	 * Agent CPT slug.
 	 *
 	 * @return string
@@ -39,25 +58,16 @@ class StandaloneClass {
 		return 'mlsimport_agent';
 	}
 
-	/**
-	 * Featured-image hook (no extra work needed for standalone).
-	 *
-	 * @param int $property_id Post ID.
-	 * @param int $attach_id   Attachment ID.
-	 * @return void
-	 */
-	public function enviroment_image_save( $property_id, $attach_id ) {
-	}
-
-	/**
+		/**
 	 * Persist the gallery attachment IDs.
 	 *
 	 * @param int   $property_id      Post ID.
 	 * @param array $post_attachments Attachment IDs.
 	 * @return void
 	 */
-	public function enviroment_image_save_gallery( $property_id, $post_attachments ) {
+	public function write_gallery( int $property_id, array $post_attachments ): bool {
 		update_post_meta( $property_id, 'mlsimport_gallery', $post_attachments );
+		return true;
 	}
 
 	/**
@@ -66,32 +76,21 @@ class StandaloneClass {
 	 *
 	 * @param int   $property_id Post ID.
 	 * @param array $property    Pipeline property; reads $property['extra_meta'].
-	 * @return array{property_history:string}
+	 * @param array $context Prepared fields and creation/agent choices.
+	 * @return bool Whether the standalone projection completed.
 	 */
-	public function mlsimportSaasSetExtraMeta( $property_id, $property ) {
+	public function write_theme_projection( int $property_id, array $property, array $context ): bool {
 		// Nothing to route without a RESO extra_meta array.
 		if ( ! isset( $property['extra_meta'] ) || ! is_array( $property['extra_meta'] ) ) {
-			return array( 'property_history' => '' );
+			return true;
 		}
 
 		// Raw RESO fields plus the accumulators used while routing them.
 		$extra        = $property['extra_meta'];
 		$terms_by_tax = array();
-		$opted_in     = $this->opted_in_fields();
-		$listing_key  = isset( $extra['ListingKey'] ) ? (string) $extra['ListingKey'] : '';
-		$incoming_mod = isset( $extra['ModificationTimestamp'] ) ? (string) $extra['ModificationTimestamp'] : '';
-
-		/** Fires before a property is written (or skipped). @since 6.3 */
-		do_action( 'mlsimport_before_save_property', $property_id, $property );
-
-		// Sole change signal (ADR-0002): skip the whole write when the stored row
-		// is at least as fresh as the incoming ModificationTimestamp. The verdict is
-		// filterable so add-ons can force or suppress a write.
-		$skip = '' !== $listing_key && '' !== $incoming_mod && $this->is_unchanged( $listing_key, $incoming_mod );
-		/** Filter whether to skip writing this property. @since 6.3 */
-		if ( apply_filters( 'mlsimport_property_skip_write', $skip, $property_id, $incoming_mod, $property ) ) {
-			return array( 'property_history' => 'skipped: not modified since last import' );
-		}
+		$field_configuration = is_array( $context['field_configuration'] ?? null ) ? $context['field_configuration'] : array();
+		$opted_in            = is_array( $field_configuration['mls-fields'] ?? null ) ? $field_configuration['mls-fields'] : array();
+		$listing_key         = isset( $extra['ListingKey'] ) ? (string) $extra['ListingKey'] : (string) ( $property['ListingKey'] ?? '' );
 
 		// Route every incoming RESO field to its configured target(s).
 		foreach ( $extra as $field => $value ) {
@@ -204,48 +203,17 @@ class StandaloneClass {
 			Mlsimport_Standalone_Row::upsert( $property_id, $listing_key, $row );
 		}
 
-		/** Fires after a property has been written. @since 6.3 */
-		do_action( 'mlsimport_after_save_property', $property_id, $property );
-
-		return array( 'property_history' => '' );
-	}
-
-	/**
-	 * Whether the stored row is already at least as fresh as the incoming
-	 * ModificationTimestamp. Compared via timestamps so RESO ISO-8601 and the
-	 * stored DATETIME format interoperate. No existing row => not unchanged.
-	 *
-	 * @param string $listing_key  RESO ListingKey.
-	 * @param string $incoming_mod Incoming ModificationTimestamp.
-	 * @return bool
-	 */
-	private function is_unchanged( $listing_key, $incoming_mod ) {
-		global $wpdb;
-
-		// Look up the stored modification timestamp for this listing.
-		$table = Mlsimport_Standalone_Table::table_name();
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- fixed prefixed table name; value binds via prepare().
-		$stored = $wpdb->get_var( $wpdb->prepare( "SELECT modification_timestamp FROM {$table} WHERE listing_key = %s", $listing_key ) );
-
-		// No stored row -> treat as changed (needs a write).
-		if ( null === $stored ) {
-			return false;
+		// The display-source choice is live task configuration. Assigned Agent is
+		// creation-time only, so updates never replace its stored relationship.
+		update_post_meta( $property_id, 'mlsimport_use_mls_agent', ! empty( $context['use_mls_agent'] ) ? 1 : 0 );
+		if ( ! empty( $context['is_new'] ) ) {
+			$agent_id = (int) ( $context['assigned_agent_id'] ?? 0 );
+			if ( $agent_id > 0 ) {
+				update_post_meta( $property_id, 'mlsimport_list_agent_id', $agent_id );
+			}
 		}
 
-		// Unchanged when the stored timestamp is at least as fresh as the incoming one.
-		return strtotime( $stored ) >= strtotime( $incoming_mod );
-	}
-
-	/**
-	 * The field-selector opt-in map (RESO field => 1/0). Passthrough meta is
-	 * written only for fields the user opted in.
-	 *
-	 * @return array
-	 */
-	private function opted_in_fields() {
-		// Read the field selector; return its opt-in map or an empty array.
-		$selected = get_option( 'mlsimport_admin_fields_select' );
-		return isset( $selected['mls-fields'] ) && is_array( $selected['mls-fields'] ) ? $selected['mls-fields'] : array();
+		return true;
 	}
 
 	/**
@@ -266,7 +234,7 @@ class StandaloneClass {
 	/**
 	 * Removes the mlsimport_listings row when a property post is deleted
 	 * (before_delete_post). Covers reconciliation, import-removal and manual
-	 * admin deletes (ADR-0002). Gated to mlsimport_property.
+	 * admin deletes. Gated to mlsimport_property.
 	 *
 	 * @param int $post_id Post being deleted.
 	 * @return void
@@ -302,43 +270,13 @@ class StandaloneClass {
 		}
 	}
 
-	/**
-	 * Post-insert hook. The flat-table upsert is NOT done here (ADR-0002) — this
-	 * runs without $property. Editorial taxonomies are never touched.
-	 *
-	 * Assigns the agent the user picked in the import task (mlsimport_item_agent,
-	 * a mlsimport_agent post ID) to the property, and records whether the task
-	 * opted to use the MLS feed's own listing agent instead. The display layer
-	 * (mlsimport_property_agent) reads mlsimport_use_mls_agent to choose between
-	 * the linked agent post and the feed's ListAgent* meta. Agents are never
-	 * created from the feed here.
-	 *
-	 * @param string $is_insert           'yes' on insert.
-	 * @param int    $property_id         Post ID.
-	 * @param array  $global_extra_fields Carries 'use_mls_agent' (bool) from the task.
-	 * @param mixed  $new_agent           Selected mlsimport_agent post ID, or empty.
-	 * @return void
-	 */
-	public function correlationUpdateAfter( $is_insert, $property_id, $global_extra_fields, $new_agent ) {
-		// Record whether the task chose to use the feed's own listing agent.
-		$use_mls_agent = ! empty( $global_extra_fields['use_mls_agent'] );
-		update_post_meta( $property_id, 'mlsimport_use_mls_agent', $use_mls_agent ? 1 : 0 );
-
-		// Link the selected agent post to the property when one was picked.
-		$agent_id = (int) $new_agent;
-		if ( $agent_id > 0 ) {
-			update_post_meta( $property_id, 'mlsimport_list_agent_id', $agent_id );
-		}
-	}
-
-	/**
+		/**
 	 * Theme custom-fields hook — intentionally empty for standalone.
 	 *
 	 * The other adapters mirror the field selector into a theme-owned option here
 	 * because their themes read labels from their own settings. Standalone has no
-	 * such option: mlsimport_property_selected_fields() reads
-	 * mlsimport_admin_fields_select directly at render time, so there is nothing to
-	 * sync and no stale copy to keep in step.
+	 * such option: the standalone render layer reads the module's active projection
+	 * at render time, so there is no copied option to synchronize or make stale.
 	 *
 	 * @param string $option_name Option name.
 	 * @return void

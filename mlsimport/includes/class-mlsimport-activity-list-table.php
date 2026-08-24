@@ -49,6 +49,7 @@ class Mlsimport_Activity_List_Table extends WP_List_Table {
 			'listing_key'    => __( 'ListingKey', 'mlsimport' ),
 			'import_item'    => __( 'Import Task', 'mlsimport' ),
 			'source'         => __( 'Source', 'mlsimport' ),
+			'explanation'    => __( 'Explanation', 'mlsimport' ),
 		);
 	}
 
@@ -332,6 +333,25 @@ class Mlsimport_Activity_List_Table extends WP_List_Table {
 		);
 		$display = isset( $labels[ $source ] ) ? $labels[ $source ] : ucfirst( $source );
 		return esc_html( $display );
+	}
+
+	/**
+	 * Render friendly text for a stable reconciliation deletion reason.
+	 *
+	 * Administrators see translated prose rather than internal reason codes.
+	 * Rows without a known reconciliation reason display an em dash.
+	 *
+	 * @param array $item Activity row.
+	 * @return string Escaped explanation.
+	 */
+	public function column_explanation( array $item ): string {
+		$reason_code = isset( $item['reason_code'] ) ? (string) $item['reason_code'] : '';
+		$labels = array(
+			'absent_unprotected' => __( 'This listing was absent from the reconciliation snapshot and was not protected.', 'mlsimport' ),
+			'absent_import_task_missing' => __( 'This listing was absent from the reconciliation snapshot and its Import Task was unavailable.', 'mlsimport' ),
+		);
+
+		return esc_html( isset( $labels[ $reason_code ] ) ? $labels[ $reason_code ] : '—' );
 	}
 
 	/**

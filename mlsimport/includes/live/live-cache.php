@@ -134,14 +134,12 @@ function mlsimport_live_cache_clear(): void {
 	// is effectively retired (the orphans expire with their day TTL).
 	update_option( 'mlsimport_live_cache_version', mlsimport_live_cache_version() + 1 );
 
-	// Fixed-name transients aren't keyed by the salt, so delete them by hand:
-	// the entitlement flag and price ceiling, plus each swapped provider token.
+	// Fixed-name shared transients aren't keyed by the salt, so delete them by
+	// hand. The Provider Family module owns the provider-token list.
 	$fixed = array( 'mlsimport_live_entitlement_checked', 'mlsimport_live_price_ceiling' );
-	foreach ( array( 'trestle', 'realcomp', 'realtorca', 'rapattoni', 'brightmls' ) as $type ) {
-		$fixed[] = 'mlsimport_live_token_' . $type;
-	}
 	// Delete each — this also evicts it from a persistent object cache.
 	foreach ( $fixed as $name ) {
 		delete_transient( $name );
 	}
+	Mlsimport_Provider_Family::clear_direct_access_tokens();
 }

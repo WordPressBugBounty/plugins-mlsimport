@@ -620,7 +620,7 @@ class Mlsimport_Property_Metabox {
 	 * @return array<string,string>
 	 */
 	private static function dynamic_field_keys( int $post_id ): array {
-		$options = get_option( 'mlsimport_admin_fields_select' );
+		$options = mlsimport_active_field_configuration();
 		if ( ! is_array( $options ) || empty( $options['mls-fields'] ) || ! is_array( $options['mls-fields'] ) ) {
 			return array();
 		}
@@ -668,7 +668,7 @@ class Mlsimport_Property_Metabox {
 	 * @return string Concatenated field controls ('' when none match).
 	 */
 	private static function render_dynamic_fields( int $post_id, array $dynamic, string $section ): string {
-		$options = get_option( 'mlsimport_admin_fields_select' );
+		$options = mlsimport_active_field_configuration();
 		$labels  = is_array( $options ) && isset( $options['mls-fields-label'] ) && is_array( $options['mls-fields-label'] ) ? $options['mls-fields-label'] : array();
 
 		$rows = '';

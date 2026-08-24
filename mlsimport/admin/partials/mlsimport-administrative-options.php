@@ -78,8 +78,8 @@ if ( 0 ===  intval($disable_history)  ) {
 }
 ?>      
 
-<div class="mlsimport_tool_field_item_wrapper">    
-	<h4 style="margin-bottom:0px;"> <?php esc_html_e( 'Disable System Logs (logs should only be enabled during debug process)', 'mlsimport' ); ?> </h4>
+<div class="mlsimport_tool_block">
+	<h4> <?php esc_html_e( 'Disable System Logs (logs should only be enabled during debug process)', 'mlsimport' ); ?> </h4>
 	<select name="mlsimport-disable-logs" class="mlsimport-2025-select" id="mlsimport-disable-logs">
 		<option value="0" <?php echo esc_html( $selected_no ); ?> ><?php esc_html_e( 'logs disabled', 'mlsimport' ); ?></option>
 		<option value="1" <?php echo esc_html( $selected_yes ); ?>><?php esc_html_e( 'logs enabled', 'mlsimport' ); ?></option>
@@ -88,8 +88,8 @@ if ( 0 ===  intval($disable_history)  ) {
 </div>
 
 
-<div class="mlsimport_tool_field_item_wrapper">    
-	<h4 style="margin-bottom:0px;"> <?php esc_html_e( 'Disable Property History (can be seen by editing a property in WordPress admin)', 'mlsimport' ); ?> </h4>
+<div class="mlsimport_tool_block">
+	<h4> <?php esc_html_e( 'Disable Property History (can be seen by editing a property in WordPress admin)', 'mlsimport' ); ?> </h4>
 	<select name="mlsimport-disable-history" class="mlsimport-2025-select" id="mlsimport-disable-history">
 
 		<option value="1" <?php echo esc_html( $selected_history_yes ); ?>><?php esc_html_e( 'history enabled', 'mlsimport' ); ?></option>
@@ -102,34 +102,34 @@ if ( 0 ===  intval($disable_history)  ) {
 		 
 <?php submit_button( __( 'Save Changes', 'mlsimport' ), 'mlsimport_button button save_data', 'submit', true ); ?>
 
-<div class="mlsimport_tool_field_item_wrapper"  style="background-color: #eee;padding: 10px;border-radius: 5px;">
-        <h3 style="margin-bottom:20px;"> <?php esc_html_e( 'Clear cached data', 'mlsimport' ); ?> </h3>
-        <input class="button mlsimport_button "  type="button" id="mlsimport-clear-cache" value="<?php esc_attr_e( 'Clear Plugin Cached Data', 'mlsimport' ); ?>" />
+<div class="mlsimport_tool_block mlsimport_tool_card">
+        <h3> <?php esc_html_e( 'Clear cached data', 'mlsimport' ); ?> </h3>
+        <input class="button mlsimport_button" type="button" id="mlsimport-clear-cache" value="<?php esc_attr_e( 'Clear Plugin Cached Data', 'mlsimport' ); ?>" />
 </div>
 
-<div class="mlsimport_tool_field_item_wrapper"  style="background-color: #eee;padding: 10px;border-radius: 5px;">
-        <h3 style="margin-bottom:20px;"> <?php esc_html_e( 'Clear fields data', 'mlsimport' ); ?> </h3>
-        <input class="button mlsimport_button "  type="button" id="mlsimport-clear-fields-data" value="<?php esc_attr_e( 'Clear Field Data', 'mlsimport' ); ?>" />
+<div class="mlsimport_tool_block mlsimport_tool_card">
+        <h3> <?php esc_html_e( 'Clear fields data', 'mlsimport' ); ?> </h3>
+        <input class="button mlsimport_button" type="button" id="mlsimport-clear-fields-data" value="<?php esc_attr_e( 'Clear Field Data', 'mlsimport' ); ?>" />
 </div>
 	 
 	 
-<div class="mlsimport_tool_field_item_wrapper">     
-	<h3 style="margin-bottom:0px;"><?php esc_html_e( 'Cron Jobs', 'mlsimport' ); ?> </h3>
+<div class="mlsimport_tool_block">
+	<h3><?php esc_html_e( 'Cron Jobs', 'mlsimport' ); ?> </h3>
 	<div class="cron_job_explainin">
 		<?php esc_html_e( 'By default a syncronization event runs every hour. The action will be triggered when someone visits your site if the scheduled time has passed. This is the default, "out of the box" way to do things in WordPress and it works very well in 99% of the cases.', 'mlsimport' ); ?>
 
 		</br></br><?php esc_html_e( 'If, for some reason, you want to force the syncronization event to run every two hours(minimum time frame permitted by this plugin) you can set a cron job on your server enviroment and call this url : http://yourwebsite.com/?mlsimport_cron=yes.', 'mlsimport' ); ?>
 		</br></br><strong><?php esc_html_e( 'Example : 0   */2 *   *   *   wget https://yourwebsite.com/?mlsimport_cron=yes', 'mlsimport' ); ?></strong> .
 	</div>
-<div>
-	 
-<fieldset class="mlsimport-fieldset" style="background-color: #eee;padding: 10px;border-radius: 5px;">
+</div>
+
+<fieldset class="mlsimport-fieldset mlsimport_tool_block mlsimport_tool_card">
 
 	<h3><?php esc_html_e('Delete Properties','mlsimport'); ?></h3>
 
 	<div id="mlsimport-delete-notification"><?php esc_html_e('Select a taxonomy and terms, then click Delete.','mlsimport');?></div>
 
-	<label class="mlsimport-label"><?php esc_html_e( 'Select Taxonomy', 'mlsimport' ); ?></label><br>
+	<label class="mlsimport-label"><?php esc_html_e( 'Select Taxonomy', 'mlsimport' ); ?></label>
 	<select id="mlsimport_delete_category" class="mlsimport-select mlsimport-2025-select">
 		<option value=""><?php esc_html_e( '-- Select Taxonomy --', 'mlsimport' ); ?></option>
 		<?php
@@ -141,24 +141,22 @@ if ( 0 ===  intval($disable_history)  ) {
 			<option value="<?php echo esc_attr( $tax_slug ); ?>"><?php echo esc_html( $tax_label ); ?> (<?php echo esc_html( $tax_slug ); ?>)</option>
 		<?php endforeach; ?>
 	</select>
-	<br><br>
 
-	<label class="mlsimport-label"><?php esc_html_e( 'Select Terms', 'mlsimport' ); ?></label><br>
-	<select id="mlsimport_delete_category_term" class="mlsimport-select mlsimport-2025-select" multiple disabled style="min-height:120px;width:100%;max-width:400px;">
+	<label class="mlsimport-label"><?php esc_html_e( 'Select Terms', 'mlsimport' ); ?></label>
+	<select id="mlsimport_delete_category_term" class="mlsimport-select mlsimport-2025-select" multiple disabled>
 		<option value="" disabled><?php esc_html_e( 'Select a taxonomy first', 'mlsimport' ); ?></option>
 	</select>
 	<p class="mlsimport-exp"><?php esc_html_e( 'Hold Ctrl (Windows) or Command (Mac) to select multiple terms.', 'mlsimport' ); ?></p>
-	<br>
 
-	<div id="mlsimport-delete-progress" style="display:none;margin-bottom:10px;">
-		<div style="background:#ddd;border-radius:4px;overflow:hidden;height:20px;margin-bottom:5px;">
-			<div id="mlsimport-delete-progress-bar" style="background:#0073aa;height:100%;width:0%;transition:width 0.3s;"></div>
+	<div id="mlsimport-delete-progress" style="display:none;">
+		<div class="mlsimport-delete-progress-track">
+			<div id="mlsimport-delete-progress-bar" style="width:0%;"></div>
 		</div>
 		<span id="mlsimport-delete-progress-text">0 / 0</span>
 	</div>
 
 	<input class="button mlsimport_button error_action" type="button" id="mlsimport-delete-prop" value="<?php esc_attr_e( 'Delete', 'mlsimport' ); ?>" />
-	<input class="button" type="button" id="mlsimport-delete-stop" value="<?php esc_attr_e( 'Stop', 'mlsimport' ); ?>" style="display:none;margin-left:10px;" />
+	<input class="button" type="button" id="mlsimport-delete-stop" value="<?php esc_attr_e( 'Stop', 'mlsimport' ); ?>" style="display:none;" />
 </fieldset>
 <?php
 // Nonce for the tools form / delete AJAX actions, emitted as a hidden field below.

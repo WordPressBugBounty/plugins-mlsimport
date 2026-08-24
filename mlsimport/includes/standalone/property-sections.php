@@ -2836,27 +2836,54 @@ function mlsimport_property_booking_success( string $title, string $text ): stri
  * The admin's MLS disclaimer, resolved for one listing.
  *
  * The wording is mandated by the MLS and identical on every property, so it is
- * authored once in Property Page -> MLS Attribution. Two variables make the one
- * text serve every listing: %mls_id% (this listing's MLS number) and %year% (so
- * a copyright line never goes stale). Blank text prints nothing; to drop the
- * whole block, disable the MLS Attribution section in the page layout.
+ * authored once in Property Page -> MLS Attribution. Variables make the one text
+ * serve every listing: %mls_id% (this listing's MLS number), %year% (so a
+ * copyright line never goes stale), %agent_phone% / %agent_email% for the boards
+ * that require the listing agent to be reachable here, and %office_phone% /
+ * %office_email% / %attribution_contact% for the ones that require the listing
+ * office instead. The agent's name and the office name are not variables — the
+ * block prints those itself. Blank text prints nothing; to drop the whole block,
+ * disable the MLS Attribution section in the page layout.
  *
  * @param string $mls_id This listing's MLS number.
+ * @param int    $id     Property post ID; 0 leaves the contact variables empty.
  * @return string Paragraph markup, already sanitized. Safe to echo unescaped.
  */
-function mlsimport_property_attribution_text( string $mls_id = '' ): string {
+function mlsimport_property_attribution_text( string $mls_id = '', int $id = 0 ): string {
 	// The admin-authored template; blank means print nothing.
 	$raw = (string) mlsimport_standalone_option( 'attribution_text' );
 	if ( '' === trim( $raw ) ) {
 		return '';
 	}
 
-	// Substitute the two placeholders (this listing's MLS# and the current year).
+	// Contact channels only: the agent's name and the office name already print
+	// in the block's own courtesy and facts lines, so offering them as variables
+	// too would just let a disclaimer repeat what is directly above it.
+	// These read the property's OWN feed meta, exactly like that courtesy line
+	// (#169) — never the company contacts #181 substitutes on the agent card, and
+	// never a manually picked agent, so a board's mandated wording always reaches
+	// the agent the MLS actually sent. A field that was never ticked for import
+	// resolves to '', the same way %mls_id% already does for a listing with no
+	// MLS number.
+	$feed = static function ( string $key ) use ( $id ) {
+		return $id ? (string) get_post_meta( $id, 'mlsimport_' . $key, true ) : '';
+	};
+
+	// Substitute every placeholder the admin may have used. The office channels
+	// carry no #181 privacy question — a brokerage line is a business contact, not
+	// a person's — and AttributionContact is the RESO field a board names when it
+	// mandates one specific display contact, so it gets its own token rather than
+	// silently standing in for an empty %office_phone%.
 	$text = strtr(
 		$raw,
 		array(
-			'%mls_id%' => $mls_id,
-			'%year%'   => date_i18n( 'Y' ),
+			'%mls_id%'              => $mls_id,
+			'%year%'                => date_i18n( 'Y' ),
+			'%agent_phone%'         => $feed( 'ListAgentPreferredPhone' ),
+			'%agent_email%'         => $feed( 'ListAgentEmail' ),
+			'%office_phone%'        => $feed( 'ListOfficePhone' ),
+			'%office_email%'        => $feed( 'ListOfficeEmail' ),
+			'%attribution_contact%' => $feed( 'AttributionContact' ),
 		)
 	);
 
@@ -2911,7 +2938,7 @@ function mlsimport_property_attribution( int $id = 0, array $args = array() ): s
 	}
 
 	// The mandated disclaimer (already markup) and the optional MLS logo.
-	$disclaimer = mlsimport_property_attribution_text( (string) $data['mls_id'] );
+	$disclaimer = mlsimport_property_attribution_text( (string) $data['mls_id'], (int) $data['id'] );
 	$logo       = function_exists( 'mlsimport_standalone_mls_logo_url' ) ? mlsimport_standalone_mls_logo_url() : '';
 
 	// The section wrapper already carries the .mlsimport-property-attribution

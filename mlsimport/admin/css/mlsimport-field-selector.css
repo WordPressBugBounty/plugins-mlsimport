@@ -8,10 +8,9 @@
  * @subpackage MLSImport/css
  * @since      1.0.0
  *
- * Layout notes: a rounded card wraps a stats bar, filter/alpha/bulk toolbars,
- * a fixed-layout table of RESO fields (sticky header), pagination, toast
- * notifications, hover tooltips, and jQuery-UI sortable drag-and-drop styling.
- * Brand accent colour throughout is #635BFF (indigo).
+ * Layout notes: a rounded card wraps a save-status line, stats and filter bars,
+ * a fixed-layout table of RESO fields, and jQuery-UI sortable styling.
+ * Brand accent colour throughout is #e85d3c (warm orange).
  */
 
 /* Container for the entire field selector interface */
@@ -19,18 +18,18 @@
     margin: 20px 0;
     max-width: 100%;
     background: #fff;
-    box-shadow: rgba(0, 0, 0, 0.04) 0px 5px 22px 0px, rgba(0, 0, 0, 0.06) 0px 0px 0px 1px;
-    border-radius: 10px;
+    box-shadow: 0 0 0 1px rgba(28, 25, 23, 0.05), 0 5px 22px rgba(28, 25, 23, 0.05);
+    border-radius: 18px;
 
 }
 
 /* Stats bar styles */
 .mlsimport-field-stats {
     padding: 15px;
-    border-top-right-radius: 10px;
-    border-top-left-radius: 10px;
-    background: #f1f1f1;
-    border-bottom: 1px solid #dcdfe4;
+    border-top-right-radius: 18px;
+    border-top-left-radius: 18px;
+    background: #f3efe7;
+    border-bottom: 1px solid rgba(28, 25, 23, 0.18);
     display: flex;
     align-content: center;
     align-items: center;
@@ -65,8 +64,8 @@
     display: flex;
     align-items: center;
     padding: 15px;
-    background: #f9f9f9;
-    border-bottom: 1px solid #ddd;
+    background: #f3efe7;
+    border-bottom: 1px solid rgba(28, 25, 23, 0.18);
     margin-bottom: 0px;
 }
 
@@ -81,8 +80,8 @@
     display: flex;
     flex-wrap: wrap;
     padding: 10px 15px;
-    background: #f9f9f9;
-    border-bottom: 1px solid #ddd;
+    background: #f3efe7;
+    border-bottom: 1px solid rgba(28, 25, 23, 0.18);
 }
 
 .mlsimport-alpha-filter {
@@ -90,28 +89,28 @@
     margin: 2px;
     padding: 5px 8px;
     background: #fff;
-    border: 1px solid #ddd;
-    border-radius: 3px;
+    border: 1px solid rgba(28, 25, 23, 0.12);
+    border-radius: 999px;
     text-decoration: none;
-    color: #635BFF;
+    color: #e85d3c;
     font-size: 13px;
 }
 
-/* Currently selected letter: filled indigo. */
+/* Currently selected letter: filled orange. */
 .mlsimport-alpha-filter.active {
-    background: #635BFF;
-    border-color: #635BFF;
+    background: #e85d3c;
+    border-color: #e85d3c;
     color: #fff;
 }
 
 .mlsimport-alpha-filter:hover {
-    background: #f1f1f1;
-    color: #635BFF;
+    background: #f3efe7;
+    color: #e85d3c;
 }
 
 .mlsimport-alpha-filter.active:hover {
-    background: #635BFF;
-    border-color: #006799;
+    background: #e85d3c;
+    border-color: #e85d3c;
     color: #fff;
 }
 
@@ -119,18 +118,18 @@
     display: inline-block;
     margin: 2px 0 2px 10px;
     padding: 5px 8px;
-    background: #f7f7f7;
-    border: 1px solid #ccc;
-    border-radius: 3px;
+    background: #f3efe7;
+    border: 1px solid rgba(28, 25, 23, 0.18);
+    border-radius: 999px;
     text-decoration: none;
-    color: #555;
+    color: #6b6358;
     font-size: 13px;
 }
 
 .mlsimport-reset-filter:hover {
-    background: #fafafa;
-    border-color: #999;
-    color: #23282d;
+    background: #f3efe7;
+    border-color: rgba(28, 25, 23, 0.18);
+    color: #1c1917;
 }
 
 /* Table styles */
@@ -144,7 +143,7 @@
 /* Sticky table header: stays pinned 32px down to clear the WP admin bar,
    raised above rows with z-index so it overlaps content while scrolling. */
 .mlsimport-fields-table thead {
-    background: #f1f1f1;
+    background: #f3efe7;
     position: sticky;
     top: 32px; /* Account for WP admin bar */
     z-index: 10;
@@ -160,21 +159,21 @@
 .mlsimport-fields-table th {
     padding: 15px;
     text-align: left;
-    color: #667085;
+    color: #6b6358;
     font-weight: 500;
     font-size: 13px;
 }
 
 .mlsimport-fields-table td {
     padding:  17px 15px;
-    border-bottom: 1px solid #dcdfe4;
+    border-bottom: 1px solid rgba(28, 25, 23, 0.12);
     vertical-align: middle;
     word-break: break-word;
     overflow-wrap: break-word;
 }
 
 .mlsimport-fields-table tr:hover td {
-    background: #f9f9f9;
+    background: #f3efe7;
 }
 
 .mlsimport-row-actions .field-name{
@@ -188,17 +187,17 @@
 }
 
 /* Mandatory field styles */
-/* Required RESO fields get a light-blue row tint (and a darker hover). */
+/* Required RESO fields get a light-peach row tint (and a darker hover). */
 .mlsimport-mandatory-row {
-    background-color: #f7fcff;
+    background-color: #fde4d8;
 }
 
 .mlsimport-mandatory-row:hover td {
-    background-color: #eef7fc !important;
+    background-color: rgba(232, 93, 60, 0.18) !important;
 }
 
 .mlsimport-mandatory-indicator {
-    color: #635BFF;
+    color: #e85d3c;
     margin-right: 5px;
     font-size: 14px;
 }
@@ -232,8 +231,8 @@
 .mlsimport-fields-table input[type="text"] {
     width: 90%;
     padding: 8px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
+    border: 1px solid rgba(28, 25, 23, 0.12);
+    border-radius: 10px;
 }
 
 .mlsimport-fields-table select {
@@ -259,11 +258,10 @@
 
 .field-explanation {
     font-size: 12px;
-    color: #666;
+    color: #6b6358;
     line-height: 1.4;
     margin-top: 5px;
     padding: 5px 0;
-    border-top: 1px dotted #ddd;
 }
 
 /* Bulk action buttons */
@@ -272,174 +270,108 @@
     flex-wrap: wrap;
     gap: 10px;
     padding: 15px;
-    background: #f9f9f9;
-    border-bottom: 1px solid #ddd;
+    background: #f3efe7;
+    border-bottom: 1px solid rgba(28, 25, 23, 0.18);
 }
 
 .mlsimport-bulk-button {
     padding: 8px 15px;
-    background: #635BFF;
+    background: #1c1917;
     border: none;
-    border-radius: 4px;
+    border-radius: 999px;
     color: #fff;
     cursor: pointer;
     font-size: 13px;
 }
 
 .mlsimport-bulk-button.secondary {
-    background: #f7f7f7;
-    border: 1px solid #ccc;
-    color: #555;
+    background: #fff;
+    border: 1px solid rgba(28, 25, 23, 0.12);
+    color: #1c1917;
 }
 
 .mlsimport-bulk-button:hover {
-    background: #006799;
+    background: #33302b;
+    box-shadow: 0 10px 24px -10px rgba(0, 0, 0, .45);
 }
 
 .mlsimport-bulk-button.secondary:hover {
-    background: #fafafa;
-    border-color: #999;
+    background: #f3efe7;
+    border-color: rgba(28, 25, 23, 0.18);
 }
 
-/* Pagination styles */
-.mlsimport-pagination {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 15px;
-    background: #f9f9f9;
-    border-top: 1px solid #ddd;
-}
-
-.mlsimport-page-link,
-.mlsimport-page-current,
-.mlsimport-page-disabled,
-.mlsimport-page-ellipsis {
-    margin: 0 3px;
-    padding: 5px 10px;
-    border-radius: 3px;
-    text-decoration: none;
-}
-
-.mlsimport-page-link {
-    background: #f1f1f1;
-    border: 1px solid #ddd;
-    color: #635BFF;
-}
-
-.mlsimport-page-link:hover {
-    background: #635BFF;
-    border-color: #635BFF;
-    color: #fff;
-}
-
-.mlsimport-page-current {
-    background: #635BFF;
-    border: 1px solid #635BFF;
-    color: #fff;
-}
-
-.mlsimport-page-disabled,
-.mlsimport-page-ellipsis {
-    background: #f7f7f7;
-    border: 1px solid #ddd;
-    color: #a0a5aa;
-    cursor: default;
-}
-
-/* No results message */
-.mlsimport-no-results td {
-    padding: 30px;
-    text-align: center;
-    color: #777;
-}
-
-/* Notification styles */
-/* Toast pinned top-right (32px clears the admin bar); hidden until JS shows it.
-   Colour variants below: success/error/info. */
-.mlsimport-notification {
-    position: fixed;
-    top: 32px;
-    right: 20px;
-    padding: 15px 20px;
-    border-radius: 4px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-    z-index: 100;
+/* The queue status stays in normal document flow so failures and Retry remain
+   visible without transient toast timing or cross-script state. Routine
+   saving/saved feedback is the inline per-control indicator below instead. */
+/* Hidden per request (2026-08-19): the live save-status strip is not shown on
+   the import page. JS still writes into it (harmless on a hidden element). */
+.mlsimport-field-save-status {
     display: none;
 }
 
-.mlsimport-notification-success {
-    background: #46b450;
-    color: #fff;
+.mlsimport-field-save-status.is-error {
+    color: #c02617;
 }
 
-.mlsimport-notification-error {
-    background: #dc3232;
-    color: #fff;
-}
-
-.mlsimport-notification-info {
-    background: #00a0d2;
-    color: #fff;
-}
-
-/* Tooltip for mandatory fields */
-.mlsimport-tooltip {
-    position: relative;
+/* Per-control save feedback: an inline spinner next to the edited control
+   while the change is on the wire, then a fading green tick on success or a
+   persistent red cross on failure. */
+.mlsimport-save-indicator {
+    box-sizing: border-box;
     display: inline-block;
-}
-
-/* Hidden tooltip bubble: absolutely positioned above the trigger, centered via
-   left:50% + margin-left:-100px (half its 200px width); fades in on hover. */
-.mlsimport-tooltip .mlsimport-tooltip-text {
-    visibility: hidden;
-    width: 200px;
-    background-color: #333;
-    color: #fff;
+    margin-left: 5px;
+    width: 16px;
+    height: 16px;
+    vertical-align: middle;
     text-align: center;
-    border-radius: 4px;
-    padding: 5px;
-    position: absolute;
-    z-index: 1;
-    bottom: 125%;
-    left: 50%;
-    margin-left: -100px;
-    opacity: 0;
-    transition: opacity 0.3s;
-    font-size: 12px;
-    font-weight: normal;
+    line-height: 16px;
 }
 
-/* Downward-pointing arrow of the tooltip, drawn with a CSS border triangle. */
-.mlsimport-tooltip .mlsimport-tooltip-text::after {
-    content: "";
-    position: absolute;
-    top: 100%;
-    left: 50%;
-    margin-left: -5px;
-    border-width: 5px;
-    border-style: solid;
-    border-color: #333 transparent transparent transparent;
+.mlsimport-save-indicator.is-spinning {
+    border: 2px solid #e85d3c;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: mlsimport-field-save-spin 1s linear infinite;
 }
 
-.mlsimport-tooltip:hover .mlsimport-tooltip-text {
-    visibility: visible;
-    opacity: 1;
+.mlsimport-save-indicator.is-success {
+    color: #2faa6a;
+    font-size: 16px;
+}
+
+.mlsimport-save-indicator.is-error {
+    color: #c02617;
+    font-size: 16px;
+}
+
+@keyframes mlsimport-field-save-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.mlsimport-field-save-recovery {
+    margin-left: 8px !important;
+}
+
+.mlsimport-no-fields td {
+    padding: 30px;
+    text-align: center;
+    color: #9a9285;
 }
 
 /* Drag and drop styles */
 /* jQuery-UI sortable: the row being dragged (helper). */
 .ui-sortable-helper {
     background: #fff;
-    border: 1px solid #635BFF;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    border: 1px solid #e85d3c;
+    box-shadow: 0 2px 5px rgba(28, 25, 23, 0.15);
 }
 
 /* Dashed drop-target gap; forced visible to show where the row will land. */
 .ui-sortable-placeholder {
     visibility: visible !important;
-    background: #f0f8ff;
-    border: 1px dashed #635BFF;
+    background: #fde4d8;
+    border: 1px dashed #e85d3c;
     height: 50px;
 }
 
@@ -490,18 +422,18 @@
     height: 28px;
     margin: 0 2px;
     padding: 0;
-    background: #f7f7f7;
-    border: 1px solid #dcdfe4;
-    border-radius: 3px;
-    color: #555;
+    background: #f3efe7;
+    border: 1px solid rgba(28, 25, 23, 0.18);
+    border-radius: 999px;
+    color: #6b6358;
     text-align: center;
 
     cursor: pointer;
 }
 
 .mlsimport-move-btn:hover {
-    background: #635BFF;
-    border-color: #635BFF;
+    background: #e85d3c;
+    border-color: #e85d3c;
     color:#fff;
 }
 
@@ -509,11 +441,11 @@
 /* JS-positioned tooltip for the up/down move buttons; very high z-index keeps
    it above the sticky table header and card chrome. */
 .mlsimport-move-tooltip {
-    background: #222;
+    background: #1c1917;
     color: #fff;
     padding: 6px 10px;
-    border-radius: 3px;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+    border-radius: 10px;
+    box-shadow: 0 2px 5px rgba(28, 25, 23, 0.3);
     font-size: 12px;
     /* max-width: 200px; */
     z-index: 10000;

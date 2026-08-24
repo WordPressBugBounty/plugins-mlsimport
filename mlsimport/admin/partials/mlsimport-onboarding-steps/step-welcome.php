@@ -48,9 +48,9 @@ $requirements = array(
     'memory_limit' => array(
         'name' => __('Memory Limit', 'mlsimport'),
         'value' => $memory_limit,
-        'required' => '64M',
+        'required' => '256M',
         'status' => intval($memory_limit) >= 256 || $memory_limit === '-1',
-        'help' => __('We recommend setting memory to at least 64MB if not more.', 'mlsimport'),
+        'help' => __('We recommend setting memory to at least 256MB.', 'mlsimport'),
     ),
     // Execution time passes when >= 120s OR 0 (no limit).
     'max_execution_time' => array(
@@ -62,42 +62,30 @@ $requirements = array(
     ),
 );
 
-// Read the active theme name so it can be matched against the supported list.
-// Check if theme is supported
+// Read the active theme name purely for display in the "Your Value" column.
 $current_theme = wp_get_theme();
-$theme_name = $current_theme->get('Name');
-// Map of supported theme slugs to their human-facing labels.
-$supported_themes = array(
-    'WpResidence' => 'WP Residence',
-    'houzez' => 'Houzez',
-    'RealHomes' => 'Real Homes',
-    'Wpestate' => 'WP Estate',
-);
+$theme_name    = $current_theme->get('Name');
 
-// Tracks whether the active theme matched a supported one, and its label.
-$theme_detected = false;
-$detected_theme_name = '';
+// Which supported mode this site resolves to (990 standalone, or 991-994 for
+// one of the four real-estate themes). See includes/mlsimport-theme-detection.php.
+$mlsimport_theme_id = mlsimport_resolve_theme_id();
 
-// Match on exact (case-insensitive) name OR the slug appearing as a substring.
-foreach ($supported_themes as $theme_key => $theme_label) {
-    // First clause: exact case-insensitive match. Second: slug is a substring.
-    if (strtolower($theme_name) === strtolower($theme_key) || strpos(strtolower($theme_name), strtolower($theme_key)) !== false) {
-        $theme_detected = true;
-        $detected_theme_name = $theme_label;
-        break;
-    }
-}
-
+// Theme compatibility can never fail. Every WordPress site resolves to one of
+// the supported modes, because standalone (990) works with ANY theme - it ships
+// its own CPTs, taxonomies and write adapter and needs nothing from the theme.
+// Reporting an unrecognised theme as a failed requirement (issue #243) told the
+// exact audience standalone was built for that their setup was broken.
 // Append the theme-compatibility entry to the requirements table.
-// Theme requirement
 $requirements['theme'] = array(
     'name' => __('Theme Compatibility', 'mlsimport'),
     'value' => $theme_name,
-    'required' => implode(', ', $supported_themes),
-    'status' => $theme_detected,
-    'help' => $theme_detected 
-        ? sprintf(__('Great! We detected your theme as %s, which is supported by MLSImport.', 'mlsimport'), $detected_theme_name)
-        : __('MLSImport works best with WP Residence, Houzez, Real Homes, or WP Estate themes.', 'mlsimport'),
+    // Every supported mode, standalone included - the same labels the theme
+    // selector two steps later shows (step-account.php renders MLSIMPORT_THEME).
+    'required' => implode(', ', MLSIMPORT_THEME),
+    'status' => true,
+    'help' => (990 === $mlsimport_theme_id)
+        ? __('No supported theme detected - MLSImport will run in standalone mode, which works with any theme.', 'mlsimport')
+        : sprintf(__('Great! We detected your theme as %s, which is supported by MLSImport.', 'mlsimport'), mlsimport_theme_copy_label()),
 );
 
 // Reduce all requirement statuses to a single flag; any failure flips it false.

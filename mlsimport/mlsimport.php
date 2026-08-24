@@ -3,7 +3,7 @@
  * Plugin Name:       MlsImport
  * Plugin URI:        https://mlsimport.com/
  * Description:       MLS Import - The MLSImport plugin facilitates the connection to your real estate MLS database, allowing you to download and synchronize real estate property data from the MLS.
- * Version:           7.0.7
+ * Version:           7.1
  * Requires at least: 5.2
  * Requires PHP:      7.4
  * License: GPLv3
@@ -40,7 +40,7 @@ if ( ! defined( 'WPINC' ) ) {
 
 
 // Current plugin version (kept in sync with the header above and the readme).
-define( 'MLSIMPORT_VERSION', '7.0.7');
+define( 'MLSIMPORT_VERSION', '7.1');
 // Marketing/portal host used to build sign-up and affiliate links.
 define( 'MLSIMPORT_CLUBLINK', 'mlsimport.com' );
 // Scheme for the portal host links.
@@ -96,7 +96,9 @@ function mlsimport_deactivate() {
 	require_once plugin_dir_path( __FILE__ ) . 'includes/class-mlsimport-deactivator.php';
 	wp_clear_scheduled_hook( 'event_mls_import_auto' );
 	wp_clear_scheduled_hook( 'mlsimport_reconciliation_event' );
+	wp_clear_scheduled_hook( 'mlsimport_reconciliation_retry_event' );
 	wp_clear_scheduled_hook( 'mlsimport_daily_telemetry_event' );
+	delete_option( 'mlsimport_reconciliation_running' );
 	Mlsimport_Deactivator::deactivate();
 }
 
@@ -210,11 +212,26 @@ require_once plugin_dir_path( __FILE__ ) . 'vendor/woocommerce/action-scheduler/
 // Core includes: RESO field defs + helpers, provider map, cron/reconciliation
 // guards, status taxonomy/normalizer, then the orchestrator and API client.
 require_once plugin_dir_path( __FILE__ ) . 'includes/help_functions.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-theme-detection.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-credentials.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-provider-map.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-enum-labels.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-country.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-reconciliation-guard.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-cron-guard.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-task-health.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-status-taxonomy.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/class-mlsimport-reconciliation.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/class-mlsimport-reconciliation-wordpress-environment.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/class-mlsimport-import-task-execution.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/class-mlsimport-import-task-execution-wordpress-environment.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-status-normalize.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/class-mlsimport-stored-listing-fields.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/class-mlsimport-stored-listing-title.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/class-mlsimport-stored-listing-media.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/class-mlsimport-stored-listing-wordpress-environment.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/class-mlsimport-stored-listing-write.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/class-mlsimport-stored-listing-adapter-factory.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/class-mlsimport.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/ThemeImport.php';
 require_once plugin_dir_path( __FILE__ ) . 'enviroment/StandaloneClass.php';
@@ -227,14 +244,22 @@ require_once plugin_dir_path( __FILE__ ) . 'enviroment/SparkResoClass.php';
 require_once plugin_dir_path( __FILE__ ) . 'enviroment/BridgeResoClass.php';
 require_once plugin_dir_path( __FILE__ ) . 'enviroment/TresleResoClass.php';
 require_once plugin_dir_path( __FILE__ ) . 'enviroment/MlsgridResoClass.php';
-require_once plugin_dir_path( __FILE__ ) . 'enviroment/MlsgridResoClass.php';
+require_once plugin_dir_path( __FILE__ ) . 'enviroment/BrightMlsResoClass.php';
+require_once plugin_dir_path( __FILE__ ) . 'enviroment/CentrisResoClass.php';
+require_once plugin_dir_path( __FILE__ ) . 'enviroment/ProviderResoClasses.php';
+require_once plugin_dir_path( __FILE__ ) . 'enviroment/UnsupportedResoClass.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/addons/agents_offices.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-onboarding.php';
 
+require_once plugin_dir_path( __FILE__ ) . 'includes/class-mlsimport-field-configuration.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-field-selector-functions.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-progressive-save.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-metadata-autotrigger.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-telemetry.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-activity-log.php';
+// #208: internal incident alerts (dedup + resolve) and import/connection health watch.
+require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-alerts.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-import-health.php';
 
 /*
  * Standalone (theme_id 990) mode — own listings table, CPTs and taxonomies.
@@ -271,6 +296,8 @@ require_once plugin_dir_path( __FILE__ ) . 'includes/standalone/class-mlsimport-
 require_once plugin_dir_path( __FILE__ ) . 'includes/standalone/class-mlsimport-customizer.php'; // Standalone design settings in the WP Customizer (990 mode).
 require_once plugin_dir_path( __FILE__ ) . 'includes/live/live-bootstrap.php'; // Live MLS passthrough mode (seam #1 — its only existing-file require).
 add_action( 'init', array( 'Mlsimport_Standalone_Cpt', 'register' ) );
+// After register(): drop cached rewrite rules when the standalone-mode signature changed (#206).
+add_action( 'init', array( 'Mlsimport_Standalone_Cpt', 'maybe_flush_rewrites' ), 20 );
 add_action( 'init', array( 'Mlsimport_Property_Metabox', 'register' ) );
 add_action( 'init', array( 'Mlsimport_Agent_Metabox', 'register' ) );
 add_action( 'init', array( 'Mlsimport_Term_Meta', 'register' ) );
@@ -391,6 +418,33 @@ function mlsimport_saas_event_mls_import_auto_function() {
 
     //error_log('[AutoCron] Start: ' . (memory_get_usage(true) / 1024 / 1024) . ' MB');
 
+    // Watchdog backstop (issue #199): a chunked manual import whose worker
+    // chain died is normally revived by the polled progress screen, but if
+    // the administrator closed that screen nothing else watches the run.
+    // Hourly cron picks it up here; revive() is a cheap no-op for anything
+    // that is not a silent, stalled manual run.
+    // Import-health checks (#208) run before anything can bail out below:
+    // detect a previous cron run that died mid-loop, and a manual run stuck
+    // at "Preparing". Both open one deduplicated internal incident.
+    mlsimport_cron_heartbeat_check();
+    mlsimport_import_health_watch_manual_run();
+
+    $mlsimport_active_lock = get_option( 'mlsimport_import_run_lock', array() );
+    if ( is_array( $mlsimport_active_lock ) && ! empty( $mlsimport_active_lock['task_id'] ) ) {
+        $mlsimport_revive = $mlsimport->admin->mlsimport_import_task_execution()->revive( (int) $mlsimport_active_lock['task_id'] );
+        if ( true === ( $mlsimport_revive['revived'] ?? false ) ) {
+            mlsimport_saas_single_write_import_custom_logs( 'Hourly watchdog revived the import worker chain for task ' . (int) $mlsimport_active_lock['task_id'] . '.' . PHP_EOL, 'manual' );
+        } elseif ( 'stalled' === ( $mlsimport_revive['reason'] ?? '' ) ) {
+            mlsimport_saas_single_write_import_custom_logs( 'Hourly watchdog declared the import run for task ' . (int) $mlsimport_active_lock['task_id'] . ' stalled and failed it.' . PHP_EOL, 'manual' );
+            // The run was terminated as hopeless — tell the SaaS once (#208).
+            mlsimport_alert_open(
+                'import_stalled:' . (int) $mlsimport_active_lock['task_id'],
+                'import_stalled',
+                array( 'task_id' => (int) $mlsimport_active_lock['task_id'] )
+            );
+        }
+    }
+
     // 0. Bail if a run is already in progress. Without this guard an overlapping
     // cron fire processes the same listings in parallel, causing duplicate
     // listing_key inserts and term_relationship/term_count deadlocks. The TTL is
@@ -403,6 +457,10 @@ function mlsimport_saas_event_mls_import_auto_function() {
     $token = $mlsimport->admin->mlsimport_saas_get_mls_api_token_from_transient();
     //error_log('[AutoCron] After token fetch: ' . (memory_get_usage(true) / 1024 / 1024) . ' MB');
     if (trim($token) === '') {
+        // Silent exit made frozen sites undiagnosable (issue #207 finding 3):
+        // record the failed attempt with a real class before bailing.
+        mlsimport_telemetry_set( 'last_sync_failed', time() );
+        mlsimport_telemetry_set( 'last_sync_failed_code', 'no_token' );
         //error_log('[AutoCron] No token, exiting.');
         return;
     }
@@ -411,6 +469,10 @@ function mlsimport_saas_event_mls_import_auto_function() {
     $is_mls_connected = get_option('mlsimport_connection_test', '');
     //error_log('[AutoCron] After connection check: ' . (memory_get_usage(true) / 1024 / 1024) . ' MB');
     if ('yes' !== $is_mls_connected) {
+        // Same rule as the token exit above: a sync attempt that cannot run
+        // records why, so the heartbeat can surface it.
+        mlsimport_telemetry_set( 'last_sync_failed', time() );
+        mlsimport_telemetry_set( 'last_sync_failed_code', 'mls_not_connected' );
         //error_log('[AutoCron] No valid connection, exiting.');
         return;
     }
@@ -418,16 +480,23 @@ function mlsimport_saas_event_mls_import_auto_function() {
     // Claim the run lock now that we are committed to processing.
     set_transient( 'mlsimport_cron_running', 1, 15 * MINUTE_IN_SECONDS );
 
+    // Heartbeat (#208): record that a cron import is now running, so the next
+    // cron entry can tell a clean finish from a process that died mid-loop.
+    mlsimport_cron_heartbeat_start();
+
     // Record sync attempt in telemetry
     mlsimport_telemetry_bump( 'syncs' );
     mlsimport_telemetry_set( 'last_sync_attempt', time() );
 
-    // 3. Set batch size for processing and initialize loop variables
+    // 3. Set batch size for gathering and initialize loop variables
     $batch_size = 100;
     $paged = 1;
     $total_processed = 0;
 
-    // 4. Process in batches until no more items are found
+    // 4. Gather every cron-enabled task id first (ids only — a few bytes each,
+    // still fetched in paged batches so the query never loads post objects).
+    // Gathering before processing is what makes fair ordering possible below.
+    $cron_task_ids = array();
     do {
         // Prepare query: only IDs, filter by meta key, batch, paged, no_found_rows speeds up query
         $args = array(
@@ -448,43 +517,63 @@ function mlsimport_saas_event_mls_import_auto_function() {
 
         // Get post IDs for this batch
         $post_ids = get_posts($args);
-        //error_log("[AutoCron] Batch {$paged} fetched " . count($post_ids) . " items, memory: " . (memory_get_usage(true) / 1024 / 1024) . ' MB');
 
-        // If nothing is returned, break the loop
+        // If nothing is returned, the gather is complete
         if (empty($post_ids)) {
             break;
         }
 
-        // 5. Loop through each post ID in this batch
         foreach ($post_ids as $prop_id) {
-            $logs = 'Loop custom post: ' . $prop_id . PHP_EOL;
-            mlsimport_debuglogs_per_plugin($logs);
-
-            // Call processing function for this item. The feed count it pulls
-            // is recorded inside mlsimport_make_listing_requests() (last_feed_found).
-            $mlsimport->admin->mlsimport_saas_start_cron_links_per_item($prop_id);
-
-            $total_processed++;
-
-            // Free memory every 100 processed items
-            if ($total_processed % 100 === 0) {
-                gc_collect_cycles();
-                //error_log("[AutoCron] Processed {$total_processed} total, memory: " . (memory_get_usage(true) / 1024 / 1024) . ' MB');
-            }
+            $cron_task_ids[] = (int) $prop_id;
         }
 
-        // 6. Prepare next batch
+        // Prepare next batch
         $paged++;
         unset($post_ids);   // Free memory
-        gc_collect_cycles(); // Trigger garbage collection
-        //error_log("[AutoCron] After batch {$paged}, memory: " . (memory_get_usage(true) / 1024 / 1024) . ' MB');
 
     } while (true);
+
+    // 5. Order by starvation (issue #203): the query above returns tasks in
+    // the same fixed order every hour, so when an early large task ate the
+    // whole cycle the bottom tasks were skipped run after run. Sorting by the
+    // last-sync watermark puts the longest-unsynced region first in line.
+    $cron_task_watermarks = array();
+    foreach ($cron_task_ids as $prop_id) {
+        $cron_task_watermarks[ $prop_id ] = (string) get_post_meta( $prop_id, 'mlsimport_last_date', true );
+    }
+    unset($cron_task_ids);
+
+    // 6. Process every task, most starved first
+    foreach (mlsimport_cron_task_order($cron_task_watermarks) as $prop_id) {
+        $logs = 'Loop custom post: ' . $prop_id . PHP_EOL;
+        mlsimport_debuglogs_per_plugin($logs);
+
+        // Call processing function for this item. The feed count it pulls
+        // is recorded inside mlsimport_make_listing_requests() (last_feed_found).
+        $mlsimport->admin->mlsimport_saas_start_cron_links_per_item($prop_id);
+
+        $total_processed++;
+
+        // Heartbeat (#208): measurable progress for the stuck-run check.
+        mlsimport_cron_heartbeat_progress( $total_processed );
+
+        // Free memory every 100 processed items
+        if ($total_processed % 100 === 0) {
+            gc_collect_cycles();
+            //error_log("[AutoCron] Processed {$total_processed} total, memory: " . (memory_get_usage(true) / 1024 / 1024) . ' MB');
+        }
+    }
+
+    // Heartbeat (#208): clean finish — also resolves an open died-run incident.
+    mlsimport_cron_heartbeat_finish();
 
     // Release the run lock so the next scheduled run can proceed.
     delete_transient( 'mlsimport_cron_running' );
 
-    mlsimport_telemetry_set( 'last_sync_success', time() );
+    // last_sync_success is no longer stamped here (issue #207 finding 1): the
+    // end-of-loop stamp reported success even when every request failed, and
+    // never fired when a run died mid-loop. Each listings request now records
+    // its own outcome inside mlsimport_make_listing_requests().
 
     //error_log('[AutoCron] Done, total processed: ' . $total_processed . ', end memory: ' . (memory_get_usage(true) / 1024 / 1024) . ' MB');
 }
@@ -503,6 +592,7 @@ if ( ! wp_next_scheduled( 'mlsimport_reconciliation_event' ) ) {
 }
 
 add_action( 'mlsimport_reconciliation_event', 'mlsimport_saas_reconciliation_event_function' );
+add_action( 'mlsimport_reconciliation_retry_event', 'mlsimport_saas_reconciliation_event_function' );
 
 if ( ! wp_next_scheduled( 'mlsimport_daily_telemetry_event' ) ) {
 	wp_schedule_event( time(), 'daily', 'mlsimport_daily_telemetry_event' );
@@ -813,105 +903,15 @@ function force_recount_all_terms() {
 }
 
 
-/*
- *
- * create dropdown list
- *
- *
- */
-/**
- * Build a <select> for a mlsimport_admin_options[$key] field.
- *
- * @param string $key        Option key (used as id and name suffix).
- * @param mixed  $value       Currently selected option value.
- * @param array  $data_array  Map of option value => label.
- * @return string The rendered <select> HTML.
- */
-function mlsiport_mls_select_list( $key, $value, $data_array ) {
-	// Open the select, binding it to the mlsimport_admin_options[$key] field.
-	$select = '<select class="mlsimport-2025-select" id="' . esc_attr( $key ) . '" name="mlsimport_admin_options[' . $key . ']">';
-	// Only build options when given an array of choices.
-	if ( is_array( $data_array ) ) :
-		// Emit one <option> per choice.
-		foreach ( $data_array as $key => $mls_item ) {
-			$select .= '<option value="' .esc_attr( $key ). '"';
-			// Mark the option matching the current value as selected.
-			if ( intval( $value ) === intval( $key ) ) {
-				$select .= ' selected ';
-			}
-			$select .= '>' .esc_html( $mls_item ). '</option>';
-		}
-	endif;
-	// Close the select and return the assembled markup.
-	$select .= '</select>';
-	return $select;
-}
+// The theme <select> builder lives in includes/mlsimport-theme-detection.php,
+// next to mlsimport_resolve_theme_id() whose answer it renders (#242).
 
 
 
-add_action('wp_ajax_mlsimport_save_account', 'mlsimport_save_account_callback');
-/**
- * AJAX handler: save the MLSImport account username/password and test the login.
- *
- * Verifies the onboarding nonce, stores credentials in mlsimport_admin_options,
- * fetches a fresh API token, and returns connected/not-connected HTML + flag.
- *
- * @return void
- */
-function mlsimport_save_account_callback() {
-	// Verify the shared onboarding AJAX nonce.
-	check_ajax_referer('mlsimport_onboarding_nonce', 'security');
-
-	// Load current plugin options.
-	$options = get_option('mlsimport_admin_options', []);
-	// Persist the submitted credentials only when both are present.
-	if ( ! empty($_POST['mlsimport_username']) && ! empty($_POST['mlsimport_password']) ) {
-		$options['mlsimport_username'] = sanitize_text_field($_POST['mlsimport_username']);
-		$options['mlsimport_password'] = sanitize_text_field($_POST['mlsimport_password']);
-		update_option('mlsimport_admin_options', $options);
-	}
-
-	global $mlsimport;
-
-	// Refresh token
-	$token = $mlsimport->admin->mlsimport_saas_get_mls_api_token_from_transient();
-
-	// Empty token means the credentials did not authenticate.
-	if (trim($token) === '') {
-		// Buffer the "not connected" warning markup.
-		ob_start();
-	
-		?>
-		<div class="mlsimport_warning">
-			<?php esc_html_e('You are not connected to MlsImport - Please check your Username and Password.', 'mlsimport'); ?>
-		</div>
-		<?php
-		$html = ob_get_clean();
-
-		// Return failure HTML + connected=false.
-		wp_send_json_success([
-			'message' => __('You are not connected.', 'mlsimport'),
-			'html'    => $html,
-			'connected' => false
-		]);
-	} else {
-		ob_start();
-		?>
-		<div class="mlsimport_warning mlsimport_validated">
-			<?php esc_html_e('You are connected to your MlsImport account!', 'mlsimport'); ?>
-		</div>
-		<?php
-		$html = ob_get_clean();
-
-		wp_send_json_success([
-			'message' => __('Connected successfully!', 'mlsimport'),
-			'html'    => $html,
-			'connected' => true
-		]);
-	}
-}
-
-
+// mlsimport_save_account_callback() (wp_ajax_mlsimport_save_account) moved to
+// includes/mlsimport-onboarding.php next to its sibling handler
+// mlsimport_ajax_test_account_connection(), so both credential-save paths live
+// together and are covered by tests/unit/save-account-token-purge-test.php.
 
 
 
@@ -923,6 +923,10 @@ function mlsimport_save_mls_data_callback() {
 	check_ajax_referer('mlsimport_onboarding_nonce', 'security');
 
 	$options = get_option('mlsimport_admin_options', []);
+	$options = is_array( $options ) ? $options : array();
+	$previous_mls_id = isset( $options['mlsimport_mls_name'] )
+		? (string) $options['mlsimport_mls_name']
+		: '';
 
 	foreach ($_POST as $key => $value) {
 		if (strpos($key, 'mlsimport_') === 0 && $key !== 'mlsimport_username' && $key !== 'mlsimport_password') {
@@ -930,17 +934,27 @@ function mlsimport_save_mls_data_callback() {
 		}
 	}
 
+	// An MLS change invalidates only state owned by the old selection. Provider
+	// credentials remain saved so returning to that provider restores its fields.
+	$new_mls_id = isset( $options['mlsimport_mls_name'] )
+		? (string) $options['mlsimport_mls_name']
+		: '';
+	if ( $previous_mls_id !== $new_mls_id ) {
+		Mlsimport_Provider_Family::clear_active_state();
+	} else {
+		Mlsimport_Provider_Family::clear_access_tokens();
+		delete_option( 'mlsimport_connection_test' );
+		delete_option( 'mlsimport_mls_metadata_populated' );
+	}
+
 	update_option('mlsimport_admin_options', $options);
 
-	// Run MLS connection check
+	// Always test the newly saved selection. Reusing a prior "yes" flag could
+	// incorrectly report that a different MLS or changed credentials succeeded.
 	global $mlsimport;
-	$is_mls_connected = get_option('mlsimport_connection_test', '');
 	$mlsimport->admin->mlsimport_saas_setting_up();
-
-	if ('yes' !== $is_mls_connected) {
-		$mlsimport->admin->mlsimport_saas_check_mls_connection();
-		$is_mls_connected = get_option('mlsimport_connection_test', '');
-	}
+	$mlsimport->admin->mlsimport_saas_check_mls_connection();
+	$is_mls_connected = get_option('mlsimport_connection_test', '');
 
 	ob_start();
 	if ('yes' === $is_mls_connected) {
@@ -964,5 +978,3 @@ function mlsimport_save_mls_data_callback() {
 		'connected' => $is_mls_connected === 'yes',
 	]);
 }
-
-

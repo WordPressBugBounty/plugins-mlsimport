@@ -1,697 +1,270 @@
 <?php
 /**
- * MLS Import Progressive Save Handlers
+ * WordPress persistence adapter for the Field Configuration module.
  *
- * Server-side handlers for the progressive save system:
- * - Initial save detection and chunked saving
- * - Individual field option saving
- * - Optimized field order saving
+ * The browser exposes one mutation endpoint with four fixed POST variables:
+ * action, nonce, revision, and one JSON command. This file translates that
+ * request into the domain module, performs an exact database compare-and-swap,
+ * refreshes WordPress's option cache, and emits the authoritative result. The
+ * former chunk, individual, bulk, and position handlers intentionally do not
+ * survive as alternate mutation paths.
  *
- * @package    MLSImport
- * @subpackage MLSImport/includes
+ * @package MLSImport
  */
 
-// Exit if accessed directly
 if ( ! defined( 'ABSPATH' ) ) {
-    exit;
+	exit;
 }
 
-
 /**
- * AJAX handler for saving field order
- * This stores the order directly in the mlsimport_admin_fields_select option
- */
-function mlsimport_ajax_save_field_order() {
-    // Add detailed logging for debugging
-
-    // Check nonce
-    if (!isset($_POST['security']) || !wp_verify_nonce($_POST['security'], 'mlsimport_field_selector_nonce')) {
-        //error_log('Invalid security token in field order save');
-        wp_send_json_error('Invalid security token');
-        return;
-    }
-    
-    // Check for both parameter formats
-    $field_order = array();
-    
-    // Check for standard array format (field_order[])
-    if (isset($_POST['field_order']) && is_array($_POST['field_order'])) {
-        $field_order = $_POST['field_order'];
-        //error_log('Using field_order parameter: ' . count($field_order) . ' items');
-    } 
-    // Check for older format (fields[])
-    else if (isset($_POST['fields']) && is_array($_POST['fields'])) {
-        $field_order = $_POST['fields'];
-        //error_log('Using fields parameter: ' . count($field_order) . ' items');
-    }
-    // Otherwise, try to get values directly by key pattern
-    else {
-        //error_log('No direct array found, checking for field_order[] pattern');
-        // Check if we need to manually extract from the POST data (for field_order[])
-        foreach ($_POST as $key => $value) {
-            if (preg_match('/^field_order(\[.*\])?$/', $key)) {
-                if (is_array($value)) {
-                    $field_order = $value;
-                    //error_log('Found field_order as array with ' . count($field_order) . ' items');
-                    break;
-                }
-            }
-        }
-        
-        // If we still don't have field order data, try to extract it directly from POST
-        if (empty($field_order)) {
-            //error_log('Trying to manually build array from field_order[]');
-            foreach ($_POST as $key => $value) {
-                if (strpos($key, 'field_order[') === 0) {
-                    $field_order[] = $value;
-                }
-            }
-            //error_log('Manually built array with ' . count($field_order) . ' items');
-        }
-    }
-    
-    // Check if we have any field order data
-    if (empty($field_order)) {
-        //error_log('No field order data found in request');
-        wp_send_json_error('No field order provided');
-        return;
-    }
-    
-    // Log field count for debugging
-    //error_log('Saving ' . count($field_order) . ' fields in order');
-    
-    // Get current options
-    $options = get_option('mlsimport_admin_fields_select', array());
-    
-    // Make sure $options is an array
-    if (!is_array($options)) {
-        $options = array();
-    }
-    
-    // Store the field order directly in the options
-    $options['field_order'] = array_map('sanitize_text_field', $field_order);
-
-    // Save the updated options
-    $result = update_option('mlsimport_admin_fields_select', $options);
-
-    if ($result) {
-        global $mlsimport;
-        if ( isset( $mlsimport->admin->env_data ) && method_exists( $mlsimport->admin->env_data, 'enviroment_custom_fields' ) ) {
-            $mlsimport->admin->env_data->enviroment_custom_fields( $mlsimport->get_plugin_name() );
-        }
-        //error_log('Field order saved successfully');
-        wp_send_json_success('Field order saved successfully');
-    } else {
-        //error_log('Failed to save field order - update_option returned false');
-        wp_send_json_error('Failed to save field order - update_option returned false');
-    }
-}
-
-
-
-/**
- * Add this function to your mlsimport-admin-fields-select.php file
- * Outputs the nonce field needed for field ordering
- */
-function mlsimport_add_field_selector_nonce() {
-    wp_nonce_field('mlsimport_field_selector_nonce', 'mlsimport_field_selector_nonce');
-}
-
-
-
-
-
-
-/**
- * Register AJAX handlers for progressive saving
- */
-function mlsimport_register_progressive_save_handlers() {
-    // Check if initial save is needed
-    add_action('wp_ajax_mlsimport_check_initial_save_needed', 'mlsimport_ajax_check_initial_save_needed');
-    
-    // Save a chunk of fields
-    add_action('wp_ajax_mlsimport_save_field_chunk', 'mlsimport_ajax_save_field_chunk');
-
-    // Save an individual field option
-    add_action('wp_ajax_mlsimport_save_field_option', 'mlsimport_ajax_save_field_option');
-
-    // Bulk save import selections
-    add_action('wp_ajax_mlsimport_save_bulk_import', 'mlsimport_ajax_save_bulk_import');
-
-    // Bulk save admin visibility selections
-    add_action('wp_ajax_mlsimport_save_bulk_admin', 'mlsimport_ajax_save_bulk_admin');
-}
-add_action('init', 'mlsimport_register_progressive_save_handlers');
-
-
-
-
-
-
-/**
- * AJAX handler to save one chunk of the field-selection grid.
+ * Decode current MLS metadata into the domain module's field map.
  *
- * Verifies the 'mlsimport_field_selector_nonce' nonce AND requires the
- * 'administrator' capability. Merges the posted chunk of fields (import/admin/
- * label/postmeta/taxonomy flags) into mlsimport_admin_fields_select, assigning
- * each field an incrementing field_order index, then refreshes the theme's
- * custom-field registration.
- */
-function mlsimport_ajax_save_field_chunk() {
-    // Check nonce
-    if (!isset($_POST['security']) || !wp_verify_nonce($_POST['security'], 'mlsimport_field_selector_nonce')) {
-        wp_send_json_error('Invalid security token');
-        return;
-    }
-
-    // Capability check — the settings page is gated by 'administrator'; a nonce
-    // is not authorization.
-    if ( ! current_user_can( 'administrator' ) ) {
-        wp_send_json_error( 'Insufficient permissions' );
-        return;
-    }
-
-    // Check if fields were provided
-    if (!isset($_POST['fields']) || !is_array($_POST['fields'])) {
-        wp_send_json_error('No field data provided');
-        return;
-    }
-    
-    // Get chunk info
-    $chunk_index = isset($_POST['chunk_index']) ? intval($_POST['chunk_index']) : 0;
-    $total_chunks = isset($_POST['total_chunks']) ? intval($_POST['total_chunks']) : 1;
-    $is_last_chunk = ($chunk_index + 1) == $total_chunks;
-    
-    // Get current options
-    $options = get_option('mlsimport_admin_fields_select', array());
-    
-    // Initialize arrays if they don't exist
-    if (!is_array($options)) {
-        $options = array();
-    }
-    
-    if (!isset($options['mls-fields'])) {
-        $options['mls-fields'] = array();
-    }
-    
-    if (!isset($options['mls-fields-admin'])) {
-        $options['mls-fields-admin'] = array();
-    }
-    
-    if (!isset($options['mls-fields-label'])) {
-        $options['mls-fields-label'] = array();
-    }
-    
-    if (!isset($options['mls-fields-map-postmeta'])) {
-        $options['mls-fields-map-postmeta'] = array();
-    }
-    
-    if (!isset($options['mls-fields-map-taxonomy'])) {
-        $options['mls-fields-map-taxonomy'] = array();
-    }
-
-    // Seed the order counter: start at 0 for a new order map, otherwise continue
-    // after the fields already recorded so this chunk appends to the sequence.
-    if (!isset($options['field_order'])) {
-        $options['field_order'] = array();
-        $i = 0;
-    }else{
-        $i = count($options['field_order'] );
-    }
-    
-
-
-    // Process fields in the chunk
-    // For each posted field, copy whichever sub-values are present into their
-    // parallel arrays, then stamp its position in field_order.
-    foreach ($_POST['fields'] as $field_key => $field_data) {
-     
-        
-        // Process field data as before
-        if (isset($field_data['import'])) {
-            $options['mls-fields'][$field_key] = intval($field_data['import']);
-        }
-        
-        if (isset($field_data['admin'])) {
-            $options['mls-fields-admin'][$field_key] = intval($field_data['admin']);
-        }
-        
-        if (isset($field_data['label'])) {
-            $options['mls-fields-label'][$field_key] = $field_data['label'];
-        }
-        
-        if (isset($field_data['postmeta'])) {
-            $options['mls-fields-map-postmeta'][$field_key] = $field_data['postmeta'];
-        }
-        
-        if (isset($field_data['taxonomy'])) {
-            $options['mls-fields-map-taxonomy'][$field_key] = $field_data['taxonomy'];
-        }
-
-    
-        $options['field_order'][$field_key] = $i++;
-        
-    }
-    
- 
-
-    
-    // Save the options
-    $saved = update_option('mlsimport_admin_fields_select', $options);
-    if ( $saved ) {
-        global $mlsimport;
-        if ( isset( $mlsimport->admin->env_data ) && method_exists( $mlsimport->admin->env_data, 'enviroment_custom_fields' ) ) {
-            $mlsimport->admin->env_data->enviroment_custom_fields( $mlsimport->get_plugin_name() );
-        }
-    }
-    
-    wp_send_json_success(array(
-        
-      'field_order'=>  $options['field_order'],
-        'message' => 'Field chunk ' . ($chunk_index + 1) . ' of ' . $total_chunks . ' saved successfully',
-        'chunkIndex' => $chunk_index, 
-        'totalChunks' => $total_chunks,
-        'isLastChunk' => $is_last_chunk,
-   
-    ));
-}
-
-/**
- * AJAX handler to save import selections in bulk
- */
-function mlsimport_ajax_save_bulk_import() {
-    if (!isset($_POST['security']) || !wp_verify_nonce($_POST['security'], 'mlsimport_field_selector_nonce')) {
-        wp_send_json_error('Invalid security token');
-    }
-
-    // Capability check — the settings page is gated by 'administrator'; a nonce
-    // is not authorization.
-    if ( ! current_user_can( 'administrator' ) ) {
-        wp_send_json_error( 'Insufficient permissions' );
-    }
-
-    if (!isset($_POST['fields']) || !is_array($_POST['fields'])) {
-        wp_send_json_error('No field data provided');
-    }
-
-    $options = get_option('mlsimport_admin_fields_select', array());
-    if (!isset($options['mls-fields']) || !is_array($options['mls-fields'])) {
-        $options['mls-fields'] = array();
-    }
-
-    foreach ($_POST['fields'] as $key => $value) {
-        $options['mls-fields'][sanitize_text_field($key)] = intval($value);
-    }
-
-    $result = update_option('mlsimport_admin_fields_select', $options);
-    if ($result) {
-        global $mlsimport;
-        if ( isset( $mlsimport->admin->env_data ) && method_exists( $mlsimport->admin->env_data, 'enviroment_custom_fields' ) ) {
-            $mlsimport->admin->env_data->enviroment_custom_fields( $mlsimport->get_plugin_name() );
-        }
-        wp_send_json_success('Bulk import selections saved');
-    } else {
-        wp_send_json_error('Failed to save selections');
-    }
-}
-
-/**
- * AJAX handler to save admin visibility selections in bulk
- */
-function mlsimport_ajax_save_bulk_admin() {
-    if (!isset($_POST['security']) || !wp_verify_nonce($_POST['security'], 'mlsimport_field_selector_nonce')) {
-        wp_send_json_error('Invalid security token');
-    }
-
-    // Capability check — the settings page is gated by 'administrator'; a nonce
-    // is not authorization.
-    if ( ! current_user_can( 'administrator' ) ) {
-        wp_send_json_error( 'Insufficient permissions' );
-    }
-
-    if (!isset($_POST['fields']) || !is_array($_POST['fields'])) {
-        wp_send_json_error('No field data provided');
-    }
-
-    $options = get_option('mlsimport_admin_fields_select', array());
-    if (!isset($options['mls-fields-admin']) || !is_array($options['mls-fields-admin'])) {
-        $options['mls-fields-admin'] = array();
-    }
-
-    foreach ($_POST['fields'] as $key => $value) {
-        $options['mls-fields-admin'][sanitize_text_field($key)] = intval($value);
-    }
-
-    $result = update_option('mlsimport_admin_fields_select', $options);
-    if ($result) {
-        global $mlsimport;
-        if ( isset( $mlsimport->admin->env_data ) && method_exists( $mlsimport->admin->env_data, 'enviroment_custom_fields' ) ) {
-            $mlsimport->admin->env_data->enviroment_custom_fields( $mlsimport->get_plugin_name() );
-        }
-        wp_send_json_success('Bulk admin selections saved');
-    } else {
-        wp_send_json_error('Failed to save selections');
-    }
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/**
- * AJAX handler to check if initial save is needed
- */
-function mlsimport_ajax_check_initial_save_needed() {
-    // Check nonce
-    if ( ! isset( $_POST['security'] ) || ! wp_verify_nonce( $_POST['security'], 'mlsimport_field_selector_nonce' ) ) {
-        wp_send_json_error( 'Invalid security token' );
-    }
-
-    // Capability check — this returns the full options blob; restrict it to
-    // administrators (the capability gating the settings page).
-    if ( ! current_user_can( 'administrator' ) ) {
-        wp_send_json_error( 'Insufficient permissions' );
-    }
-
-    // Check if option exists and has content
-    $options = get_option( 'mlsimport_admin_fields_select' );
-    $mlsimport_mls_metadata_mls_data = get_option( 'mlsimport_mls_metadata_mls_data', '' );
-    
-    // Decode MLS data
-    $mls_data = json_decode( $mlsimport_mls_metadata_mls_data, true );
-    
-    // Check if we need an initial save
-    $initial_save_needed = false;
-    
-    // If MLS data exists but option is empty/incomplete
-    // had !empty( $mls_data ) &&
-    if (  ( 
-        empty( $options ) || 
-        empty( $options['mls-fields'] ) 
-    ) ) {
-        $initial_save_needed = true;
-    }
-    
-    wp_send_json_success( array(
-        'initialSaveNeeded' => $initial_save_needed,
-      
-        'options'=>$options,
-        'fieldsInOption' => is_array( $options ) && isset( $options['mls-fields'] ) ? count( $options['mls-fields'] ) : 0,
-        'fieldsInMlsData' => is_array( $mls_data ) ? count( $mls_data ) : 0
-    ) );
-}
-
-/**
- * AJAX handler to save an individual field option.
+ * Metadata can be stored as the original JSON string or as an already decoded
+ * array. Both shapes are accepted here; malformed or absent metadata becomes
+ * an empty map so every caller reaches the same normalization path.
  *
- * NOTE: this function's name is garbled ('ssswsd2option') and it is never
- * registered with add_action(), so it is unreachable dead code — an apparent
- * earlier copy of mlsimport_ajax_save_field_option() below. Unlike that live
- * handler it verifies the nonce but performs no capability check.
+ * @return array Current MLS metadata keyed by RESO field name.
  */
-function mlsimport_ajax_save_field_ssswsd2option() {
-    // Check nonce
-    if ( ! isset( $_POST['security'] ) || ! wp_verify_nonce( $_POST['security'], 'mlsimport_field_selector_nonce' ) ) {
-        wp_send_json_error( 'Invalid security token' );
-    }
-    
-    // Check if field key and option type were provided
-    if ( ! isset( $_POST['field_key'] ) || ! isset( $_POST['option_type'] ) ) {
-        wp_send_json_error( 'Missing field key or option type' );
-    }
-    
-    // Sanitize inputs
-    $field_key = sanitize_text_field( $_POST['field_key'] );
-    $option_type = sanitize_text_field( $_POST['option_type'] );
-    $value = isset( $_POST['value'] ) ? $_POST['value'] : '';
-    
-    // Validate option type
-    $valid_option_types = array( 'import', 'admin', 'label', 'postmeta', 'taxonomy' );
-    
-    if ( ! in_array( $option_type, $valid_option_types ) ) {
-        wp_send_json_error( 'Invalid option type' );
-    }
-    
-    // Get current options
-    $options = get_option( 'mlsimport_admin_fields_select', array() );
-    // Keep a copy of the original options to detect changes
-    $original_options = $options;
-    
-    // Map option type to options array key
-    $option_map = array(
-        'import' => 'mls-fields',
-        'admin' => 'mls-fields-admin',
-        'label' => 'mls-fields-label',
-        'postmeta' => 'mls-fields-map-postmeta',
-        'taxonomy' => 'mls-fields-map-taxonomy'
-    );
-    
-    $option_key = $option_map[ $option_type ];
-    
-    // Initialize array if it doesn't exist
-    if ( ! isset( $options[ $option_key ] ) ) {
-        $options[ $option_key ] = array();
-    }
-    
-    // Sanitize and update value based on option type
-    switch ( $option_type ) {
-        case 'import':
-        case 'admin':
-            $options[ $option_key ][ $field_key ] = intval( $value );
-            break;
-            
-        case 'label':
-        case 'postmeta':
-        case 'taxonomy':
-            $options[ $option_key ][ $field_key ] = sanitize_text_field( $value );
-            break;
-    }
-    
-    // If nothing changed, treat as success without calling update_option
-    if ( $options === $original_options ) {
-        wp_send_json_success( array(
-            'message'    => 'Field option saved successfully',
-            'fieldKey'   => $field_key,
-            'optionType' => $option_type,
-            'value'      => $value,
-        ) );
-    }
+function mlsimport_field_configuration_metadata(): array {
+	$metadata = get_option( 'mlsimport_mls_metadata_mls_data', '' );
+	$metadata = is_string( $metadata ) ? json_decode( $metadata, true ) : $metadata;
 
-    // Save updated options
-    $result = update_option( 'mlsimport_admin_fields_select', $options );
-
-    if ( false !== $result ) {
-        wp_send_json_success( array(
-            'message'    => 'Field option saved successfully',
-            'fieldKey'   => $field_key,
-            'optionType' => $option_type,
-            'value'      => $value,
-        ) );
-    } else {
-        wp_send_json_error( 'Failed to save field option' );
-    }
+	return is_array( $metadata ) ? $metadata : array();
 }
-function mlsimport_ajax_save_field_option() {
-    // Check nonce
-    if ( ! isset( $_POST['security'] ) || ! wp_verify_nonce( $_POST['security'], 'mlsimport_field_selector_nonce' ) ) {
-        //error_log( '[mlsimport] Invalid security token' );
-        wp_send_json_error( 'Invalid security token' );
-    }
-
-    // Capability check — the settings page is gated by 'administrator'; a nonce
-    // is not authorization.
-    if ( ! current_user_can( 'administrator' ) ) {
-        wp_send_json_error( 'Insufficient permissions' );
-    }
-
-    // Check if field key and option type were provided
-    if ( ! isset( $_POST['field_key'] ) || ! isset( $_POST['option_type'] ) ) {
-        //error_log( '[mlsimport] Missing field key or option type' );
-        wp_send_json_error( 'Missing field key or option type' );
-    }
-
-    // Sanitize inputs
-    $field_key   = sanitize_text_field( $_POST['field_key'] );
-    $option_type = sanitize_text_field( $_POST['option_type'] );
-    $value       = isset( $_POST['value'] ) ? $_POST['value'] : '';
-
-    // Error log for debugging
-    //error_log( '[mlsimport] Field Key: ' . $field_key );
-    //error_log( '[mlsimport] Option Type: ' . $option_type );
-    //error_log( '[mlsimport] Raw Value: ' . print_r( $value, true ) );
-
-    // Validate option type
-    $valid_option_types = array( 'import', 'admin', 'label', 'postmeta', 'taxonomy' );
-    if ( ! in_array( $option_type, $valid_option_types ) ) {
-        //error_log( '[mlsimport] Invalid option type: ' . $option_type );
-        wp_send_json_error( 'Invalid option type' );
-    }
-
-    // Get current options
-    $options = get_option( 'mlsimport_admin_fields_select', array() );
-    $original_options = $options;
-
-    // Map option type to options array key
-    $option_map = array(
-        'import'   => 'mls-fields',
-        'admin'    => 'mls-fields-admin',
-        'label'    => 'mls-fields-label',
-        'postmeta' => 'mls-fields-map-postmeta',
-        'taxonomy' => 'mls-fields-map-taxonomy'
-    );
-
-    $option_key = $option_map[ $option_type ];
-
-    if ( ! isset( $options[ $option_key ] ) ) {
-        $options[ $option_key ] = array();
-        //error_log( '[mlsimport] Initialized option key: ' . $option_key );
-    }
-
-    // Sanitize and update value
-    switch ( $option_type ) {
-        case 'import':
-        case 'admin':
-            $options[ $option_key ][ $field_key ] = intval( $value );
-            break;
-
-        case 'label':
-        case 'postmeta':
-        case 'taxonomy':
-            $options[ $option_key ][ $field_key ] = sanitize_text_field( $value );
-            break;
-    }
-
-   // //error_log( '[mlsimport] Updated Options: ' . print_r( $options, true ) );
-
-    // No changes
-    if ( $options === $original_options ) {
-        //error_log( '[mlsimport] No changes detected for option update.' );
-        wp_send_json_success( array(
-            'message'    => 'Field option saved successfully',
-            'fieldKey'   => $field_key,
-            'optionType' => $option_type,
-            'value'      => $value,
-        ) );
-    }
-    //error_log('saving  mls-fields '.count($options['mls-fields']));
-    //error_log('saving mls-fields-admin '.count($options['mls-fields-admin']));
-    //error_log('saving mls-fields-label '.count($options['mls-fields-label']));
-    //error_log('saving mls-fields-map-postmeta '.count($options['mls-fields-map-postmeta']));
-    //error_log('saving mls-fields-map-taxonomy '.count($options['mls-fields-map-taxonomy']));
-    //error_log('saving field_order '.count($options['field_order']));
-
-    // Save updated options
-    $result = update_option( 'mlsimport_admin_fields_select', $options );
-
-    if ( false !== $result ) {
-        //error_log( '[mlsimport] Options updated successfully.' );
-        wp_send_json_success( array(
-            'message'    => 'Field option saved successfully',
-            'fieldKey'   => $field_key,
-            'optionType' => $option_type,
-            'value'      => $value,
-        ) );
-    } else {
-        //error_log( '[mlsimport] Failed to update options.' );
-        wp_send_json_error( 'Failed to save field option' );
-    }
-}
-
-
 
 /**
- * AJAX handler to move a field to a new position in the order.
+ * Return taxonomy destinations registered for the active property post type.
  *
- * Verifies the 'mlsimport_field_selector_nonce' nonce AND requires the
- * 'administrator' capability. Takes a moving index, a target index and a
- * before/after position, recomputes field_order via
- * mlsimport_compute_field_order_after_move(), reorders every parallel field
- * array through mlsimport_sort_all_fields_by_order(), and persists the result.
+ * The adapter is resolved on demand because metadata gathering and AJAX calls
+ * run after the plugin has created its active theme environment.
+ *
+ * @return array Taxonomy slug-to-label map accepted by mutation validation.
  */
-function mlsimport_ajax_save_field_position() {
-    // Verify nonce
-    if (!isset($_POST['security']) || !wp_verify_nonce($_POST['security'], 'mlsimport_field_selector_nonce')) {
-        wp_send_json_error('Invalid security token');
-    }
+function mlsimport_field_configuration_taxonomies(): array {
+	global $mlsimport;
 
-    // Capability check — the settings page is gated by 'administrator'; a nonce
-    // is not authorization.
-    if ( ! current_user_can( 'administrator' ) ) {
-        wp_send_json_error( 'Insufficient permissions' );
-    }
+	$post_type = '';
+	if ( isset( $mlsimport->admin->env_data ) && method_exists( $mlsimport->admin->env_data, 'get_property_post_type' ) ) {
+		$post_type = $mlsimport->admin->env_data->get_property_post_type();
+	}
 
-    // Validate required fields
-    if (!isset($_POST['moving_index'], $_POST['target_index'], $_POST['position'])) {
-        wp_send_json_error('Missing parameters');
-    }
+	$taxonomies = mlsimport_get_custom_post_type_taxonomies( $post_type );
 
-    $moving_index = intval($_POST['moving_index']);
-    $target_index = intval($_POST['target_index']);
-    $position     = sanitize_text_field($_POST['position']); // 'before' or 'after'
-
-    // Load current options
-    $options = get_option('mlsimport_admin_fields_select', []);
-   
-    if (empty($options['field_order']) || !is_array($options['field_order'])) {
-        wp_send_json_error('Field order not found');
-    }
-
-
-
-
-    // Validate the requested indexes against the current order.
-    // asort keeps key=>index pairs but reorders them by index value; the
-    // resulting key list is the field sequence the two indexes point into.
-    $order_map = $options['field_order'];
-    asort($order_map); // Sort by index.
-    $ordered_keys = array_keys($order_map);
-    // Both the moving and target positions must exist in the current sequence.
-    if (!isset($ordered_keys[$moving_index]) || !isset($ordered_keys[$target_index])) {
-        wp_send_json_error('Invalid indexes');
-    }
-
-    // Compute the new field order, then reorder EVERY parallel field array via
-    // the shared helper. The previous inline loop named non-existent target
-    // keys ('mls-fields-map-admin' / 'mls-fields-map-label'), so the admin and
-    // label arrays were left in stale order. mlsimport_sort_all_fields_by_order()
-    // uses the correct key list.
-    $options['field_order'] = mlsimport_compute_field_order_after_move(
-        $options['field_order'],
-        $moving_index,
-        $target_index,
-        $position
-    );
-    $options = mlsimport_sort_all_fields_by_order($options);
-
-    // Save the updated options
-    $saved = update_option('mlsimport_admin_fields_select', $options);
-    if ( $saved ) {
-        global $mlsimport;
-        if ( isset( $mlsimport->admin->env_data ) && method_exists( $mlsimport->admin->env_data, 'enviroment_custom_fields' ) ) {
-            $mlsimport->admin->env_data->enviroment_custom_fields( $mlsimport->get_plugin_name() );
-        }
-    }
-
-    wp_send_json_success('Field order updated');
+	return is_array( $taxonomies ) ? $taxonomies : array();
 }
 
-// Register the AJAX handler
-add_action('wp_ajax_mlsimport_save_field_position', 'mlsimport_ajax_save_field_position');
+/**
+ * Atomically replace the one Field Configuration option.
+ *
+ * WordPress's update_option() has no expected-value condition, so two tabs can
+ * both pass an application-level revision check and the slower request can
+ * overwrite the newer one. The UPDATE below includes the exact serialized old
+ * value in its WHERE clause. One request wins; the other updates zero rows and
+ * is reported by the module as stale. Cache and public option hooks are updated
+ * once only after the database confirms the replacement.
+ *
+ * @param array $expected    Exact option value previously loaded.
+ * @param array $replacement Complete normalized replacement.
+ * @return bool True only when this caller won the compare-and-swap.
+ */
+function mlsimport_field_configuration_compare_and_swap( array $expected, array $replacement ): bool {
+	global $wpdb;
+
+	$option_name = 'mlsimport_admin_fields_select';
+	$row         = $wpdb->get_row(
+		$wpdb->prepare(
+			"SELECT option_value, autoload FROM {$wpdb->options} WHERE option_name = %s LIMIT 1",
+			$option_name
+		),
+		ARRAY_A
+	);
+
+	// add_option() uses the option_name unique key as the atomic first-write gate.
+	if ( null === $row ) {
+		if ( array() !== $expected ) {
+			return false;
+		}
+
+		$added = add_option( $option_name, $replacement, '', false );
+		if ( ! $added ) {
+			wp_cache_delete( $option_name, 'options' );
+			wp_cache_delete( 'alloptions', 'options' );
+			wp_cache_delete( 'notoptions', 'options' );
+		} elseif ( function_exists( 'mlsimport_active_field_configuration' ) ) {
+			mlsimport_active_field_configuration( true );
+		}
+
+		return $added;
+	}
+
+	$old_serialized = maybe_serialize( $expected );
+	$new_serialized = maybe_serialize( $replacement );
+	$updated        = $wpdb->query(
+		$wpdb->prepare(
+			"UPDATE {$wpdb->options} SET option_value = %s WHERE option_name = %s AND BINARY option_value = BINARY %s",
+			$new_serialized,
+			$option_name,
+			$old_serialized
+		)
+	);
+	if ( 1 !== $updated ) {
+		// Another request won after this process loaded its option. Discard every
+		// local option-cache route so the module can report the winner's revision.
+		wp_cache_delete( $option_name, 'options' );
+		wp_cache_delete( 'alloptions', 'options' );
+		wp_cache_delete( 'notoptions', 'options' );
+		return false;
+	}
+
+	// Mirror update_option() cache behavior while preserving the existing
+	// autoload choice. Large 1,000-field configurations are not newly autoloaded.
+	$alloptions = wp_load_alloptions( true );
+	if ( isset( $alloptions[ $option_name ] ) ) {
+		$alloptions[ $option_name ] = $new_serialized;
+		wp_cache_set( 'alloptions', $alloptions, 'options' );
+	} else {
+		wp_cache_set( $option_name, $new_serialized, 'options' );
+	}
+
+	mlsimport_active_field_configuration( true );
+	do_action( "update_option_{$option_name}", $expected, $replacement, $option_name );
+	do_action( 'updated_option', $option_name, $expected, $replacement );
+
+	return true;
+}
+
+/**
+ * Construct the authoritative module around the WordPress option store.
+ *
+ * The loader always returns an array and the writer delegates to the exact
+ * compare-and-swap adapter above. Each request gets a small stateless service;
+ * all durable state remains in the one backward-compatible WordPress option.
+ *
+ * @return Mlsimport_Field_Configuration Configured domain service.
+ */
+function mlsimport_field_configuration(): Mlsimport_Field_Configuration {
+	return new Mlsimport_Field_Configuration(
+		static function () {
+			$value = get_option( 'mlsimport_admin_fields_select', array() );
+			return is_array( $value ) ? $value : array();
+		},
+		'mlsimport_field_configuration_compare_and_swap'
+	);
+}
+
+/**
+ * Return normalized durable state for consumers that must remove dormant data.
+ *
+ * Theme custom-field registries need both active fields to add and dormant
+ * fields to remove from theme-owned display definitions. This read still enters
+ * through the module, preserving normalization and taxonomy rules without
+ * exposing a direct option read as an alternate persistence boundary.
+ *
+ * @return array Normalized active-and-dormant Field Configuration.
+ */
+function mlsimport_normalized_field_configuration(): array {
+	return mlsimport_field_configuration()->read(
+		mlsimport_field_configuration_metadata(),
+		mlsimport_hardocde_theme_schema(),
+		mlsimport_field_configuration_taxonomies()
+	);
+}
+
+/**
+ * Return the active-only configuration for import and display consumers.
+ *
+ * The durable option retains Dormant MLS Fields so their choices can return.
+ * Runtime consumers use this projection to exclude those fields consistently
+ * without each theme reimplementing metadata intersection and array ordering.
+ *
+ * The projection is cached for the request because import adapters consult it
+ * once per listing. Rebuilding and sorting 1,000 parallel fields for every
+ * listing would turn schema safety into an avoidable import bottleneck.
+ *
+ * @param bool $refresh Rebuild after this request has changed the option.
+ * @return array Normalized configuration containing current metadata fields only.
+ */
+function mlsimport_active_field_configuration( bool $refresh = false ): array {
+	static $configuration = null;
+
+	if ( null !== $configuration && ! $refresh ) {
+		return $configuration;
+	}
+
+	$configuration = mlsimport_field_configuration()->read_active(
+		mlsimport_field_configuration_metadata(),
+		mlsimport_hardocde_theme_schema(),
+		mlsimport_field_configuration_taxonomies()
+	);
+
+	return $configuration;
+}
+
+/**
+ * Persist metadata initialization/reconciliation once on the server.
+ *
+ * @param array $metadata     Newly gathered MLS metadata.
+ * @param array $theme_schema Active theme defaults.
+ * @return array Field Configuration Result.
+ */
+function mlsimport_reconcile_field_configuration( array $metadata, array $theme_schema ): array {
+	return mlsimport_field_configuration()->reconcile( $metadata, $theme_schema, mlsimport_field_configuration_taxonomies() );
+}
+
+/**
+ * Import an exported configuration through the same schema and storage owner.
+ *
+ * @param array $incoming Exported legacy-compatible option array.
+ * @return array Field Configuration Result.
+ */
+function mlsimport_import_field_configuration( array $incoming ): array {
+	return mlsimport_field_configuration()->import_configuration(
+		$incoming,
+		mlsimport_field_configuration_metadata(),
+		mlsimport_hardocde_theme_schema(),
+		mlsimport_field_configuration_taxonomies()
+	);
+}
+
+/**
+ * Handle the sole browser Field Configuration mutation endpoint.
+ *
+ * Security and request-shape validation happen before decoding the compact
+ * command. The module then validates domain rules and either returns an
+ * authoritative saved result or a stable error code used by the queue UI.
+ *
+ * The handler terminates through WordPress JSON helpers. It intentionally has
+ * no return type because those helpers stop execution after sending a response.
+ */
+function mlsimport_ajax_change_field_configuration() {
+	check_ajax_referer( 'mlsimport_field_selector_nonce', 'security' );
+
+	if ( ! current_user_can( 'manage_options' ) ) {
+		wp_send_json_error( array( 'error' => array( 'code' => 'forbidden', 'message' => 'You are not allowed to change Field Configuration.' ) ), 403 );
+	}
+
+	if ( ! isset( $_POST['revision'], $_POST['command'] ) || ! is_scalar( $_POST['revision'] ) || ! is_scalar( $_POST['command'] ) ) {
+		wp_send_json_error( array( 'error' => array( 'code' => 'invalid_request', 'message' => 'Revision and command are required.' ) ), 400 );
+	}
+
+	$revision = max( 0, (int) wp_unslash( $_POST['revision'] ) );
+	$command  = json_decode( wp_unslash( (string) $_POST['command'] ), true );
+	if ( ! is_array( $command ) ) {
+		wp_send_json_error( array( 'error' => array( 'code' => 'invalid_json', 'message' => 'The Field Configuration command is not valid JSON.' ) ), 400 );
+	}
+
+	$result = mlsimport_field_configuration()->change(
+		$revision,
+		$command,
+		mlsimport_field_configuration_metadata(),
+		mlsimport_field_configuration_taxonomies(),
+		mlsimport_hardocde_theme_schema()
+	);
+	if ( ! $result['success'] ) {
+		$status = 'stale_revision' === $result['error']['code'] ? 409 : ( 'persistence_failed' === $result['error']['code'] ? 500 : 422 );
+		wp_send_json_error( $result, $status );
+	}
+
+	wp_send_json_success( $result );
+}
+add_action( 'wp_ajax_mlsimport_change_field_configuration', 'mlsimport_ajax_change_field_configuration' );

@@ -31,8 +31,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	?>
 
 	<div class="nav-tab-wrapper mlsimport-tab-wrapper">
-		<a href="?page=mlsimport_plugin_options&tab=display_options" class="nav-tab  		  <?php echo   'display_options' 		===  $active_tab  ? 'nav-tab-active' : ''; ?>"><?php esc_html_e( 'MLS/RESO Api Options','mlsimport' ); ?></a>
-		<a href="?page=mlsimport_plugin_options&tab=field_options"   class="nav-tab    		  <?php echo   'field_options' 			 === $active_tab  ? 'nav-tab-active' : ''; ?>"><?php esc_html_e( 'Select Import fields', 'mlsimport' ); ?></a>
+		<a href="?page=mlsimport_plugin_options&tab=display_options" class="nav-tab  		  <?php echo   'display_options' 		===  $active_tab  ? 'nav-tab-active' : ''; ?>"><?php esc_html_e( 'MLS Connection','mlsimport' ); ?></a>
+		<a href="?page=mlsimport_plugin_options&tab=field_options"   class="nav-tab    		  <?php echo   'field_options' 			 === $active_tab  ? 'nav-tab-active' : ''; ?>"><?php esc_html_e( 'Listing Details', 'mlsimport' ); ?></a>
 		<a href="?page=mlsimport_plugin_options&tab=administrative_options"  class="nav-tab   <?php echo    'administrative_options' === $active_tab  ? 'nav-tab-active' : ''; ?>"><?php esc_html_e( 'Tools', 'mlsimport' ); ?></a>
 	</div>
 
@@ -54,9 +54,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 <?php if ( 'display_options' === $active_tab ) : ?>
                 <div class="mlsimport-steps">
                 <ol>
-                        <li><a href="<?php echo esc_url( admin_url( 'admin.php?page=mlsimport_plugin_options' ) ); ?>"><?php esc_html_e( 'Add your  MLSimport & MLS credentials.', 'mlsimport' ); ?></a></li>
-                        <li><a href="<?php echo esc_url( admin_url( 'admin.php?page=mlsimport_plugin_options&tab=field_options' ) ); ?>"><?php esc_html_e( 'Select import fields.', 'mlsimport' ); ?></a></li>
-                        <li><a href="<?php echo esc_url( admin_url( 'post-new.php?post_type=mlsimport_item' ) ); ?>"><?php esc_html_e( 'Create an import task & fetch listings.', 'mlsimport' ); ?></a></li>
+                        <li><a href="<?php echo esc_url( admin_url( 'admin.php?page=mlsimport_plugin_options' ) ); ?>"><?php esc_html_e( 'Connect your MLSImport account and your MLS.', 'mlsimport' ); ?></a></li>
+                        <li><a href="<?php echo esc_url( admin_url( 'admin.php?page=mlsimport_plugin_options&tab=field_options' ) ); ?>"><?php esc_html_e( 'Choose which listing details to show on your site.', 'mlsimport' ); ?></a></li>
+                        <li><a href="<?php echo esc_url( admin_url( 'post-new.php?post_type=mlsimport_item' ) ); ?>"><?php esc_html_e( 'Start an import and bring in your listings.', 'mlsimport' ); ?></a></li>
                 </ol>
         </div>
 <?php endif; ?>

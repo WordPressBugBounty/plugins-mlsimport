@@ -115,29 +115,9 @@ foreach ($blogusers as $user) {
     $users[$user->ID] = $user->display_name . ' (' . $user->user_login . ')';
 }
 
-// Read the active theme name to tailor the note copy.
-// Get current theme
-$current_theme = wp_get_theme();
-$theme_name = $current_theme->get('Name');
-
-// Map of supported theme slugs to human-facing labels.
-// Detect supported theme
-$supported_themes = array(
-    'WpResidence' => 'WP Residence',
-    'houzez' => 'Houzez',
-    'RealHomes' => 'Real Homes',
-    'Wpestate' => 'WP Estate',
-);
-
-// False when the active theme is not one of the supported themes.
-$detected_theme = false;
-foreach ($supported_themes as $theme_key => $theme_label) {
-    // Exact case-insensitive match OR slug appearing as a substring.
-    if (strtolower($theme_name) === strtolower($theme_key) || strpos(strtolower($theme_name), strtolower($theme_key)) !== false) {
-        $detected_theme = $theme_label;
-        break;
-    }
-}
+// The theme name this step drops into its copy. One shared resolver, so the
+// wizard never disagrees with itself about which theme the site runs (#242).
+$detected_theme = mlsimport_theme_copy_label();
 ?>
 
 <div class="mlsimport-import-config-content">
@@ -231,7 +211,7 @@ foreach ($supported_themes as $theme_key => $theme_label) {
         <div class="mlsimport-config-note">
             <p>
                 <strong><?php _e('Note:', 'mlsimport'); ?></strong> 
-                <?php echo sprintf(__('After initial setup, you can create additional import configurations with different filters to organize listings by city, price range, or property type. Each configuration creates a separate import job in %s.', 'mlsimport'), $detected_theme ? $detected_theme : 'your theme'); ?>
+                <?php echo sprintf(__('After initial setup, you can create additional import configurations with different filters to organize listings by city, price range, or property type. Each configuration creates a separate import job in %s.', 'mlsimport'), $detected_theme); ?>
             </p>
         </div>
     </div>
@@ -260,7 +240,7 @@ jQuery(document).ready(function($) {
 
 .mlsimport-section-inner h3 {
     margin-top: 0;
-    border-bottom: 1px solid #f0f0f0;
+    border-bottom: 1px solid var(--border-color);
     padding-bottom: 10px;
     margin-bottom: 15px;
 }
@@ -321,7 +301,7 @@ jQuery(document).ready(function($) {
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: #ccc;
+    background-color: rgba(28,25,23,0.18);
     transition: .4s;
 }
 
@@ -337,11 +317,11 @@ jQuery(document).ready(function($) {
 }
 
 input:checked + .mlsimport-slider {
-    background-color: #4f46e5;
+    background-color: var(--primary-color);
 }
 
 input:focus + .mlsimport-slider {
-    box-shadow: 0 0 1px #4f46e5;
+    box-shadow: 0 0 1px var(--primary-color);
 }
 
 input:checked + .mlsimport-slider:before {
@@ -359,7 +339,7 @@ input:checked + .mlsimport-slider:before {
 /* Filter styling */
 .mlsimport-filter-group {
     padding: 15px;
-    background-color: #f9f9f9;
+    background-color: var(--background-soft);
     border-radius: 4px;
     margin-bottom: 20px;
 }
@@ -370,8 +350,8 @@ input:checked + .mlsimport-slider:before {
 
 /* Note styling */
 .mlsimport-config-note {
-    background-color: #f9f9f9;
-    border-left: 4px solid #00a0d2;
+    background-color: var(--background-soft);
+    border-left: 4px solid var(--primary-color);
     padding: 15px;
     margin-top: 20px;
 }
@@ -387,10 +367,10 @@ input:checked + .mlsimport-slider:before {
 
 /* Select2 customizations if used */
 .select2-container--default .select2-selection--multiple {
-    border-color: #ddd;
+    border-color: var(--border-color);
 }
 
 .select2-container--default.select2-container--focus .select2-selection--multiple {
-    border-color: #4f46e5;
+    border-color: var(--primary-color);
 }
 </style>

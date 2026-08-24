@@ -17,7 +17,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 // B1 — Schema version. Bump to trigger dbDelta re-run via mlsimport_maybe_upgrade_activity_table().
 // 1.1 — added listing_mls_id + listing_status columns (issue #160).
-define( 'MLSIMPORT_ACTIVITY_DB_VERSION', '1.1' );
+// 1.2 adds reason_code for successful reconciliation deletions.
+define( 'MLSIMPORT_ACTIVITY_DB_VERSION', '1.2' );
 
 /**
  * Returns the prefixed activity table name.
@@ -55,6 +56,7 @@ function mlsimport_create_activity_table(): void {
   import_item_id BIGINT UNSIGNED NOT NULL DEFAULT 0,
   import_item_title VARCHAR(255) NOT NULL DEFAULT '',
   source VARCHAR(20) NOT NULL DEFAULT '',
+  reason_code VARCHAR(64) NOT NULL DEFAULT '',
   created_at DATETIME NOT NULL,
   PRIMARY KEY  (id),
   KEY created_at (created_at),
@@ -117,9 +119,10 @@ function mlsimport_normalize_activity_source( string $raw ): string {
  * @param string $mls_id          MLS # (RESO ListingId). For 'deleted' rows, an empty value is
  *                                back-filled from the listing's most recent prior row.
  * @param string $status          Listing status. Same delete back-fill behaviour as $mls_id.
+ * @param string $reason_code     Stable reconciliation reason; blank for other actions.
  * @return void
  */
-function mlsimport_record_activity( string $action, int $listing_id, string $listing_key, int $import_item_id, string $source = '', string $mls_id = '', string $status = '' ): void {
+function mlsimport_record_activity( string $action, int $listing_id, string $listing_key, int $import_item_id, string $source = '', string $mls_id = '', string $status = '', string $reason_code = '' ): void {
 	$valid_actions = [ 'added', 'edited', 'deleted' ];
 
 	if ( ! in_array( $action, $valid_actions, true ) ) {
@@ -172,6 +175,10 @@ function mlsimport_record_activity( string $action, int $listing_id, string $lis
 	// Cap MLS # and status to their column widths.
 	$mls_id_capped = mb_substr( $mls_id, 0, 191 );
 	$status_capped = mb_substr( $status, 0, 50 );
+	$allowed_reasons = array( 'absent_unprotected', 'absent_import_task_missing' );
+	$reason_capped = 'deleted' === $action && 'reconciliation' === $normalized_source && in_array( $reason_code, $allowed_reasons, true )
+		? $reason_code
+		: '';
 
 	$data = [
 		'action'            => $action,
@@ -184,6 +191,7 @@ function mlsimport_record_activity( string $action, int $listing_id, string $lis
 		'import_item_id'    => $import_item_id,
 		'import_item_title' => $import_item_title,
 		'source'            => $normalized_source,
+		'reason_code'       => $reason_capped,
 		'created_at'        => current_time( 'mysql' ),
 	];
 
@@ -198,6 +206,7 @@ function mlsimport_record_activity( string $action, int $listing_id, string $lis
 		'%d', // import_item_id
 		'%s', // import_item_title
 		'%s', // source
+		'%s', // reason_code
 		'%s', // created_at
 	];
 

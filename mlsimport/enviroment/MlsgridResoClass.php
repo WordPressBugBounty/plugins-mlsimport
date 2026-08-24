@@ -2,12 +2,7 @@
 /**
  * MLS provider adapter: MLS Grid (RESO Web API standard).
  *
- * One of the per-provider adapters in enviroment/ that sit between an MLS data
- * source and the active theme importer. This class is a thin subtype of
- * ResoBase; it holds a reference to the theme importer so provider-specific
- * mapping can delegate to the theme adapter. MLS Grid currently adds no
- * behaviour of its own beyond holding that reference. (The class docblock
- * below reads "BridgeResoClass" — an unchanged copy-paste from that adapter.)
+ * Owns MLS Grid identity and saved-token login behavior.
  */
 if ( ! defined( 'ABSPATH' ) ) {
 	// Block direct web access — only load when WordPress is bootstrapped.
@@ -21,12 +16,17 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 
 /**
- * Description of BridgeResoClass
+ * MLS Grid Provider Family adapter.
  *
  * @author cretu
  */
 class MlsgridResoClass extends ResoBase {
 
+		/** @var string Stable provider type saved for MLS Grid. */
+		protected $provider_type = 'mlsgrid';
+
+		/** @var bool MLS Grid sends its saved bearer token unchanged. */
+		protected $direct_uses_stored_token = true;
 
 		// Active theme adapter (e.g. ResidenceClass) this provider maps RESO fields through.
 		public $theme_importer;

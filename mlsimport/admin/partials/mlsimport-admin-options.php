@@ -192,6 +192,18 @@ if ( 'yes' ===  $is_mls_connected  ) { ?>
 <?php
 }
 
+// Both connections confirmed and metadata never gathered: fire the Field
+// Options metadata gather (mlsimport_saas_get_metadata AJAX) in the background
+// now, so the import-field configuration is already saved before the user
+// opens the Field Options tab. Emits nothing once metadata is populated;
+// saving credentials/MLS clears that flag and re-arms the trigger.
+echo mlsimport_metadata_autotrigger_markup(
+	$token,
+	$is_mls_connected,
+	get_option( 'mlsimport_mls_metadata_populated', '' ),
+	esc_attr( wp_create_nonce( 'mlsimport_saas_get_metadata' ) )
+);
+
 
 // Add before username fieldset
 /*
@@ -214,12 +226,36 @@ echo '</div>';
 */
 
 
+// Server-side provider visibility. Resolve the currently selected MLS to its
+// provider family ONCE, before rendering, so every provider credential fieldset
+// that does not belong to the selected family is emitted already hidden
+// (inline display:none). Previously all fieldsets rendered visible and only the
+// footer JavaScript hid the wrong ones at DOM-ready — on a slow load (or any JS
+// error) the user saw Bridge, Trestle, Rapattoni, Paragon etc. inputs all at
+// once. mlsimport_token_on_load() in mlsimport-admin.js applies the exact same
+// rule when the user changes MLS without a page reload.
+$selected_mls_id     = ( is_array( $options ) && ! empty( $options['mlsimport_mls_name'] ) ) ? (string) $options['mlsimport_mls_name'] : '';
+$provider_visibility = Mlsimport_Provider_Family::browser_config_for_ids(
+	'' !== $selected_mls_id ? array( $selected_mls_id ) : array(),
+	Mlsimport_Provider_Family::saved_type( $selected_mls_id ),
+	$selected_mls_id
+);
+// Full catalog of provider credential option keys (marks which fieldsets toggle).
+$all_credential_fields    = $provider_visibility['all_credential_fields'];
+// Credential keys of the selected MLS's family; empty when no MLS is selected.
+$active_credential_fields = isset( $provider_visibility['by_mls_id'][ $selected_mls_id ]['credential_fields'] )
+	? $provider_visibility['by_mls_id'][ $selected_mls_id ]['credential_fields']
+	: array();
+
 // Render one fieldset per credential field defined in $settings_list.
 foreach ( $settings_list as $key => $setting ) {
 		// Current saved value for this field (escaped), or empty string if unset.
 		$value = ( isset( $options[ $key ] ) && ! empty( $options[ $key ] ) ) ? esc_attr( $options[ $key ] ) : '';
+		// A provider credential fieldset renders hidden unless it belongs to the
+		// selected MLS's provider family (shared fields always render visible).
+		$is_hidden_credential = in_array( $key, $all_credential_fields, true ) && ! in_array( $key, $active_credential_fields, true );
 	?>
-		<fieldset class="mlsimport-fieldset <?php echo 'fieldset_' . esc_attr( $key ); ?>">
+		<fieldset class="mlsimport-fieldset <?php echo 'fieldset_' . esc_attr( $key ); ?>"<?php echo $is_hidden_credential ? ' style="display:none"' : ''; ?>>
 			<label class="mlsimport-label" for="<?php echo esc_attr($this->plugin_name ). '_admin_options'; ?>-<?php echo esc_attr($key); ?>" >
 				<?php echo esc_html( $setting['name'] ); ?>
 			</label>
@@ -255,7 +291,9 @@ foreach ( $settings_list as $key => $setting ) {
 			// Theme selector: render a select list of supported themes (escaped via wp_kses).
 			} elseif ( 'mlsimport_theme_used' === $key  && isset( $setting['type'] ) and  'select' === $setting['type']  ) {
 				$permited_tags	=	mlsimport_allowed_html_tags_content();
-				$list 			= 	mlsiport_mls_select_list( $key, $value, MLSIMPORT_THEME);
+				// Same rule as the wizard account step: the saved answer when there
+				// is one, the detected theme when there is not (#242).
+				$list 			= 	mlsiport_mls_select_list( $key, mlsimport_resolve_theme_id(), MLSIMPORT_THEME);
 				print wp_kses(	$list ,$permited_tags );
 			} else {
 				// Default: a plain text input (password type for the password fields).

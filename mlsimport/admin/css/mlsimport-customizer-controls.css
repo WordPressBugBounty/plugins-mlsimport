@@ -15,21 +15,21 @@
 	text-transform: uppercase;
 	font-size: 11px;
 	letter-spacing: .04em;
-	color: #50575e;
+	color: #6b6358;
 }
 /* Bordered container holding the sortable section items. */
 .mlsimport-arranger__list {
 	margin: 0 0 8px;
 	padding: 0;
 	list-style: none;
-	border: 1px solid #dcdcde;
-	border-radius: 3px;
+	border: 1px solid rgba( 28, 25, 23, 0.12 );
+	border-radius: 10px;
 	min-height: 12px;
 	background: #fff;
 }
 /* Greyed background for the list of inactive/disabled sections. */
 .mlsimport-arranger__inactive {
-	background: #f6f7f7;
+	background: #f3efe7;
 }
 /* One section row: label on the left, action buttons on the right. */
 .mlsimport-arranger__item {
@@ -38,7 +38,7 @@
 	justify-content: space-between;
 	gap: 8px;
 	padding: 6px 8px;
-	border-bottom: 1px solid #f0f0f1;
+	border-bottom: 1px solid #f3efe7;
 	font-size: 13px;
 }
 /* Drop the divider on the final row. */
@@ -56,7 +56,7 @@
 	font-size: 14px;
 	line-height: 1;
 	padding: 2px 4px;
-	color: #2271b1;
+	color: #e85d3c;
 }
 /* Bolded move (arrow) button glyphs. */
 .mlsimport-arranger__move {

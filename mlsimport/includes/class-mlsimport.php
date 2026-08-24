@@ -347,8 +347,8 @@ class Mlsimport {
 	/**
 	 * return plugin data
 	 *
-	 * Reads a single value from the plugin schema. When the MLS environment is
-	 * Trestle and a server token is requested, returns the Trestle token instead.
+	 * Reads a single value from the plugin schema. Provider behavior is resolved
+	 * by Mlsimport_Provider_Family and does not belong in this core accessor.
 	 *
 	 * @since    1.0.0
 	 * @access   protected
@@ -359,12 +359,6 @@ class Mlsimport {
 	public function get_plugin_data( $what ) {
 		// Pull the (currently empty) plugin schema.
 		$plugin_data = $this->return_plugin_schema();
-
-		// Special case: Trestle server token comes from a dedicated helper.
-		if ( isset( $plugin_data['mls_enviroment'] ) && 'TresleReso' ===  $plugin_data['mls_enviroment']  &&  'server_token' === $what   ) {
-			$tresle_token = $this->return_tresle_token();
-			return $tresle_token;
-		}
 
 		// Return the requested key when present, else empty string.
 		if ( isset( $plugin_data[ $what ] ) ) {

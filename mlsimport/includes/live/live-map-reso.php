@@ -49,10 +49,6 @@ function mlsimport_live_row_from_reso( array $record ): object {
  * @return string[] Photo URLs.
  */
 function mlsimport_live_media_urls( array $record ): array {
-	// Rapattoni names the Media collection PropertyPictures.
-	if ( empty( $record['Media'] ) && ! empty( $record['PropertyPictures'] ) ) {
-		$record['Media'] = $record['PropertyPictures'];
-	}
 	// No media collection at all: no URLs.
 	if ( empty( $record['Media'] ) || ! is_array( $record['Media'] ) ) {
 		return array();

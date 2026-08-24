@@ -14,21 +14,21 @@
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
 
 .mlsimport-mb {
-	/* — Warm token subset, mirrored from the front-end design system — */
-	--mlsmb-accent: #c2724e;
-	--mlsmb-accent-hover: #d08560;
-	--mlsmb-accent2: #9c5536;
-	--mlsmb-ink: #3b342e;
-	--mlsmb-ink-2: #6e655c;
-	--mlsmb-muted: #a89e92;
+	/* — Sunny Bento warm token subset (cream/near-black/orange accent) — */
+	--mlsmb-accent: #e85d3c;
+	--mlsmb-accent-hover: #d1502f;
+	--mlsmb-accent2: #a63c1f;
+	--mlsmb-ink: #1c1917;
+	--mlsmb-ink-2: #6b6358;
+	--mlsmb-muted: #9a9285;
 	--mlsmb-hairline: #efe7dc;
-	--mlsmb-good: #1f9d57;
+	--mlsmb-good: #2faa6a;
 	--mlsmb-card-bg: #ffffff;
 	--mlsmb-accent-wash: color-mix(in srgb, var(--mlsmb-accent) 5%, #fff);
 	--mlsmb-accent-tint: color-mix(in srgb, var(--mlsmb-accent) 8%, #fff);
 	--mlsmb-accent-tint-strong: color-mix(in srgb, var(--mlsmb-accent) 12%, #fff);
 	--mlsmb-good-tint: color-mix(in srgb, var(--mlsmb-good) 12%, #fff);
-	--mlsmb-radius-input: 11px;
+	--mlsmb-radius-input: 10px;
 	--mlsmb-radius-tab: 10px;
 	--mlsmb-radius-chip: 999px;
 
@@ -196,8 +196,8 @@
 	line-height: 1.4;
 	vertical-align: middle;
 }
-.mlsimport-mb__tag--mls { background: var(--mlsmb-accent-tint-strong); color: var(--mlsmb-accent2); }
-.mlsimport-mb__tag--local { background: var(--mlsmb-good-tint); color: var(--mlsmb-good); }
+.mlsimport-mb__tag--mls { background: #fde4d8; color: var(--mlsmb-accent2); }
+.mlsimport-mb__tag--local { background: #b8e6cc; color: #1c5c3a; }
 /* Section tag on the Other Fields tab — the front-end group a field appears in.
    Neutral ink tint so it reads as a category, distinct from the MLS/LOCAL chips. */
 .mlsimport-mb__tag--group {
@@ -260,7 +260,7 @@
 	-webkit-appearance: none;
 	-moz-appearance: none;
 	background-color: #fff;
-	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14'%3E%3Cpath d='M3 5l4 4 4-4' fill='none' stroke='%239c5536' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14'%3E%3Cpath d='M3 5l4 4 4-4' fill='none' stroke='%23a63c1f' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
 	background-repeat: no-repeat;
 	background-position: right 16px center;
 	background-size: 14px 14px;
@@ -281,6 +281,7 @@
 	border: 1px solid var(--mlsmb-hairline);
 	border-left: 3px solid var(--mlsmb-accent);
 	border-radius: var(--mlsmb-radius-tab);
+	border-radius: 18px; /* Sunny Bento: callout card gets the larger "panel" radius, not the shared small-box token. */
 	background: var(--mlsmb-accent-wash);
 }
 .mlsimport-mb__lead-title {
@@ -399,7 +400,7 @@
 	opacity: 1;
 }
 .mlsimport-mb__thumb-del:hover {
-	background: #b32d2e;
+	background: #c02617;
 }
 .mlsimport-mb__thumb-del:disabled {
 	opacity: 0.5;

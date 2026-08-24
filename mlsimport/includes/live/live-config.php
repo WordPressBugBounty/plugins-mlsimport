@@ -1,13 +1,13 @@
 <?php
 /**
- * Live mode: the per-MLS provider configuration.
+ * Direct MLS access: the per-MLS provider configuration.
  *
  * The GET /clients SaaS call already returns the client's mld_details record
  * (api_import_url, api_token_url, api_media_url, type, expand,
  * field_corellation, mls_filter_params) — mlsimport_live_config_refresh()
  * stores the whitelisted keys as one option. Manual overrides from the
  * settings screen win over fetched values; provider type additionally falls
- * back to the mls_id ranges the admin class uses.
+ * falls back through the Provider Family module for older saved settings.
  *
  * @package Mlsimport
  */
@@ -28,7 +28,7 @@ function mlsimport_live_config(): array {
 	// Manual settings-screen overrides win over fetched values.
 	$config = array_merge( $config, mlsimport_live_config_overrides() );
 
-	// Provider type: fall back to the mls_id range mapping when unset.
+	// Provider type: use the Provider Family compatibility map when unset.
 	if ( empty( $config['type'] ) ) {
 		$config['type'] = mlsimport_live_provider_type_from_mls_id();
 	}
@@ -66,46 +66,27 @@ function mlsimport_live_config_refresh() {
 
 	// Persist the fetched config and hand it back to the caller.
 	update_option( 'mlsimport_live_mls_config', $config );
+	if ( ! empty( $config['type'] ) ) {
+		$options = get_option( 'mlsimport_admin_options', array() );
+		$mls_id  = ! empty( $config['mls_id'] )
+			? $config['mls_id']
+			: ( is_array( $options ) && isset( $options['mlsimport_mls_name'] ) ? $options['mlsimport_mls_name'] : '' );
+		Mlsimport_Provider_Family::remember_type( $config['type'], $mls_id );
+	}
 	return $config;
 }
 
 /**
- * Provider type derived from the configured mls_id, mirroring the admin
- * class ranges: 900–3000 trestle, 5000–6000 rapattoni, 6000–7000 paragon,
- * 7000–8000 realtorca, 8000–9000 connectmls (8001 brightmls); bridge is the
- * default everywhere else (the Lambda's own default).
+ * Return the selected MLS provider type through the public Provider Family
+ * module. Saved provider data wins and numeric ranges are only a fallback.
  *
  * @return string
  */
 function mlsimport_live_provider_type_from_mls_id(): string {
-	// The selected MLS id drives the range test below (0 when unset).
+	// Read the selected MLS once and let the Provider Family module choose it.
 	$options = get_option( 'mlsimport_admin_options' );
 	$mls_id  = is_array( $options ) && isset( $options['mlsimport_mls_name'] ) ? (int) $options['mlsimport_mls_name'] : 0;
+	$saved   = Mlsimport_Provider_Family::saved_type( $mls_id );
 
-	// 8001 is the single BrightMLS id — checked before the 8000–9000 band it sits in.
-	if ( 8001 === $mls_id ) {
-		return 'brightmls';
-	}
-	// 900–3000: Trestle (CoreLogic).
-	if ( $mls_id >= 900 && $mls_id < 3000 ) {
-		return 'trestle';
-	}
-	// 5000–6000: Rapattoni.
-	if ( $mls_id >= 5000 && $mls_id < 6000 ) {
-		return 'rapattoni';
-	}
-	// 6000–7000: Paragon.
-	if ( $mls_id >= 6000 && $mls_id < 7000 ) {
-		return 'paragon';
-	}
-	// 7000–8000: Realtor.ca (CREA).
-	if ( $mls_id >= 7000 && $mls_id < 8000 ) {
-		return 'realtorca';
-	}
-	// 8000–9000: ConnectMLS (BrightMLS 8001 already peeled off above).
-	if ( $mls_id >= 8000 && $mls_id < 9000 ) {
-		return 'connectmls';
-	}
-	// Everything else: bridge — the Lambda's own default.
-	return 'bridge';
+	return Mlsimport_Provider_Family::adapter( $saved, $mls_id )->type();
 }

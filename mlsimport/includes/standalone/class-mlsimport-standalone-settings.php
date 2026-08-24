@@ -38,6 +38,12 @@ const MLSIMPORT_STANDALONE_OPTION = 'mlsimport_standalone_options';
 function mlsimport_standalone_field_registry(): array {
 	return array(
 		// General.
+		// The URL base the property archive and single permalinks sit on. Default
+		// 'listing' rather than 'properties', which collides with nearly every
+		// real-estate theme's own CPT and with hand-made pages (#206); settable so
+		// a site that collides with even that can move off it. Read (and
+		// normalised) by Mlsimport_Standalone_Cpt::property_slug().
+		'property_url_slug'      => array( 'type' => 'text', 'default' => 'listing', 'label' => __( 'Property URL base', 'mlsimport' ), 'section' => 'general' ),
 		'properties_per_page'    => array( 'type' => 'number', 'default' => '12', 'label' => __( 'Properties per page', 'mlsimport' ), 'section' => 'general' ),
 		'cards_per_row'          => array( 'type' => 'select', 'default' => '3', 'options' => array( '2' => __( '2 per row', 'mlsimport' ), '3' => __( '3 per row', 'mlsimport' ), '4' => __( '4 per row', 'mlsimport' ) ), 'label' => __( 'Cards per row', 'mlsimport' ), 'section' => 'general' ),
 		'order_by'               => array(
@@ -105,13 +111,13 @@ function mlsimport_standalone_field_registry(): array {
 
 		// MLS attribution — the logo + the disclaimer every listing must carry. The
 		// wording is dictated by the MLS, so it is written once here rather than per
-		// property; %mls_id% and %year% resolve per listing
+		// property; %mls_id%, %year% and the agent/office contact tokens resolve per listing
 		// (mlsimport_property_attribution_text). mls_logo_id sits with these (the
 		// settings page groups both under the "MLS Attribution" sub-tab, logo first).
 		'mls_logo_id'            => array( 'type' => 'int', 'default' => 0, 'label' => __( 'MLS logo', 'mlsimport' ), 'section' => 'property_page' ),
 		// Blank by default for the same reason as tour_times: a non-blank default
 		// would print on every property with no way for the admin to switch it off.
-		'attribution_text'       => array( 'type' => 'html', 'default' => '', 'label' => __( 'Disclaimer', 'mlsimport' ), 'section' => 'property_page' ),
+		'attribution_text'       => array( 'type' => 'html', 'default' => '', 'label' => __( 'Extra Disclaimer', 'mlsimport' ), 'section' => 'property_page' ),
 
 		// Agent.
 		'agent_listings_per_page' => array( 'type' => 'number', 'default' => '12', 'label' => __( 'No. of listings per page', 'mlsimport' ), 'section' => 'agent' ), // Listings shown per page on a single agent profile.
@@ -231,6 +237,7 @@ function mlsimport_standalone_settings_subtabs(): array {
  */
 function mlsimport_standalone_settings_ui(): array {
 	return array(
+		'property_url_slug'     => array( 'help' => __( 'The URL segment your listings live under — e.g. listing gives yoursite.com/listing/. Change it only if another page or plugin already uses that word; existing listing links will break when you do.', 'mlsimport' ) ),
 		'properties_per_page'   => array( 'help' => __( 'How many listings show per page on the taxonomy and property archive pages. Does not affect page-builder blocks, which set their own per-page.', 'mlsimport' ) ),
 		'cards_per_row'         => array( 'control' => 'buttons', 'help' => __( 'How many property cards sit on one row of the taxonomy and property archive pages. Drops to 2 then 1 automatically on narrow screens.', 'mlsimport' ) ),
 		'archive_search_fields' => array( 'control' => 'toggles', 'default_active' => array( 'status', 'city', 'property_type' ), 'help' => __( 'Toggle which filters appear in the search bar on the taxonomy and property archive pages. Status, City and Type are on by default.', 'mlsimport' ) ),
@@ -251,7 +258,7 @@ function mlsimport_standalone_settings_ui(): array {
 		'details_columns'       => array( 'control' => 'buttons', 'subtab' => 'pp_layout', 'help' => __( 'How many columns each details section (Interior, Exterior, Financial…) runs. Collapses automatically on narrow screens.', 'mlsimport' ) ),
 		'property_sections'     => array( 'subtab' => 'pp_layout', 'help' => __( 'Drag sections between Enabled and Disabled to choose which appear, and reorder within a list.', 'mlsimport' ) ),
 		'mls_logo_id'           => array( 'control' => 'media', 'subtab' => 'pp_attribution', 'help' => __( "Your MLS's required attribution logo. Shown in the MLS Attribution section and on listing cards.", 'mlsimport' ) ),
-		'attribution_text'      => array( 'subtab' => 'pp_attribution', 'rows' => 10, 'help' => __( 'The disclaimer your MLS requires, shown on every property. Use %mls_id% for the listing\'s MLS number and %year% for the current year. Basic HTML (links, bold, paragraphs) is allowed.', 'mlsimport' ) ),
+		'attribution_text'      => array( 'subtab' => 'pp_attribution', 'rows' => 10, 'help' => __( 'The disclaimer your MLS requires, shown on every property. Use %mls_id% for the listing\'s MLS number and %year% for the current year. You can also use %agent_phone% and %agent_email% for the listing agent the MLS sent, and %office_phone%, %office_email% or %attribution_contact% for the listing office. Each stays empty unless that field is ticked under MLS Import Settings → Listing Details, so tick List Office Phone, List Office Email or Attribution Contact there before using them. Basic HTML (links, bold, paragraphs) is allowed.', 'mlsimport' ) ),
 		'tour_times'            => array( 'subtab' => 'pp_tour', 'help' => __( 'Time slots offered in the "Schedule a Tour" picker on the property page. Comma-separated, e.g. 9:00 AM, 11:30 AM, 2:00 PM, 4:30 PM. Leave blank to hide the time picker.', 'mlsimport' ) ),
 		'overview_fields'       => array( 'subtab' => 'pp_overview', 'help' => __( 'Drag fields between Enabled and Disabled to choose which appear in the Overview section of the property page, and reorder within a list.', 'mlsimport' ) ),
 		'similar_count'         => array( 'subtab' => 'pp_similar', 'help' => __( 'How many similar listings the Similar Listings section pulls in. Default 3.', 'mlsimport' ) ),

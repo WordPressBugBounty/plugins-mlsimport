@@ -4,8 +4,14 @@
  *
  * Registers the two standalone CPTs (mlsimport_property, mlsimport_agent) and
  * the flat mlsimport_-prefixed taxonomies (§7). Per ADR-0003 these are ALWAYS
- * registered with show_in_rest; the show_ui / write-path gating on mode 990 is
- * M0 plumbing and is layered on later.
+ * registered with show_in_rest so the data layer works in every mode — but the
+ * admin UI AND the public URL surface (public/has_archive/rewrite) follow
+ * standalone mode. Outside 990 the CPTs must not own front-end URLs at all: a
+ * CPT archive rewrite out-ranks WordPress's page rule, so any base they claim
+ * is taken away from a page or theme CPT already using it (#206). Inside 990
+ * the property base is property_slug() — 'listing' by default and admin-
+ * settable, never the heavily contested 'properties'. maybe_flush_rewrites()
+ * keeps the cached rewrite_rules option in sync when the mode or base changes.
  *
  * @package Mlsimport
  */
@@ -18,6 +24,12 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Registers the standalone CPTs and taxonomies.
  */
 class Mlsimport_Standalone_Cpt {
+
+	/**
+	 * The default property URL base. See property_slug() for why it is not
+	 * 'properties'.
+	 */
+	private const DEFAULT_PROPERTY_SLUG = 'listing';
 
 	/**
 	 * The flat taxonomies (§7), all attached to mlsimport_property. Flat
@@ -60,14 +72,41 @@ class Mlsimport_Standalone_Cpt {
 	}
 
 	/**
+	 * The URL base the property archive and single permalinks sit on.
+	 *
+	 * Deliberately NOT 'properties' (#206): a CPT archive rewrite out-ranks
+	 * WordPress's page rule, so that base silently swallows any page or theme
+	 * property CPT already using it. 'listing' is the default; the admin can
+	 * move it from the standalone settings when even that collides.
+	 *
+	 * @return string The rewrite slug, never empty.
+	 */
+	public static function property_slug(): string {
+		// Step 1 - read the admin's choice, defaulting to the safe base.
+		$slug = (string) mlsimport_standalone_option( 'property_url_slug', self::DEFAULT_PROPERTY_SLUG );
+
+		// Step 2 - normalise it the way WordPress normalises any permalink part,
+		// so 'Homes For Sale' becomes a working base instead of a broken one.
+		$slug = sanitize_title( $slug );
+
+		// Step 3 - a setting that normalises to nothing would leave the archive
+		// with no base at all, so fall back rather than register it.
+		return '' !== $slug ? $slug : self::DEFAULT_PROPERTY_SLUG;
+	}
+
+	/**
 	 * Register the CPTs and taxonomies. Hook to init in production.
 	 *
 	 * @return void
 	 */
 	public static function register(): void {
-		// ADR-0003: always registered (public/REST), but the admin UI only shows
-		// in standalone mode so the standalone catalog doesn't clutter other themes.
-		$show_ui = function_exists( 'mlsimport_is_standalone_mode' ) && mlsimport_is_standalone_mode();
+		// ADR-0003: always registered (REST/data layer), but both the admin UI
+		// and the front-end URL surface follow standalone mode. Outside 990 the
+		// CPTs must not be public and must pass rewrite => false: an archive
+		// rewrite beats WordPress's page rule and silently hijacks whatever
+		// page or theme CPT already sits on that base (#206).
+		$standalone = function_exists( 'mlsimport_is_standalone_mode' ) && mlsimport_is_standalone_mode();
+		$show_ui    = $standalone;
 
 		// Same brand icon as the Import Tasks menu.
 		$menu_icon = defined( 'MLSIMPORT_PLUGIN_URL' ) ? MLSIMPORT_PLUGIN_URL . 'img/mlsimport_menu.png' : 'dashicons-admin-home';
@@ -78,13 +117,13 @@ class Mlsimport_Standalone_Cpt {
 			apply_filters(
 				'mlsimport_property_post_type_args',
 				array(
-					'public'       => true,
+					'public'       => $standalone,
 					'show_ui'      => $show_ui,
 					'show_in_menu' => $show_ui,
 					'show_in_rest' => true,
 					'menu_icon'    => $menu_icon,
-					'has_archive'  => true,
-					'rewrite'      => array( 'slug' => 'properties' ),
+					'has_archive'  => $standalone,
+					'rewrite'      => $standalone ? array( 'slug' => self::property_slug() ) : false,
 					'supports'     => array( 'title', 'editor', 'thumbnail', 'excerpt', 'custom-fields', 'comments', 'author' ),
 					'labels'       => array( 'name' => 'MLS Properties' ),
 					// Group above core Comments (25) so all MLSImport menus stay together.
@@ -99,12 +138,14 @@ class Mlsimport_Standalone_Cpt {
 			apply_filters(
 				'mlsimport_agent_post_type_args',
 				array(
-					'public'       => true,
+					'public'       => $standalone,
 					'show_ui'      => $show_ui,
 					'show_in_menu' => $show_ui,
 					'show_in_rest' => true,
 					'menu_icon'    => $menu_icon,
-					'has_archive'  => true,
+					'has_archive'  => $standalone,
+					// Core keys rewrite generation off this arg, not off 'public'.
+					'rewrite'      => $standalone,
 					'supports'     => array( 'title', 'editor', 'thumbnail' ),
 					'labels'       => array( 'name' => 'Real Estate Agents' ),
 					'menu_position' => 23,
@@ -123,10 +164,12 @@ class Mlsimport_Standalone_Cpt {
 				apply_filters(
 					'mlsimport_taxonomy_args',
 					array(
-						'public'       => true,
+						'public'       => $standalone,
 						'show_ui'      => $show_ui,
 						'show_in_menu' => $show_ui,
 						'show_in_rest' => true,
+						// Core keys rewrite generation off this arg, not off 'public'.
+						'rewrite'      => $standalone,
 						'hierarchical' => false,
 						'labels'       => array( 'name' => $label ),
 					),
@@ -137,5 +180,36 @@ class Mlsimport_Standalone_Cpt {
 
 		/** Fires after the standalone CPTs + taxonomies are registered. @since 6.3 */
 		do_action( 'mlsimport_registered_cpts' );
+	}
+
+	/**
+	 * Drop the cached rewrite rules whenever the stored mode signature no
+	 * longer matches the current standalone mode (#206).
+	 *
+	 * The CPT archive rule only exists in standalone mode since the fix above,
+	 * and its base is now a setting, but WordPress caches compiled rules in the
+	 * rewrite_rules option — so a mode switch, a base change, or updating to
+	 * this version on a site where the stale rule already hijacked a
+	 * /properties/ page all leave wrong rules in the DB. Deleting the option makes WordPress lazily
+	 * rebuild the rules on the next request, after init has registered the
+	 * CPTs with the correct args for the current mode. Hooked to init after
+	 * register(); on matching signatures (every ordinary request) it is a
+	 * single get_option and does nothing.
+	 *
+	 * @return void
+	 */
+	public static function maybe_flush_rewrites(): void {
+		// Signature = fix revision + current mode + the archive base. The slug is
+		// part of it because an admin changing the base from the settings screen
+		// changes the rules register() produces, exactly like a mode switch does.
+		// Bump 'v2' if rewrite-affecting args change again.
+		$standalone = function_exists( 'mlsimport_is_standalone_mode' ) && mlsimport_is_standalone_mode();
+		$signature  = 'v2:' . ( $standalone ? '990' : 'other' ) . ':' . self::property_slug();
+
+		if ( get_option( 'mlsimport_rewrite_mode' ) === $signature ) {
+			return;
+		}
+		delete_option( 'rewrite_rules' );
+		update_option( 'mlsimport_rewrite_mode', $signature );
 	}
 }

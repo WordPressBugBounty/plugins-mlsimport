@@ -320,9 +320,13 @@ function mlsimport_save_step_data($step, $data) {
     
     // Sanitize data
     // Walk each posted field; array values are sanitized element-by-element.
+    // Credential keys (password/secret/token) are kept verbatim — the
+    // sanitizer strips %[hex][hex] sequences and would corrupt them (#204).
     $sanitized_data = array();
     foreach ($data as $key => $value) {
-        if (is_array($value)) {
+        if (mlsimport_is_credential_key($key)) {
+            $sanitized_data[$key] = trim((string) $value);
+        } elseif (is_array($value)) {
             $sanitized_data[$key] = array_map('sanitize_text_field', $value);
         } else {
             $sanitized_data[$key] = sanitize_text_field($value);
@@ -445,11 +449,13 @@ function mlsimport_handle_step_submission() {
             break;
             
         case 'account':
-            // Save account information only if all required fields are filled
+            // Save account information only if all required fields are filled.
+            // Credentials (password/token) are unslashed + trimmed only, never
+            // sanitized — sanitizing strips %[hex][hex] sequences (#204).
             $username = isset($_POST['mlsimport_username']) ? trim($_POST['mlsimport_username']) : '';
-            $password = isset($_POST['mlsimport_password']) ? trim($_POST['mlsimport_password']) : '';
+            $password = isset($_POST['mlsimport_password']) ? trim(wp_unslash($_POST['mlsimport_password'])) : '';
             $mls_id   = isset($_POST['mlsimport_mls_name']) ? trim($_POST['mlsimport_mls_name']) : '';
-            $token    = isset($_POST['mlsimport_mls_token']) ? trim($_POST['mlsimport_mls_token']) : '';
+            $token    = isset($_POST['mlsimport_mls_token']) ? trim(wp_unslash($_POST['mlsimport_mls_token'])) : '';
         
             // Only save if all fields are non-empty
             // Requires SaaS username AND password AND MLS id AND MLS token.
@@ -728,9 +734,11 @@ function mlsimport_ajax_test_account_connection() {
     }
     
     // Get credentials
-    // Read and sanitize the posted SaaS account username/password.
+    // Read the posted SaaS account username/password. The password is only
+    // unslashed + trimmed: sanitize_text_field() strips %[hex][hex]
+    // sequences and would corrupt it (#204).
     $username = isset($_POST['username']) ? sanitize_text_field($_POST['username']) : '';
-    $password = isset($_POST['password']) ? sanitize_text_field($_POST['password']) : '';
+    $password = isset($_POST['password']) ? trim(wp_unslash($_POST['password'])) : '';
 
     // Both credentials are required to attempt a connection.
     if (empty($username) || empty($password)) {
@@ -761,6 +769,82 @@ function mlsimport_ajax_test_account_connection() {
     mlsimport_log_onboarding_event('Successfully connected to MLS Import account', 'info');
     
     wp_send_json_success(array('message' => __('Successfully connected to MLS Import', 'mlsimport')));
+}
+
+add_action('wp_ajax_mlsimport_save_account', 'mlsimport_save_account_callback');
+/**
+ * AJAX handler: save the MLSImport account username/password and test the login.
+ *
+ * Verifies the onboarding nonce, stores credentials in mlsimport_admin_options,
+ * fetches a fresh API token, and returns connected/not-connected HTML + flag.
+ *
+ * Moved here from mlsimport.php so it sits next to its sibling handler
+ * mlsimport_ajax_test_account_connection() (same save-credentials-then-verify
+ * job) and is loadable by the pure-PHP unit harness in tests/unit/.
+ *
+ * @return void
+ */
+function mlsimport_save_account_callback() {
+	// Verify the shared onboarding AJAX nonce.
+	check_ajax_referer('mlsimport_onboarding_nonce', 'security');
+
+	// Load current plugin options.
+	$options = get_option('mlsimport_admin_options', []);
+	// Persist the submitted credentials only when both are present. The
+	// password is only unslashed + trimmed: sanitize_text_field() strips
+	// %[hex][hex] sequences and would corrupt it (#204).
+	if ( ! empty($_POST['mlsimport_username']) && ! empty($_POST['mlsimport_password']) ) {
+		$options['mlsimport_username'] = sanitize_text_field($_POST['mlsimport_username']);
+		$options['mlsimport_password'] = trim(wp_unslash($_POST['mlsimport_password']));
+		update_option('mlsimport_admin_options', $options);
+
+		// Drop the cached token so the check below exercises the credentials
+		// that were JUST saved — answering from a token minted with the old
+		// password reported "connected" for a wrong new password (#205).
+		// The expiry timestamp goes too: ThemeImport::validateAndRefreshToken()
+		// trusts it and would keep treating the dead session as valid.
+		delete_transient('mlsimport_saas_token');
+		delete_option('mlsimport_token_expiry');
+	}
+
+	global $mlsimport;
+
+	// Refresh token
+	$token = $mlsimport->admin->mlsimport_saas_get_mls_api_token_from_transient();
+
+	// Empty token means the credentials did not authenticate.
+	if (trim($token) === '') {
+		// Buffer the "not connected" warning markup.
+		ob_start();
+
+		?>
+		<div class="mlsimport_warning">
+			<?php esc_html_e('You are not connected to MlsImport - Please check your Username and Password.', 'mlsimport'); ?>
+		</div>
+		<?php
+		$html = ob_get_clean();
+
+		// Return failure HTML + connected=false.
+		wp_send_json_success([
+			'message' => __('You are not connected.', 'mlsimport'),
+			'html'    => $html,
+			'connected' => false
+		]);
+	} else {
+		ob_start();
+		?>
+		<div class="mlsimport_warning mlsimport_validated">
+			<?php esc_html_e('You are connected to your MlsImport account!', 'mlsimport'); ?>
+		</div>
+		<?php
+		$html = ob_get_clean();
+
+		wp_send_json_success([
+			'message' => __('Connected successfully!', 'mlsimport'),
+			'html'    => $html,
+			'connected' => true
+		]);
+	}
 }
 
 /**
@@ -839,76 +923,49 @@ function mlsimport_ajax_run_test_import() {
         wp_send_json_error(array('message' => __('No import configuration found', 'mlsimport')));
     }
     
-    // Set a lower limit for test import
-    update_post_meta($import_id, 'mlsimport_item_how_many', 5);
-    
-    // Run a limited import using the admin class methods
+    // The saved onboarding id must still be a task this user may manage.
+    if ( 'mlsimport_item' !== get_post_type( $import_id ) || ! current_user_can( 'edit_post', $import_id ) ) {
+        wp_send_json_error( array( 'message' => __( 'You are not allowed to manage this import task.', 'mlsimport' ) ), 403 );
+    }
+
+    update_post_meta( $import_id, 'mlsimport_item_how_many', 5 );
     global $mlsimport;
-    
+
     try {
-        // Set up import parameters
-        // Batch descriptor passed through the import pipeline (capped at 5).
-        $item_id_array = array(
-            'item_id' => $import_id,
-            'how_many' => 5,
-            'max_number' => 5,
-            'batch_counter' => 1,
+        // Setup has no count displayed by the page, so this small scheduling
+        // adapter performs one count and passes it into the shared manual run.
+        $mlsrequest = $mlsimport->admin->mlsimport_make_listing_requests( $import_id );
+        if ( ! isset( $mlsrequest['results'] ) || 0 === intval( $mlsrequest['results'] ) ) {
+            wp_send_json_error( array( 'message' => __( 'No listings found with current configuration', 'mlsimport' ) ) );
+        }
+        $found_items = min( 5, max( 0, intval( $mlsrequest['results'] ) ) );
+        $start       = $mlsimport->admin->mlsimport_import_task_execution()->start(
+            array(
+                'task_id'    => (int) $import_id,
+                'source'     => 'manual',
+                'found'      => $found_items,
+                'limit'      => 5,
+                'is_onboard' => 1,
+            )
         );
-        
-        // Make sure we're starting clean
-        // Clear any prior stop flag and stale attachment-move payload.
-        update_option('mlsimport_force_stop_' . $import_id, 'no', false);
-        update_post_meta($import_id, 'mlsimport_attach_to_move_' . $import_id, '');
-        
-        // Get listings
-        // Query the MLS to see how many listings match the item's configuration.
-        $mlsrequest = $mlsimport->admin->mlsimport_make_listing_requests($import_id);
-
-        // No matching listings -> nothing to import.
-        if (!isset($mlsrequest['results']) || $mlsrequest['results'] == 0) {
-            wp_send_json_error(array('message' => __('No listings found with current configuration', 'mlsimport')));
+        if ( true !== ( $start['accepted'] ?? false ) ) {
+            wp_send_json_error(
+                array( 'message' => __( 'Another import is already running. Please wait for it to finish.', 'mlsimport' ) )
+            );
         }
 
-        // Clamp the found count down to the 5-listing test ceiling.
-        $found_items = intval($mlsrequest['results']);
-        if ($found_items > 5) {
-            $found_items = 5;
-        }
-        
-        $item_id_array['max_number'] = $found_items;
-        
-        // Generate import requests
-        // Build the per-item import request set and stash it on the import post.
-        $attachments_to_move = (array)$mlsimport->admin->mlsimport_saas_generate_import_requests_per_item($item_id_array);
-        update_post_meta($import_id, 'mlsimport_attach_to_move_' . $import_id, $attachments_to_move);
-        
-        // Prepare background process arguments
-        // Payload handed to the async worker action.
-        $attachments_to_send = array(
-            'args' => array(
-                'attachments_to_move' => $import_id,
-                'item_id_array' => $item_id_array,
-            ),
+        mlsimport_log_onboarding_event( 'Starting test import of up to 5 properties', 'info' );
+        // Shared worker scheduling: clears dead/superseded queue entries first
+        // so a previously crashed worker can never block this start.
+        $mlsimport->admin->mlsimport_enqueue_import_worker( (string) $start['run_id'] );
+
+        wp_send_json_success(
+            array(
+                'message'   => __( 'Import process started', 'mlsimport' ),
+                'import_id' => (int) $import_id,
+                'run_id'    => (string) $start['run_id'],
+            )
         );
-        
-       // Start background process
-// Mark the spawn state and record the start in the onboarding log.
-update_post_meta($import_id, 'mlsimport_spawn_status', 'started');
-mlsimport_log_onboarding_event('Starting test import of 5 properties', 'info');
-
-// Use the async action system instead of direct execution
-// Enqueue the worker and nudge WP-Cron so it runs promptly.
-as_enqueue_async_action('mlsimport_background_process_per_item', $attachments_to_send);
-spawn_cron();
-
-// Return success data without checking import count
-// Respond immediately; the import continues asynchronously in the background.
-wp_send_json_success(array(
-    'message' => __('Import process started', 'mlsimport'),
-    'import_id' => $import_id
-));
-
-
     } catch (Exception $e) {
         mlsimport_log_onboarding_event('Test import failed: ' . $e->getMessage(), 'error');
         wp_send_json_error(array('message' => __('Import failed: ', 'mlsimport') . $e->getMessage()));

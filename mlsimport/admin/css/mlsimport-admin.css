@@ -5,7 +5,7 @@
  * Main admin stylesheet for the MLSImport plugin. Styles the wp-admin screens:
  * the import-task metaboxes, plugin settings/tools UI, field-mapping fieldsets,
  * progress bars and log viewer, the 2025 card/tab layout, custom form controls
- * (switches, styled checkboxes, gradient buttons), the deactivation exit-survey
+ * (switches, styled checkboxes, pill buttons), the deactivation exit-survey
  * modal, and the activity-log / import-history banners.
  * Also carries a few per-theme admin tweaks (WpResidence, WpEstate, Houzez,
  * Real Homes) grouped under their own section headers below.
@@ -13,24 +13,44 @@
  */
 
 /* Base styling */
-/* Design tokens: brand colours, status colours, text/border/background
-   palette, shadows, radius and transition speed reused throughout. */
+/* Design tokens: "Sunny Bento" palette shared with the mlsimport.com portal —
+   warm near-black primary, orange accent, cream/warm-grey surfaces, pastel
+   status colours (mint/butter/soft-red), soft shadows and rounded radii. */
 :root {
-    --primary-color: #4F46E5;
-    --primary-hover: #4338CA;
-    --success-color: #10B981;
-    --error-color: #EF4444;
-    --warning-color: #F59E0B;
-    --text-primary: #111827;
-    --text-secondary: #4B5563;
-    --text-light: #6B7280;
-    --border-color: #DCDFE4;
-    --background-light: #F9FAFB;
+    --primary-color: #1c1917;
+    --primary-hover: #33302b;
+    --accent-color: #e85d3c;
+    --accent-soft: #fde4d8;
+    --success-color: #2faa6a;
+    --success-soft: #b8e6cc;
+    --success-deep: #1c5c3a;
+    --error-color: #c02617;
+    --error-soft: #fbe6e3;
+    --error-hover: #9a1e12;
+    --warning-color: #dd9211;
+    --warning-soft: #fae39a;
+    --warning-deep: #7a5410;
+    --text-primary: #1c1917;
+    --text-secondary: #6b6358;
+    --text-light: #9a9285;
+    --border-color: rgba(28,25,23,0.12);
+    --background-light: #faf8f3;
+    --background-soft: #f3efe7;
     --background-white: #FFFFFF;
     --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
     --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-    --border-radius: 8px;
+    --border-radius: 10px;
+    --radius-card: 18px;
+    --radius-pill: 999px;
     --transition-speed: 0.2s;
+}
+
+/* Cream page canvas on the plugin's own admin screens only (menu/submenu pages
+   whose body class contains "_page_mlsimport", plus the Import Tasks CPT list).
+   Other wp-admin screens keep the core grey background. */
+body.wp-admin[class*="_page_mlsimport"],
+body.wp-admin.post-type-mlsimport_item {
+    background: var(--background-light);
 }
 
 
@@ -66,12 +86,12 @@
 }
 
 .mls_mandatory_fields{
-	color: #888;
+	color: #6b6358;
 	margin-bottom: 10px;
 	max-width: 600px;
 }
 .mandatory_fields_wrapper_exp{
-	color: #888;
+	color: #6b6358;
 	max-width: 600px;
 }
 
@@ -125,7 +145,7 @@ input.mlsimport_select_import_admin_all{
 
 
 #mlsimport_mls_name_front{
-	border-color: #ccc;
+	border-color: rgba(28,25,23,0.18);
 	min-width: 450px;
 	padding: 5px 12px;
 }
@@ -143,7 +163,7 @@ input.mlsimport_select_import_admin_all{
     flex-direction: column;
     align-items: flex-start;
     isolation: isolate;
-    border: 1px solid #DCDFE4;
+    border: 1px solid rgba(28,25,23,0.18);
     box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.08);
     border-radius: 8px;
     flex: none;
@@ -155,9 +175,9 @@ input.mlsimport_select_import_admin_all{
 
 /* Grey rounded panel wrapping a group of import parameters. */
 .mlsimport_param_wrapper{
-	background-color: #f5f5f5;
+	background-color: #f3efe7;
 	padding:20px;
-	border-radius: 5px;
+	border-radius: 14px;
 }
 
 .postbox .inside .mlsimport_param_wrapper  h2{
@@ -191,7 +211,7 @@ input.mlsimport_select_import_admin_all{
 
 /* Zebra-stripe alternating fieldsets in the mandatory-fields list. */
 .mandatory_fields_wrapper .mlsimport-fieldset:nth-child(even){
-	background-color: #f7f7f7;
+	background-color: #f3efe7;
 }
 
 .mlsimport_auto_switch{
@@ -201,7 +221,7 @@ input.mlsimport_select_import_admin_all{
 
 /* "Select all" pill button (pink); darker on hover. */
 .mls_import_selec_all_class {
-	background-color: #cc3459;
+	background-color: var(--primary-color);
 	color: #fff;
 	display: inline-block;
 	padding: 5px;
@@ -209,11 +229,11 @@ input.mlsimport_select_import_admin_all{
 	margin-bottom: 5px;
 	cursor: pointer;
 	padding: 7px 14px;
-	border-radius:5px;
+	border-radius: var(--radius-pill);
 }
 
 .mls_import_selec_all_class:hover {
-	background-color: #a31034;
+	background-color: #33302b;
 }
 
 /* ===== Import progress bar + transfer controls + live log ===== */
@@ -227,9 +247,10 @@ input.mlsimport_select_import_admin_all{
 
 /* "Stop transfer" button (red); note a later rule overrides display to none. */
 #mlsimport_transfer_stop{
-	padding: 7px;
-	background: #af3737;
+	padding: 7px 16px;
+	background: #c02617;
 	color: #fff;
+	border-radius: var(--radius-pill);
 	display: inline-block;
 	margin-top: 10px;
 	cursor: pointer;
@@ -239,7 +260,7 @@ input.mlsimport_select_import_admin_all{
 #mlsimport_myBar{
 	width: 0%;
 	height: 20px;
-	background-color: green;
+	background-color: #e85d3c;
 }
 
 #mlsimport_myProgress_wrapper{
@@ -251,7 +272,7 @@ input.mlsimport_select_import_admin_all{
 /* Track background for the "monster" (full-width) progress bar. */
 #mlsimport_monster_myProgress {
 	width: 100%;
-	background-color: #cbc8c8;
+	background-color: #efe7dc;
 }
 /* Hide the stop button by default (JS shows it while a transfer runs). */
 #mlsimport_transfer_stop{
@@ -261,7 +282,8 @@ input.mlsimport_select_import_admin_all{
 /* Scrollable live import log panel. */
 #log_container{
 	width: 750px;
-	background: #f1f1f1;
+	background: #f3efe7;
+	border-radius: var(--border-radius);
 	padding: 15px;
 	margin-top: 15px;
 	max-height: 500px;
@@ -294,13 +316,8 @@ input.mlsimport_select_import_admin_all{
 	margin-top: 5px;
 }
 
-.mlsimport_tool_field_item_wrapper{
-	margin-bottom: 30px;
-}
-#mlsimport-disable-history,
-#mlsimport-disable-logs{
-	margin-top: 10px;
-}
+/* Tools-tab blocks are defined at the end of this file, so they win ties
+   against the later 2025 overrides. */
 
 
 
@@ -328,21 +345,21 @@ table.media .column-title .media-icon img {
 .mlsimport_notification,
 .mlsimport_validated,
 .mlsimport_warning{
-	background: #cc3459;
-	color: #fff;
-	padding: 10px;
+	background: var(--error-soft);
+	color: var(--error-color);
+	padding: 12px 16px;
 	margin-bottom: 10px;
-	border-radius: 2px;
+	border-radius: var(--border-radius);
 }
 
 
 /* Indigo "populate" info banner. */
 .mlsimport_populate_warning{
-	background: #4f46e5;
+	background: var(--primary-color);
 	color: #fff;
-	padding: 10px;
+	padding: 12px 16px;
 	margin-bottom: 10px;
-	border-radius: 2px;
+	border-radius: var(--border-radius);
 }
 
 
@@ -351,19 +368,21 @@ table.media .column-title .media-icon img {
 	padding: 0.75rem 1rem;
     margin-bottom: 1rem;
     border-radius: var(--border-radius);
-    background-color: rgba(245, 158, 11, 0.1);
+    background-color: rgba(250, 227, 154, 0.4);
     border-left: 4px solid var(--warning-color);
     color: var(--text-primary);
 }
 
 
 .mlsimport_notification{
-	background: #a5862b;
+	background: var(--warning-soft);
+	color: var(--warning-deep);
 }
 
 
 #mlsimport_item_metaboxes-sectionid .mlsimport_notification{
-	background: #a5862b;
+	background: var(--warning-soft);
+	color: var(--warning-deep);
 	max-width: 500px;
 }
 
@@ -371,10 +390,10 @@ table.media .column-title .media-icon img {
 /* Scrollable status/output box inside the import-task metabox. */
 #mlsimport_item_status{
 	width: auto;
-	background-color: #f5f5f5;
+	background-color: #f3efe7;
 	overflow-y: scroll;
 	padding: 10px;
-	border-radius: 5px;
+	border-radius: var(--border-radius);
 	margin-bottom: 15px;
 }
 
@@ -404,7 +423,7 @@ label.mlsimport_switch {
 	left: 0;
 	right: 0;
 	bottom: 0;
-	background-color: #ccc;
+	background-color: rgba(28,25,23,0.18);
 	-webkit-transition: .4s;
 	transition: .4s;
 }
@@ -423,11 +442,11 @@ label.mlsimport_switch {
 
 /* Checked state: blue track, and the knob slides right (translateX below). */
 .mlsimport_switch  input:checked + .slider {
-	background-color: #2196F3;
+	background-color: #e85d3c;
 }
 
 .mlsimport_switch  input:focus + .slider {
-	box-shadow: 0 0 1px #2196F3;
+	box-shadow: 0 0 1px #e85d3c;
 }
 
 .mlsimport_switch  input:checked + .slider:before {
@@ -456,24 +475,17 @@ label.mlsimport_switch {
 	margin-top: 15px;
 }
 
-/* Provider-specific credential fields hidden by default; JS reveals them when
-   the matching MLS provider (Trestle / ConnectMLS) is selected. */
-.fieldset_mlsimport_tresle_client_id,
-.fieldset_mlsimport_tresle_client_secret{
-        display:none;
-}
-
-.fieldset_mlsimport_connectmls_username,
-.fieldset_mlsimport_connectmls_password{
-        display:none;
-}
+/* Provider-specific credential fieldsets are shown/hidden per selected MLS by
+   PHP at render time (inline display:none in the credentials partials) and by
+   mlsimport_token_on_load() on in-page MLS changes. No CSS default-hide here:
+   a stylesheet rule would fight the server-rendered visibility. */
 
 
 
 
 .mlsimport_param_wrapper input[type=text]{
 	min-width: 450px;
-	border-color: #ccc;
+	border-color: rgba(28,25,23,0.18);
 	padding: 5px 12px;
 }
 
@@ -487,8 +499,8 @@ label.mlsimport_switch {
 /* Sign-up / account CTA box shown when no account is connected. */
 .mlsimport_signup{
 	display: inline-block;
-	background-color: #f0f0f1;
-	border-radius: 5px;
+	background-color: #f3efe7;
+	border-radius: 14px;
 	padding: 20px;
 	font-size: 15px;
 	margin-bottom: 15px;
@@ -527,7 +539,7 @@ label.mlsimport_switch {
 	display:none;
 	padding: 30px 15px;
 	background: #fff;
-	border: 1px solid #ccc;
+	border: 1px solid rgba(28,25,23,0.18);
 	border-top: 0px;
 }
 
@@ -548,8 +560,8 @@ label.mlsimport_switch {
 	padding: 0px;
 
 	background: #FFFFFF;
-	box-shadow: 0px 0px 0px 1px rgba(0, 0, 0, 0.06), 0px 5px 22px rgba(0, 0, 0, 0.04);
-	border-radius: 10px;
+	box-shadow: 0px 0px 0px 1px rgba(28, 25, 23, 0.05), 0px 5px 22px rgba(28, 25, 23, 0.05);
+	border-radius: var(--radius-card);
 	flex: none;
 	order: 0;
 	flex-grow: 1;
@@ -576,31 +588,36 @@ label.mlsimport_switch {
 .nav-tab-wrapper.mlsimport-tab-wrapper .nav-tab {
 
     text-transform: uppercase;
-    color: #23202c;
+    color: var(--text-secondary);
     padding: 15px 25px;
-    background: #f1f1f1;
-    border-top-right-radius:5px;
-    border-top-left-radius: 5px;
+    background: #f3efe7;
+    border-top-right-radius: 12px;
+    border-top-left-radius: 12px;
 
     padding: 15px 30px;
     background: #fff;
-    border: 1px solid #ccc;
+    border: 1px solid var(--border-color);
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    transition: color var(--transition-speed), background var(--transition-speed);
 }
 
-/* Active tab: brand indigo background, white text. */
+.nav-tab-wrapper.mlsimport-tab-wrapper .nav-tab:hover {
+    color: var(--text-primary);
+    background: var(--background-soft);
+}
+
+/* Active tab: warm near-black background, white text (portal "seg" pattern). */
 .nav-tab-wrapper.mlsimport-tab-wrapper .nav-tab.nav-tab-active{
-    background-color: #635BFF;
+    background-color: var(--primary-color);
     color: #fff;
+    border-color: var(--primary-color);
+    font-weight: 600;
 }
 
 .content-nav-tab.mlsimport_2025_card form{
 	max-width: 500px;
 }
-
-.content-nav-tab.mlsimport_2025_card form.mlsimport-import-fields-form{
-	max-width: 100%;
-}
-
 
 .mlsimport_2025_card_admin_options  {
     display: flex;
@@ -643,7 +660,7 @@ counter-increment: step-counter;
     top: 0;
     width: 30px;
     height: 30px;
-    background-color: #635bff;
+    background-color: var(--accent-color);
     color: white;
     border-radius: 50%;
     display: flex;
@@ -667,7 +684,7 @@ input[type=text].mlsimport-input.mlsimport-2025-input,
 	align-items: flex-start;
 	isolation: isolate;
 	background: #FFFFFF;
-	border: 1px solid #DCDFE4;
+	border: 1px solid rgba(28,25,23,0.18);
 	box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.08);
 	border-radius: 8px;
 	flex: none;
@@ -694,7 +711,7 @@ select.mlsimport-2025-select{
 	flex-direction: column;
 	align-items: flex-start;
 	isolation: isolate;
-	border: 1px solid #DCDFE4;
+	border: 1px solid rgba(28,25,23,0.18);
 	box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.08);
 	border-radius: 8px;
 	flex: none;
@@ -709,18 +726,18 @@ select.mlsimport-2025-select{
 .mlsimport-fieldset-wrapper input,
 input[type=checkbox].mlsimport_select_import_admin_all,
 input[type=checkbox].mlsimport_select_import_all {
-	border: 1px solid #ccc;
+	border: 1px solid rgba(28,25,23,0.18);
 	border-radius: 2px;
 	background-color: #fff!important;
 }
 
 
-/* ===== Gradient action buttons =====
-   Primary (indigo), save_data (green), secondary (dark), warning_action
-   (amber) and error_action (red) share the same gradient + inset-shadow
-   recipe, each with a matching :hover that deepens the shadow. */
+/* ===== Pill action buttons (Sunny Bento) =====
+   Portal button standard: dark solid primary, pastel intents on top of it —
+   save_data (mint), secondary (white + border), warning_action (butter) and
+   error_action (solid red that darkens on hover). All are full pills. */
 
-/* Primary button: indigo gradient with layered inset highlights. */
+/* Primary button: solid warm near-black pill. */
 .button.mlsimport_button{
 	font-size: 14px;
 	position: relative;
@@ -728,80 +745,120 @@ input[type=checkbox].mlsimport_select_import_all {
 	flex-direction: column;
 	justify-content: center;
 	align-items: center;
-	padding: 7px 30px;
-	background: linear-gradient(180deg, #635BFF 0%, #4E36F5 100%);
-	border: 1px solid #15B79F;
-	border-radius: 8px;
+	padding: 9px 24px;
+	line-height: 1.5;
+	min-height: 0;
+	background: var(--primary-color);
+	border: 1px solid var(--primary-color);
+	border-radius: var(--radius-pill);
 	color:#fff;
 	flex: none;
 	order: 1;
 	flex-grow: 0;
-	box-shadow: rgba(0, 0, 0, 0.08) 0px 1px 2px 0px, rgb(78, 54, 245) 0px 0px 0px 1px inset, rgba(255, 255, 255, 0.16) 0px 2px 0px 0px inset;
+	box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.08);
+	transition: background var(--transition-speed), box-shadow var(--transition-speed);
 }
 
 .button.mlsimport_button:hover {
-	background: linear-gradient(180deg, #635BFF 0%, #4E36F5 100%);
+	background: var(--primary-hover);
 	color:#fff;
-	border: 1px solid #15B79F;
-	box-shadow: 0px 3px 14px rgba(0, 0, 0, 0.08), inset 0px 0px 0px 1px #4e36f5,inset 0px 2px 0px 0px rgba(255, 255, 255, 0.16) , inset 0px 6px 10px 0px rgba(255, 255, 255, 0.10);
+	border: 1px solid var(--primary-hover);
+	box-shadow: 0 10px 24px -10px rgba(0, 0, 0, 0.45);
 }
 
-/* Save button: green success gradient. */
-.button.save_data {
-    background: linear-gradient(180deg, var(--success-color) 0%, #0C8A61 100%);
-    border: 1px solid var(--success-color);
-    box-shadow: rgba(0, 0, 0, 0.08) 0px 1px 2px 0px, var(--success-color) 0px 0px 0px 1px inset, rgba(255, 255, 255, 0.16) 0px 2px 0px 0px inset;
+/* Save button: mint pill with deep-green text. */
+.button.save_data,
+.wp-core-ui .button.mlsimport_button.save_data {
+    background: var(--success-soft);
+    border: 1px solid var(--success-soft);
+    color: var(--success-deep);
+    box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.06);
 }
 
-.button.save_data:hover {
-    background: linear-gradient(180deg, var(--success-color) 0%, #0C8A61 100%);
-    border: 1px solid var(--success-color);
-    box-shadow: 0px 3px 14px rgba(0, 0, 0, 0.08), inset 0px 0px 0px 1px var(--success-color), inset 0px 2px 0px 0px rgba(255, 255, 255, 0.16), inset 0px 6px 10px 0px rgba(255, 255, 255, 0.10);
+.button.save_data:hover,
+.wp-core-ui .button.mlsimport_button.save_data:hover {
+    background: #a5dfc0;
+    border: 1px solid #a5dfc0;
+    color: var(--success-deep);
+    box-shadow: 0 8px 20px -10px rgba(28, 92, 58, 0.5);
 }
 
 
-/* Secondary button: dark slate gradient. */
-.button.secondary {
-	background: linear-gradient(180deg, #32383e 0%, #25292e 100%);
-	border: 1px solid #32383e;
+/* Secondary button: white surface pill with hairline border. */
+.button.secondary,
+.wp-core-ui .button.mlsimport_button.secondary {
+	background: var(--background-white);
+	border: 1px solid var(--border-color);
+	/* !important needed: wpresidence-core/css/wpresidence2025.css line 817-818
+	   forces white text + inset shadow with !important on .button.secondary. */
+	color: var(--text-primary) !important;
+	box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.05) !important;
+	border-radius: var(--radius-pill);
+ }
+
+ .button.secondary:hover,
+ .wp-core-ui .button.mlsimport_button.secondary:hover {
+	background: var(--background-soft);
+	border: 1px solid var(--border-color);
+	color: var(--text-primary) !important;
+	box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.05) !important;
+	border-radius: var(--radius-pill);
+ }
+
+/* Field-selector bulk bar: only "Select all" stays the dark primary; the
+   "Select none" twin (same classes in markup) is demoted to the white
+   secondary look via its ID so the toolbar has a single primary action. */
+#mlsimport-select-none-import.button.mlsimport_button {
+	background: var(--background-white);
+	border: 1px solid var(--border-color);
+	color: var(--text-primary);
+	box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.05);
+}
+#mlsimport-select-none-import.button.mlsimport_button:hover {
+	background: var(--background-soft);
+	border: 1px solid var(--border-color);
+	color: var(--text-primary);
+	box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+
+
+ /* Warning button: butter pill with deep-amber text. */
+ .button.warning_action,
+ .wp-core-ui .button.mlsimport_button.warning_action {
+	background: var(--warning-soft);
+	border: 1px solid var(--warning-soft);
+	color: var(--warning-deep);
+	box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.06);
+ }
+
+ .button.warning_action:hover,
+ .wp-core-ui .button.mlsimport_button.warning_action:hover {
+	background: #f3d87c;
+	border: 1px solid #f3d87c;
+	color: var(--warning-deep);
+	box-shadow: 0 8px 20px -10px rgba(122, 84, 16, 0.45);
+ }
+
+
+ /* Error/danger button: solid red pill with white text, darkening on hover -
+    the same shape as the primary button (solid -> darker + lifted shadow), just
+    in the danger colour. It reads as a real action at rest instead of waiting
+    for a hover to look like one. */
+ .button.error_action,
+ .wp-core-ui .button.mlsimport_button.error_action {
+	background: var(--error-color);
+	border: 1px solid var(--error-color);
 	color: #fff;
-	box-shadow: rgba(0, 0, 0, 0.08) 0px 1px 2px 0px, rgb(50, 56, 62) 0px 0px 0px 1px inset, rgba(255, 255, 255, 0.16) 0px 2px 0px 0px inset;
+	box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.08);
  }
- 
- .button.secondary:hover {
-	background: linear-gradient(180deg, #32383e 0%, #25292e 100%);
-	border: 1px solid #32383e;
+
+ .button.error_action:hover,
+ .wp-core-ui .button.mlsimport_button.error_action:hover {
+	background: var(--error-hover);
+	border: 1px solid var(--error-hover);
 	color: #fff;
-	box-shadow: 0px 3px 14px rgba(0, 0, 0, 0.08), inset 0px 0px 0px 1px #32383e, inset 0px 2px 0px 0px rgba(255, 255, 255, 0.16), inset 0px 6px 10px 0px rgba(255, 255, 255, 0.10);
- }
-
-
-
- /* Warning button: amber gradient. */
- .button.warning_action {
-	background: linear-gradient(180deg, #fb9c0c 0%, #d0810a 100%);
-	border: 1px solid #fb9c0c;
-	box-shadow: rgba(0, 0, 0, 0.08) 0px 1px 2px 0px, #fb9c0c 0px 0px 0px 1px inset, rgba(255, 255, 255, 0.16) 0px 2px 0px 0px inset;
- }
- 
- .button.warning_action:hover {
-	background: linear-gradient(180deg, #fb9c0c 0%, #d0810a 100%);
-	border: 1px solid #fb9c0c;
-	box-shadow: 0px 3px 14px rgba(0, 0, 0, 0.08), inset 0px 0px 0px 1px #fb9c0c, inset 0px 2px 0px 0px rgba(255, 255, 255, 0.16), inset 0px 6px 10px 0px rgba(255, 255, 255, 0.10);
- }
-
-
- /* Error/danger button: red gradient. */
- .button.error_action {
-	background: linear-gradient(180deg, #bb241a 0%, #9b1e16 100%);
-	border: 1px solid #bb241a;
-	box-shadow: rgba(0, 0, 0, 0.08) 0px 1px 2px 0px, #bb241a 0px 0px 0px 1px inset, rgba(255, 255, 255, 0.16) 0px 2px 0px 0px inset;
- }
- 
- .button.error_action:hover {
-	background: linear-gradient(180deg, #bb241a 0%, #9b1e16 100%);
-	border: 1px solid #bb241a;
-	box-shadow: 0px 3px 14px rgba(0, 0, 0, 0.08), inset 0px 0px 0px 1px #bb241a, inset 0px 2px 0px 0px rgba(255, 255, 255, 0.16), inset 0px 6px 10px 0px rgba(255, 255, 255, 0.10);
+	box-shadow: 0 10px 24px -10px rgba(192, 38, 23, 0.55);
  }
 
 
@@ -844,7 +901,7 @@ input[type=checkbox].mlsimport_select_import_all {
 	 left: 0;
 	 width: 24px;
 	 height: 24px;
-	 background-image: url("data:image/svg+xml;utf8,<svg fill='none' height='24' viewBox='0 0 24 24' width='24' xmlns='http://www.w3.org/2000/svg'><path clip-rule='evenodd' d='M8 2C4.68629 2 2 4.68629 2 8V16C2 19.3137 4.68629 22 8 22H16C19.3137 22 22 19.3137 22 16V8C22 4.68629 19.3137 2 16 2H8ZM8 4C5.79086 4 4 5.79086 4 8V16C4 18.2091 5.79086 20 8 20H16C18.2091 20 20 18.2091 20 16V8C20 5.79086 18.2091 4 16 4H8Z' fill='%23DCDFE4' fill-rule='evenodd'></path></svg>");
+	 background-image: url("data:image/svg+xml;utf8,<svg fill='none' height='24' viewBox='0 0 24 24' width='24' xmlns='http://www.w3.org/2000/svg'><path clip-rule='evenodd' d='M8 2C4.68629 2 2 4.68629 2 8V16C2 19.3137 4.68629 22 8 22H16C19.3137 22 22 19.3137 22 16V8C22 4.68629 19.3137 2 16 2H8ZM8 4C5.79086 4 4 5.79086 4 8V16C4 18.2091 5.79086 20 8 20H16C18.2091 20 20 18.2091 20 16V8C20 5.79086 18.2091 4 16 4H8Z' fill='%23D8D2C6' fill-rule='evenodd'></path></svg>");
 	 background-size: 24px 24px;
 	 background-position: center;
 	 background-repeat: no-repeat;
@@ -854,7 +911,7 @@ input[type=checkbox].mlsimport_select_import_all {
  /* Checked state swaps in the filled indigo box + white tick SVG. */
  input[type=checkbox].mlsimport-import-checkbox:checked:before,
  input[type=checkbox].mlsimport-admin-checkbox:checked:before {
-	 background-image: url("data:image/svg+xml;utf8,<svg fill='none' height='24' viewBox='0 0 24 24' width='24' xmlns='http://www.w3.org/2000/svg'><rect fill='%23635bff' height='20' rx='6' width='20' x='2' y='2'></rect><path d='M7.55566 11.7222L10.5186 14.7778L16.4446 8.66669' stroke='white' stroke-linecap='round' stroke-linejoin='round' stroke-width='2'></path></svg>");
+	 background-image: url("data:image/svg+xml;utf8,<svg fill='none' height='24' viewBox='0 0 24 24' width='24' xmlns='http://www.w3.org/2000/svg'><rect fill='%23e85d3c' height='20' rx='6' width='20' x='2' y='2'></rect><path d='M7.55566 11.7222L10.5186 14.7778L16.4446 8.66669' stroke='white' stroke-linecap='round' stroke-linejoin='round' stroke-width='2'></path></svg>");
  }
 
 
@@ -870,7 +927,7 @@ input[type=checkbox].mlsimport_select_import_all {
     z-index: 9999;
     background: #fff;
     padding: 40px;
-    border-radius: 10px;
+    border-radius: var(--radius-card);
     /* border: 1px solid #ddd; */
     box-shadow: 0 7px 54px rgba(0, 0, 0, 0.15);
     width: 500px;
@@ -890,7 +947,7 @@ input[type=checkbox].mlsimport_select_import_all {
 
 .mlsimport-save-progress-bar {
         height: 10px;
-        background: #eee;
+        background: #f3efe7;
         margin-top: 5px;
         border-radius: 5px;
         overflow: hidden;
@@ -900,7 +957,7 @@ input[type=checkbox].mlsimport_select_import_all {
 .mlsimport-save-progress-bar .progress-fill {
         width: 0%;
         height: 100%;
-        background: #635BFF;
+        background: var(--accent-color);
         border-radius: 5px;
         transition: width 0.3s;
 }
@@ -928,7 +985,7 @@ input[type=checkbox].mlsimport_select_import_all {
 .mlsimport-es-card {
         position: relative;
         background: #fff;
-        border-radius: 6px;
+        border-radius: var(--radius-card);
         padding: 26px 28px;
         width: 460px;
         max-width: 92vw;
@@ -940,19 +997,19 @@ input[type=checkbox].mlsimport_select_import_all {
 }
 .mlsimport-es-intro {
         margin: 0 0 16px;
-        color: #555;
+        color: #6b6358;
 }
 /* Selectable reason row in the exit survey. */
 .mlsimport-es-option {
         display: block;
         padding: 8px 10px;
         margin: 4px 0;
-        border: 1px solid #e0e0e0;
-        border-radius: 4px;
+        border: 1px solid rgba(28,25,23,0.18);
+        border-radius: var(--border-radius);
         cursor: pointer;
 }
 .mlsimport-es-option:hover {
-        background: #f6f6f6;
+        background: #f3efe7;
 }
 .mlsimport-es-other {
         width: 100%;
@@ -966,7 +1023,7 @@ input[type=checkbox].mlsimport_select_import_all {
         gap: 16px;
 }
 .mlsimport-es-skip {
-        color: #777;
+        color: #9a9285;
         text-decoration: underline;
 }
 .mlsimport-es-hidden {
@@ -979,6 +1036,11 @@ input[type=checkbox].mlsimport_select_import_all {
 
 .mlsimport-activity-banner {
         padding: 12px 14px;
+        /* Re-chrome the core .notice.notice-info wrapper to Sunny Bento: warm
+           hairline border, accent-orange status edge, rounded corners. */
+        border: 1px solid var(--border-color);
+        border-left: 4px solid var(--accent-color);
+        border-radius: var(--border-radius);
 }
 
 .mlsimport-activity-banner__counts {
@@ -995,7 +1057,7 @@ input[type=checkbox].mlsimport_select_import_all {
         gap: 7px;
         font-size: 14px;
         font-weight: 700;
-        color: #1d2327;
+        color: #1c1917;
 }
 
 .mlsimport-activity-banner__title::before {
@@ -1003,13 +1065,13 @@ input[type=checkbox].mlsimport_select_import_all {
         width: 9px;
         height: 9px;
         border-radius: 50%;
-        background: #2271b1;
+        background: #1c1917;
 }
 
 .mlsimport-activity-banner__period {
         font-weight: 500;
         font-size: 11px;
-        color: #646970;
+        color: #9a9285;
         text-transform: uppercase;
         letter-spacing: .05em;
 }
@@ -1037,17 +1099,17 @@ input[type=checkbox].mlsimport_select_import_all {
 }
 
 /* Per-action tinted stat pills: added (green), edited (amber), deleted (red). */
-.mlsimport-activity-stat--added   { background: #ecfdf5; color: #047857; }
-.mlsimport-activity-stat--edited  { background: #fffbeb; color: #b45309; }
-.mlsimport-activity-stat--deleted { background: #fef2f2; color: #b91c1c; }
+.mlsimport-activity-stat--added   { background: #b8e6cc; color: #1c5c3a; }
+.mlsimport-activity-stat--edited  { background: #fae39a; color: #7a5410; }
+.mlsimport-activity-stat--deleted { background: #fbe6e3; color: #c02617; }
 
 .mlsimport-activity-banner__breakdown {
         margin: 0 0 10px;
         padding: 0;
         list-style: none;
         max-width: 900px;
-        border: 1px solid #e0e0e0;
-        border-radius: 6px;
+        border: 1px solid rgba(28,25,23,0.12);
+        border-radius: var(--border-radius);
         overflow: hidden;
 }
 
@@ -1064,7 +1126,7 @@ input[type=checkbox].mlsimport_select_import_all {
 }
 
 .mlsimport-activity-banner__breakdown li:nth-child(even) {
-        background: #f6f7f7;
+        background: #f3efe7;
 }
 
 /* Per-task name cell: grows to fill, truncates with an ellipsis when long
@@ -1073,7 +1135,7 @@ input[type=checkbox].mlsimport_select_import_all {
         flex: 1 1 auto;
         min-width: 0;
         font-weight: 600;
-        color: #1d2327;
+        color: #1c1917;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
@@ -1095,17 +1157,18 @@ input[type=checkbox].mlsimport_select_import_all {
         line-height: 1.6;
         white-space: nowrap;
         color: #ffffff;
+        border-radius: var(--radius-pill);
 }
 
-/* Solid per-action count chips: added/edited/deleted colours. */
-.mlsimport-activity-chip--added   { background: #10B981; }
-.mlsimport-activity-chip--edited  { background: #F59E0B; color: #1a1a1a; }
-.mlsimport-activity-chip--deleted { background: #EF4444; }
+/* Pastel per-action count chips: added/edited/deleted colours. */
+.mlsimport-activity-chip--added   { background: var(--success-soft); color: var(--success-deep); }
+.mlsimport-activity-chip--edited  { background: var(--warning-soft); color: var(--warning-deep); }
+.mlsimport-activity-chip--deleted { background: var(--error-soft); color: var(--error-color); }
 
 /* Muted styling for a zero-count chip. */
 .mlsimport-activity-chip.is-zero {
-        background: #f0f0f1;
-        color: #8c8f94;
+        background: #f3efe7;
+        color: #9a9285;
 }
 
 .mlsimport-activity-banner__actions {
@@ -1116,18 +1179,18 @@ input[type=checkbox].mlsimport_select_import_all {
         display: inline-flex;
         align-items: center;
         gap: 5px;
-        padding: 5px 13px;
-        background: #2271b1;
+        padding: 5px 15px;
+        background: #1c1917;
         color: #ffffff !important;
         text-decoration: none !important;
         font-size: 13px;
         font-weight: 600;
-        border-radius: 4px;
+        border-radius: var(--radius-pill);
 }
 
 .mlsimport-activity-banner__link:hover,
 .mlsimport-activity-banner__link:focus {
-        background: #135e96;
+        background: #33302b;
         color: #ffffff !important;
 }
 
@@ -1144,26 +1207,30 @@ input[type=checkbox].mlsimport_select_import_all {
         gap: 8px 12px;
         padding: 12px 14px;
         margin: 16px 0;
+        /* Same Sunny Bento re-chrome as the activity banner (core .notice). */
+        border: 1px solid var(--border-color);
+        border-left: 4px solid var(--accent-color);
+        border-radius: var(--border-radius);
 }
 
 .mlsimport-history-filters label {
         font-size: 13px;
         font-weight: 600;
-        color: #1d2327;
+        color: #1c1917;
 }
 
 .mlsimport-history-filters input[type="search"],
 .mlsimport-history-filters select {
         height: 32px;
-        border-radius: 4px;
-        border-color: #e0e0e0;
+        border-radius: 8px;
+        border-color: rgba(28,25,23,0.12);
 }
 
 .mlsimport-history-filters .button {
-        background: #2271b1;
-        border-color: #2271b1;
+        background: #1c1917;
+        border-color: #1c1917;
         color: #ffffff;
-        border-radius: 4px;
+        border-radius: var(--radius-pill);
         height: 32px;
         padding: 0 14px;
         font-weight: 600;
@@ -1171,8 +1238,8 @@ input[type=checkbox].mlsimport_select_import_all {
 
 .mlsimport-history-filters .button:hover,
 .mlsimport-history-filters .button:focus {
-        background: #135e96;
-        border-color: #135e96;
+        background: #33302b;
+        border-color: #33302b;
         color: #ffffff;
 }
 
@@ -1191,20 +1258,20 @@ input[type=checkbox].mlsimport_select_import_all {
         white-space: nowrap;
 }
 
-/* Added-action badge (green). */
+/* Added-action badge (mint). */
 .mlsimport-activity-action--added {
-        background-color: #10B981;
-        color: #ffffff;
+        background-color: var(--success-soft);
+        color: var(--success-deep);
 }
 
 .mlsimport-activity-action--edited {
-        background-color: #F59E0B;
-        color: #1a1a1a;
+        background-color: var(--warning-soft);
+        color: var(--warning-deep);
 }
 
 .mlsimport-activity-action--deleted {
-        background-color: #EF4444;
-        color: #ffffff;
+        background-color: var(--error-soft);
+        color: var(--error-color);
 }
 
 /* Searchable City/County multi-select — filter input above the native list. */
@@ -1218,7 +1285,7 @@ input[type=checkbox].mlsimport_select_import_all {
         box-sizing: border-box;
         margin-bottom: 6px;
         padding: 6px 12px;
-        border: 1px solid #DCDFE4;
+        border: 1px solid rgba(28,25,23,0.18);
         border-radius: 8px;
         box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.08);
 }
@@ -1239,7 +1306,7 @@ input[type=checkbox].mlsimport_select_import_all {
         align-items: center;
         gap: 4px;
         padding: 2px 4px 2px 10px;
-        background: #909090;
+        background: #1c1917;
         color: #ffffff;
         border-radius: 12px;
         font-size: 12px;
@@ -1263,4 +1330,298 @@ input[type=checkbox].mlsimport_select_import_all {
 }
 .mlsimport-chip-remove:hover {
         background: rgba(255, 255, 255, 0.45);
+}
+
+/* ============================================================
+   Import Tasks list — Status column health badge (issue #200)
+   Pill badge showing the task's run health: green = healthy,
+   amber = sync overdue, red = failed/stuck, gray = neutral.
+   ============================================================ */
+.mlsimport-task-health {
+        display: inline-block;
+        padding: 3px 12px;
+        border-radius: var(--radius-pill);
+        font-size: 12px;
+        font-weight: 600;
+        line-height: 1.6;
+        color: var(--text-secondary);
+        background: var(--background-soft);
+}
+.mlsimport-task-health--ok {
+        background: var(--success-soft);
+        color: var(--success-deep);
+}
+.mlsimport-task-health--warning {
+        background: var(--warning-soft);
+        color: var(--warning-deep);
+}
+.mlsimport-task-health--error {
+        background: var(--error-soft);
+        color: var(--error-color);
+}
+/* Explanation line under the badge (progress, error, or last sync time). */
+.mlsimport-task-health__message {
+        margin: 6px 0 0;
+        font-size: 12px;
+        color: #9a9285;
+}
+
+
+/* ===== Tools tab (Sunny Bento) =====
+   admin.php?page=mlsimport_plugin_options&tab=administrative_options
+
+   This tab predates the restyle: three of its six blocks carried hardcoded inline
+   styles (#eee / padding 10px / radius 5px) and the other three carried none, so
+   half the tab rendered as a grey card and half as bare text. Spacing lived in
+   per-element margins and <br> tags and drifted out of step.
+
+   Two classes:
+     .mlsimport_tool_block  every block - shared width and vertical rhythm
+     .mlsimport_tool_card   adds the card surface, for ACTION tools only
+
+   The two settings behind the single Save Changes button (logs, history) and the
+   Cron Jobs guidance stay plain, so a card always means "this block acts on its
+   own".
+
+   Three gaps, by role - the same everywhere on the tab:
+     TIGHT    8px  a control under its own label, a hint under its control
+     NORMAL  16px  ordinary siblings
+     HEADING 20px  anything directly under a heading */
+.mlsimport_tool_block{
+	margin: 0 0 20px 0;
+	max-width: 800px;
+	box-sizing: border-box;
+}
+
+/* Reset every child, then space them with one top margin, so a single rule owns
+   the rhythm and no child can drift on its own. */
+.mlsimport_tool_block > *{
+	margin: 0;
+}
+.mlsimport_tool_block > * + *{
+	margin-top: 16px;
+}
+.mlsimport_tool_block > h3 + *,
+.mlsimport_tool_block > h4 + *{
+	margin-top: 20px;
+}
+/* Buttons need the .wp-core-ui prefix to outrank core's `.wp-core-ui .button
+   { margin: 0 }` (0,2,0), which otherwise flattens the gap under a heading. */
+.wp-core-ui .mlsimport_tool_block > h3 + .button,
+.wp-core-ui .mlsimport_tool_block > h4 + .button,
+.wp-core-ui .mlsimport_tool_block > h3 + input[type="button"],
+.wp-core-ui .mlsimport_tool_block > h4 + input[type="button"]{
+	margin-top: 20px;
+}
+/* Same reason for the ordinary 16px step and the side-by-side button gap. */
+.wp-core-ui .mlsimport_tool_block > * + .button,
+.wp-core-ui .mlsimport_tool_block > * + input[type="button"]{
+	margin-top: 16px;
+}
+.wp-core-ui .mlsimport_tool_block input[type="button"] + input[type="button"]{
+	margin-top: 16px;
+	margin-left: 10px;
+}
+.mlsimport_tool_block > .mlsimport-label + select,
+.mlsimport_tool_block > select + .mlsimport-exp{
+	margin-top: 8px;
+}
+
+/* Card surface - action tools only. */
+.mlsimport_tool_card{
+	background-color: var(--background-soft);
+	border: 1px solid var(--border-color);
+	border-radius: var(--border-radius);
+	padding: 20px;
+}
+
+.mlsimport_tool_block h3,
+.mlsimport_tool_block h4{
+	font-weight: 600;
+	color: var(--text-primary);
+	line-height: 1.3;
+}
+
+.mlsimport_tool_block .mlsimport-label{
+	font-weight: 500;
+	color: var(--text-primary);
+}
+
+.mlsimport_tool_block .mlsimport-exp{
+	color: var(--text-secondary);
+}
+
+/* One width for every field on this tab. Select Terms used to be capped at
+   max-width:400px inline while Select Taxonomy above it inherited
+   width:100%/max-width:100% and ran the full width of its container. */
+.mlsimport_tool_block select.mlsimport-2025-select{
+	width: 100%;
+	max-width: 100%;
+	box-sizing: border-box;
+}
+.mlsimport_tool_block select[multiple]{
+	min-height: 120px;
+}
+
+/* Action buttons keep their content width and sit on one row. */
+.mlsimport_tool_block input[type="button"] + input[type="button"]{
+	margin-left: 10px;
+}
+
+/* Delete progress bar, on the palette instead of wp-admin blue (#0073aa).
+   The bar's own width stays inline: mlsimport-admin.js animates it. */
+.mlsimport-delete-progress-track{
+	background: var(--background-white);
+	border: 1px solid var(--border-color);
+	border-radius: var(--radius-pill);
+	overflow: hidden;
+	height: 20px;
+	margin-bottom: 8px;
+}
+#mlsimport-delete-progress-bar{
+	background: var(--accent-color);
+	height: 100%;
+	transition: width var(--transition-speed) ease;
+}
+
+
+/* ===== Field height parity (2025 controls) =====
+   A dropdown must be exactly as tall as a text input beside it. wp-admin core
+   (load-styles.php) sets `select { line-height: 2.71429; min-height: 40px }`,
+   which at 14px is a 38px line box; with our 5px padding and 1px border that
+   rendered every .mlsimport-2025-select at 50px next to a 40px
+   .mlsimport-2025-input. 40px is wp-admin's own control height, so the select
+   is the one corrected. Multi-selects are excluded - they size to their rows. */
+select.mlsimport-2025-select:not([multiple]){
+	height: 40px;
+	min-height: 40px;
+	padding-top: 0;
+	padding-bottom: 0;
+}
+
+
+/* Save Changes on the Tools tab belongs to the two dropdowns above it, so it gets
+   no gap of its own on top; the space goes underneath, before the next block.
+   wp-admin's default .submit padding (1.5em 0) put air on both sides. */
+form[name="cleanup_options"] p.submit{
+	margin: 0 0 20px 0;
+	padding: 0;
+}
+
+
+/* Focus ring on the palette. wp-admin core (forms.css) focuses controls with
+   admin blue - `select:focus { border-color: #2271b1; box-shadow: 0 0 0 1px
+   #2271b1 }` - which clashes with the warm neutrals. Same visual weight as
+   core's (1px border + 1px ring), so the focus affordance stays as obvious as
+   it was; only the hue changes. */
+/* The selectors below repeat the full base-rule specificity plus :focus. The
+   base rule is `input[type=text].mlsimport-input.mlsimport-2025-input` (0,3,1),
+   which outranks core's `input:focus` (0,1,1) - so until now a focused text
+   field kept its resting border and showed NO focus state at all, core's
+   included. A field being typed into has to look different from one that is
+   not. */
+input[type=text].mlsimport-input.mlsimport-2025-input:focus,
+input[type=password].mlsimport-input.mlsimport-2025-input:focus,
+.mlsimport-input.mlsimport-2025-input:focus,
+select.mlsimport-2025-select:focus,
+/* #mlsimport_mls_name_front sets border-color from an ID (1,0,0), which outranks
+   the class selectors above (0,4,1). Without naming the ID here the MLS search
+   box keeps its resting border and shows no focus state at all. */
+#mlsimport_mls_name_front:focus{
+	border-color: var(--primary-color);
+	/* An actual border, not a glow. Width stays 1px so the padding box does not
+	   shrink on focus and the text never jiggles; the contrast jump from the
+	   rgba(28,25,23,0.18) hairline to solid near-black carries the state on its
+	   own. Both controls are border-box, so the 40px height is unaffected. */
+	box-shadow: none;
+	outline: none;
+}
+
+
+/* ===== One accent for every active state =====
+   The plugin screens were showing three different "active" colours at once: the
+   dark resting hairline, the accent focus ring, and wp-admin/browser blue on the
+   open dropdown's highlighted row. Everything that signals focus or selection
+   now uses --accent-color; the neutral hairline stays neutral, because a resting
+   border is not a state.
+
+   Focus and selection are BLACK (--primary-color), matching hover, so a control
+   never shows two different "active" colours. accent-color still fills checked
+   checkboxes and radios - that is a checked state, not a focus state.
+
+   The open <select> popup is NOT styled here. It used to carry
+
+       .mlsimport-2025-select option:checked { background: linear-gradient(...);
+                                               color: #fff }
+
+   on the belief that the gradient was the one declaration Chrome honours inside
+   a native popup. It is not: Chrome applies the colour and drops the gradient,
+   so the already-selected row rendered white-on-white and read as a blank line
+   in the list - e.g. "logs enabled" vanishing from the Tools dropdown. A
+   stylesheet cannot guarantee the pair, and half the pair is worse than none,
+   so the popup keeps the browser's own highlight. That is the one place on
+   these screens where a native blue row can still appear; it is legible, which
+   the override was not. */
+body.wp-admin[class*="_page_mlsimport"],
+body.wp-admin.post-type-mlsimport_item{
+	accent-color: var(--accent-color);
+}
+
+
+/* No wp-admin blue anywhere on the plugin's own screens. Core links are
+   #2271b1; on this warm palette they were the last blue left once the focus
+   ring and the dropdown highlight moved to the accent.
+
+   Scoped to #wpbody-content on purpose: that is the plugin's content area only.
+   Body-level scoping would repaint the admin sidebar and the footer too, which
+   belong to WordPress, not to us. */
+/* Body text links only. Tabs and buttons are EXCLUDED - they carry their own
+   colour scheme (dark tab = white label), and recolouring them turned every tab
+   label red. */
+body.wp-admin[class*="_page_mlsimport"] #wpbody-content a:not(.nav-tab):not(.button):not(.button-primary):not(.button-secondary),
+body.wp-admin.post-type-mlsimport_item #wpbody-content a:not(.nav-tab):not(.button):not(.button-primary):not(.button-secondary){
+	color: var(--primary-color);
+}
+body.wp-admin[class*="_page_mlsimport"] #wpbody-content a:not(.nav-tab):not(.button):not(.button-primary):not(.button-secondary):hover,
+body.wp-admin.post-type-mlsimport_item #wpbody-content a:not(.nav-tab):not(.button):not(.button-primary):not(.button-secondary):hover{
+	color: var(--primary-hover);
+}
+
+/* Keyboard/click focus ring on links, tabs and buttons. wp-admin core focuses
+   these with `box-shadow: 0 0 0 1px #2271b1` plus a blue outline - that is the
+   blue box that appears around a tab after clicking it. Same weight, accent
+   hue, and the label colour is left alone so a dark tab keeps its white text. */
+body.wp-admin[class*="_page_mlsimport"] #wpbody-content a:focus,
+body.wp-admin[class*="_page_mlsimport"] #wpbody-content .nav-tab:focus,
+body.wp-admin[class*="_page_mlsimport"] #wpbody-content .button:focus,
+body.wp-admin.post-type-mlsimport_item #wpbody-content a:focus,
+body.wp-admin.post-type-mlsimport_item #wpbody-content .button:focus{
+	box-shadow: 0 0 0 2px rgba(28,25,23,0.15);
+	border-color: var(--primary-color);
+	outline: 2px solid transparent; /* stays visible in forced-colours mode */
+	outline-offset: 0;
+}
+
+/* ...but not on the pastel intent pills. Each of those borders in its own
+   colour, so the near-black border-color above drew a stray black outline
+   around the mint Save Changes and the red delete the moment they were
+   clicked - the one thing the near-black was introduced to stop happening in
+   admin blue. They keep their own border and take the focus halo in their own
+   hue, so the affordance is as obvious as before without a foreign line. */
+body.wp-admin[class*="_page_mlsimport"] #wpbody-content .button.save_data:focus,
+body.wp-admin.post-type-mlsimport_item #wpbody-content .button.save_data:focus{
+	border-color: var(--success-soft);
+	box-shadow: 0 0 0 2px rgba(28, 92, 58, 0.28);
+}
+
+body.wp-admin[class*="_page_mlsimport"] #wpbody-content .button.warning_action:focus,
+body.wp-admin.post-type-mlsimport_item #wpbody-content .button.warning_action:focus{
+	border-color: var(--warning-soft);
+	box-shadow: 0 0 0 2px rgba(122, 84, 16, 0.28);
+}
+
+body.wp-admin[class*="_page_mlsimport"] #wpbody-content .button.error_action:focus,
+body.wp-admin.post-type-mlsimport_item #wpbody-content .button.error_action:focus{
+	border-color: var(--error-color);
+	box-shadow: 0 0 0 2px rgba(192, 38, 23, 0.30);
 }

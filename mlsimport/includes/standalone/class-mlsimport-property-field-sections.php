@@ -806,7 +806,7 @@ function mlsimport_property_field_label( string $field, array $labels ): string 
  * @return array<int,array{0:string,1:string}>
  */
 function mlsimport_property_section_fields( int $id, string $section ): array {
-	$options = get_option( 'mlsimport_admin_fields_select' );
+	$options = mlsimport_active_field_configuration();
 	if ( ! is_array( $options ) || empty( $options['mls-fields'] ) || ! is_array( $options['mls-fields'] ) ) {
 		return array();
 	}

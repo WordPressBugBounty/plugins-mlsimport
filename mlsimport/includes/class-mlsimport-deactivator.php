@@ -35,17 +35,19 @@ class Mlsimport_Deactivator {
 	/**
 	 * Run on plugin deactivation.
 	 *
-	 * Intentionally a no-op: the cleanup calls below are left commented out so the
-	 * cached schema transient and saved admin options persist across deactivation
-	 * (re-activating keeps the user's configuration).
+	 * Settings survive deactivation on purpose (re-activating keeps the user's
+	 * configuration), but the cached rewrite rules must not: the standalone
+	 * property archive rule would keep claiming its URL base with the plugin
+	 * off (#206). Deleting rewrite_rules makes WordPress rebuild them on the
+	 * next request, without this plugin's CPTs. The mode signature is deleted
+	 * too so Mlsimport_Standalone_Cpt::maybe_flush_rewrites() re-flushes on
+	 * the first init after a future re-activation.
 	 *
 	 * @since    1.0.0
 	 * @return   void
 	 */
 	public static function deactivate() {
-		// Disabled cleanup — kept for reference; uncomment to wipe plugin state on deactivate.
-		//	global $mlsimport;
-		//	delete_transient( 'mlsimport_plugin_data_schema' );
-		//	delete_option( 'mlsimport_admin_options' );
+		delete_option( 'rewrite_rules' );
+		delete_option( 'mlsimport_rewrite_mode' );
 	}
 }

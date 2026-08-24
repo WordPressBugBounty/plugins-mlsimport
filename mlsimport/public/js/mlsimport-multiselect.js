@@ -165,10 +165,21 @@
 			} );
 		}
 
+		// Set while open when the panel had to escape a clipping ancestor.
+		var unfloat = null;
+
 		/** Open the dropdown panel and focus the (reset) search box. */
 		function open() {
 			wrap.classList.add( 'is-open' );
 			control.setAttribute( 'aria-expanded', 'true' );
+			// The panel is absolutely positioned inside the field, so any ancestor with
+			// overflow hidden/clip crops it — including .wp-block-cover, which core
+			// gives `overflow: clip` and which most search-form heroes sit inside.
+			// mlsimport-search-popups.js owns the helper; read it at open time so
+			// enqueue order between the two scripts does not matter.
+			if ( 'function' === typeof window.mlsimportFloatFree ) {
+				unfloat = window.mlsimportFloatFree( dropdown, control );
+			}
 			search.value = '';
 			filter( '' );
 			search.focus();
@@ -177,6 +188,10 @@
 		function close() {
 			wrap.classList.remove( 'is-open' );
 			control.setAttribute( 'aria-expanded', 'false' );
+			if ( unfloat ) {
+				unfloat();
+				unfloat = null;
+			}
 		}
 
 		// Control click toggles the panel open/closed. The click is deliberately left
