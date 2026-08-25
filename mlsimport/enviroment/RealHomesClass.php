@@ -94,6 +94,12 @@ class RealHomesClass {
 
 		$details = array();
 		foreach ( (array) ( $context['fields'] ?? array() ) as $field ) {
+			// GitHub issue #286: the identity field is never projected as theme
+			// meta or an additional-details row; its lowercased form collides
+			// with the listing identity under case-insensitive meta keys.
+			if ( 'listingkey' === strtolower( (string) $field['field'] ) ) {
+				continue;
+			}
 			if ( '' === (string) ( $field['value'] ?? '' ) ) {
 				continue;
 			}

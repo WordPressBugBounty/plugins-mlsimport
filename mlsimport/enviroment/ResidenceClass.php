@@ -81,6 +81,12 @@ class ResidenceClass {
 	 */
 	public function write_theme_projection( int $property_id, array $property, array $context ): bool {
 		foreach ( (array) ( $context['fields'] ?? array() ) as $field ) {
+			// GitHub issue #286: 'listingkey' is the same case-insensitive meta row
+			// as the listing identity, and a WPResidence custom field the edit
+			// screen saves blank. The identity is never projected as theme meta.
+			if ( 'listingkey' === strtolower( (string) $field['field'] ) ) {
+				continue;
+			}
 			update_post_meta( $property_id, strtolower( (string) $field['field'] ), (string) $field['value'] );
 		}
 		if ( empty( $context['is_new'] ) ) {

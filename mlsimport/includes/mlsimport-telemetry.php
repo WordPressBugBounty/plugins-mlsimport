@@ -515,7 +515,7 @@ function mlsimport_telemetry_sample_completeness(): array {
 		'order'          => 'DESC',
 		'meta_query'     => array(
 			array(
-				'key'     => 'ListingKey',
+				'key'     => '_mlsimport_listing_key',
 				'compare' => 'EXISTS',
 			),
 		),

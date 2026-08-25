@@ -53,7 +53,7 @@ final class Mlsimport_Stored_Listing_WordPress_Environment {
 				'post_status'    => 'any',
 				'posts_per_page' => 1,
 				'fields'         => 'ids',
-				'meta_key'       => 'ListingKey',
+				'meta_key'       => '_mlsimport_listing_key',
 				'meta_value'     => $listing_key,
 				'no_found_rows'  => true,
 			)
@@ -104,6 +104,11 @@ final class Mlsimport_Stored_Listing_WordPress_Environment {
 	 * @return int New post ID, or zero when WordPress rejects it.
 	 */
 	public function create_listing( array $listing ): int {
+		// GitHub issue #286: a listing without its stable identity can never be
+		// found by a later import and would duplicate forever. Refuse the write.
+		if ( '' === (string) ( $listing['listing_key'] ?? '' ) ) {
+			return 0;
+		}
 		$listing_id = wp_insert_post(
 			array(
 				'post_title'   => (string) $listing['listing_key'],
@@ -120,7 +125,10 @@ final class Mlsimport_Stored_Listing_WordPress_Environment {
 
 		$listing_id = (int) $listing_id;
 		$this->touched_ids[] = $listing_id;
-		update_post_meta( $listing_id, 'ListingKey', (string) $listing['listing_key'] );
+		// GitHub issue #286: identity lives in protected (underscore) meta so no
+		// theme custom-field save or Custom Fields box edit can blank it. The
+		// legacy visible 'ListingKey' row is intentionally no longer written.
+		update_post_meta( $listing_id, '_mlsimport_listing_key', (string) $listing['listing_key'] );
 		update_post_meta( $listing_id, 'MLSimport_item_inserted', (int) ( $listing['task_id'] ?? 0 ) );
 		return $listing_id;
 	}

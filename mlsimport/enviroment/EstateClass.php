@@ -72,6 +72,12 @@ class EstateClass {
 	 */
 	public function write_theme_projection( int $property_id, array $property, array $context ): bool {
 		foreach ( (array) ( $context['fields'] ?? array() ) as $field ) {
+			// GitHub issue #286: the identity field is never projected as theme
+			// meta — its lowercased row is the same case-insensitive meta row as
+			// the listing identity and an edit-screen save could blank it.
+			if ( 'listingkey' === strtolower( (string) $field['field'] ) ) {
+				continue;
+			}
 			update_post_meta( $property_id, strtolower( (string) $field['field'] ), (string) $field['value'] );
 		}
 		$this->write_property_features( $property_id, $property );

@@ -639,7 +639,10 @@ class ThemeImport {
 
                // Only delete when the post is actually a property post type.
                if ($postType === $propertyPostType || in_array($postType, ['estate_property', 'property'])) {
-                       // Delete attachments using WordPress functions so the files are removed as well
+                       // GitHub issue #287: capture the attachment IDs BEFORE any deletion
+                       // (they are found by post_parent, gone once the post row is), but do
+                       // NOT delete them yet. File deletion is the only irreversible step,
+                       // so it runs last — only after the post row is confirmed gone.
                        $attachments = get_posts([
                                'numberposts' => -1,
                                'post_type'   => 'attachment',
@@ -648,17 +651,13 @@ class ThemeImport {
                                'fields'      => 'ids',
                        ]);
 
-                       // Remove each attachment (and its underlying file).
-                       foreach ($attachments as $attachmentId) {
-                               wp_delete_attachment($attachmentId, true);
-                       }
-
                        // Capture the current status term names for the delete log.
                        $termObjList   = get_the_terms($deleteId, 'property_status');
-                       $deleteIdStatus = join(', ', wp_list_pluck($termObjList, 'name'));
+                       $deleteIdStatus = is_array($termObjList) ? join(', ', wp_list_pluck($termObjList, 'name')) : '';
 
-                       // Re-read ListingKey from meta; an empty key means a manually added listing.
-                       $ListingKey = get_post_meta($deleteId, 'ListingKey', true);
+                       // Re-read the identity from protected meta (issue #286); an empty key
+                       // means a manually added listing.
+                       $ListingKey = get_post_meta($deleteId, '_mlsimport_listing_key', true);
                        if ('' === $ListingKey) { // manually added listing
                                // Never delete user-created listings; log and bail.
                                $logEntry = 'User added listing with id ' . $deleteId . ' (' . $postType . ') (status ' . $deleteIdStatus . ') and ' . $ListingKey . ' NOT DELETED' . PHP_EOL;
@@ -666,8 +665,9 @@ class ThemeImport {
                                return;
                        }
 
-                       // Log the reconciliation-driven deletion in the activity feed.
-                       mlsimport_record_activity( 'deleted', $deleteId, $ListingKey, intval(get_post_meta($deleteId,'MLSimport_item_inserted',true)), 'reconciliation' );
+                       // Capture the owning task before its meta row is deleted below; the
+                       // success activity entry still needs it afterward.
+                       $ownerTaskId = intval(get_post_meta($deleteId, 'MLSimport_item_inserted', true));
 
                        global $wpdb;
                        // Raw SQL delete skips wp_delete_post (too slow), so nothing cleans the
@@ -677,9 +677,28 @@ class ThemeImport {
                        if ( class_exists( 'Mlsimport_Standalone_Row' ) ) {
                                Mlsimport_Standalone_Row::purge_post_relations( $deleteId );
                        }
-                       // Raw delete of the post's meta, then the post and any remaining children.
+                       // Raw delete of the post's meta, then the post and any remaining
+                       // non-attachment children. Attachment rows and meta must survive this
+                       // step so wp_delete_attachment() below can still remove their files.
                        $wpdb->query($wpdb->prepare("DELETE FROM $wpdb->postmeta WHERE `post_id` = %d", $deleteId));
-                       $wpdb->query($wpdb->prepare("DELETE FROM $wpdb->posts WHERE `post_parent` = %d OR `ID` = %d", $deleteId, $deleteId));
+                       $postsDeleted = $wpdb->query($wpdb->prepare("DELETE FROM $wpdb->posts WHERE (`post_parent` = %d AND `post_type` != 'attachment') OR `ID` = %d", $deleteId, $deleteId));
+
+                       // GitHub issue #287: a failed post delete must leave the listing fully
+                       // intact — no attachment deletion, no "deleted" history, no telemetry.
+                       if (false === $postsDeleted || $postsDeleted < 1) {
+                               $logEntry = 'MYSQL DELETE FAILED -> Property with id ' . $deleteId . ' (' . $postType . ') and ' . $ListingKey . ' was NOT deleted; attachments left untouched' . PHP_EOL;
+                               $this->writeImportLogs($logEntry, 'delete');
+                               return;
+                       }
+
+                       // The post row is durably gone; removing the now-orphaned attachments
+                       // (rows, meta, and files) can no longer strand a visible listing.
+                       foreach ($attachments as $attachmentId) {
+                               wp_delete_attachment($attachmentId, true);
+                       }
+
+                       // Record the deletion in the activity feed only after it happened.
+                       mlsimport_record_activity( 'deleted', $deleteId, $ListingKey, $ownerTaskId, 'reconciliation' );
                        mlsimport_telemetry_bump( 'deleted' );
 
                        $logEntry = 'MYSQL DELETE -> Property with id ' . $deleteId . ' (' . $postType . ') (status ' . $deleteIdStatus . ') and ' . $ListingKey . ' was deleted on ' . current_time('Y-m-d\TH:i') . PHP_EOL;

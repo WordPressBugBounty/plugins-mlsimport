@@ -4,7 +4,7 @@ Tags: idx, idx-plugin, mls, real-estate, wordpress-idx
 Requires at least: 5.2
 Tested up to: 7.0.2
 Requires PHP: 7.4
-Stable tag: 7.1
+Stable tag: 7.1.1
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -103,6 +103,10 @@ Read the terms and conditions of using MLSimport APIs here : https://mlsimport.c
 
 
 == Changelog ==
+= 7.1.1 =
+* Fixed featured properties losing their images - saving a property in wp-admin could blank its internal ListingKey (WordPress treats the meta keys ListingKey and the theme custom field listingkey as the same database row), so the next import could not find the listing and imported it again as a duplicate; the new post got the photos while the original featured post kept dead image references. The listing identity is now stored in protected meta (_mlsimport_listing_key) that theme edit screens cannot touch, theme field projection no longer writes the identity as an editable custom field, the importer refuses to create a listing without an identity, and a one-time automatic migration copies the identity for all existing listings so they keep updating in place.
+* Fixed listing deletion removing a property's images before the property itself - when the final post deletion failed, the site was left with a published listing whose gallery pointed at deleted images. Deletion now removes the property post first and deletes its photos only after that succeeds, on both the reconciliation path and the admin delete tool; a failed deletion now leaves the listing completely untouched (and the delete tool no longer records a deletion that did not happen).
+
 = 7.1 =
 * Import task health at a glance - new status column in the Import Tasks list showing each task's live state (synced, importing, sync overdue, stuck, failed, auto-sync off, never imported).
 * Sturdier imports - manual imports are now resumable, chunked runs with a watchdog; the hourly sync picks tasks in starvation order so no task is left behind; a completed manual import now seeds the sync watermark so new tasks start hourly-syncing right away.

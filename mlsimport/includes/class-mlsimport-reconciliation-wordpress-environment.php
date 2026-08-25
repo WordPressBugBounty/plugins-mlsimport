@@ -169,7 +169,7 @@ final class Mlsimport_Reconciliation_WordPress_Environment implements Mlsimport_
 					 GROUP BY posts.ID, listing_key.meta_value, owner.meta_value, task.ID
 					 ORDER BY posts.ID ASC
 					 LIMIT %d",
-					'ListingKey',
+					'_mlsimport_listing_key',
 					'MLSimport_item_inserted',
 					'mlsimport_item_standardstatusprotect',
 					$last_id,
@@ -226,7 +226,7 @@ final class Mlsimport_Reconciliation_WordPress_Environment implements Mlsimport_
 
 		$post_type = get_post_type( $listing_id );
 		$owner_id  = (int) get_post_meta( $listing_id, 'MLSimport_item_inserted', true );
-		$live_key  = (string) get_post_meta( $listing_id, 'ListingKey', true );
+		$live_key  = (string) get_post_meta( $listing_id, '_mlsimport_listing_key', true );
 		if ( ! $post_type || $owner_id <= 0 || '' === $live_key || $live_key !== $listing_key ) {
 			return false;
 		}
@@ -239,6 +239,10 @@ final class Mlsimport_Reconciliation_WordPress_Environment implements Mlsimport_
 			return false;
 		}
 
+		// GitHub issue #287: capture the attachment IDs BEFORE any deletion —
+		// they are found by post_parent, which is gone once the post row is —
+		// but do NOT delete them yet. File deletion is the only irreversible
+		// step, so it must come last: after the post row is confirmed gone.
 		$attachments = get_posts(
 			array(
 				'numberposts' => -1,
@@ -248,18 +252,15 @@ final class Mlsimport_Reconciliation_WordPress_Environment implements Mlsimport_
 				'fields'      => 'ids',
 			)
 		);
-		foreach ( $attachments as $attachment_id ) {
-			if ( false === wp_delete_attachment( (int) $attachment_id, true ) ) {
-				return false;
-			}
-		}
 
 		if ( class_exists( 'Mlsimport_Standalone_Row' ) ) {
 			Mlsimport_Standalone_Row::purge_post_relations( $listing_id );
 		}
 		wp_delete_object_term_relationships( $listing_id, get_object_taxonomies( $post_type ) );
 
-		// Intentional raw cleanup sequence required by ADR-0008.
+		// Intentional raw cleanup sequence required by ADR-0008. The child-row
+		// deletes exclude attachments: their rows and meta must survive this
+		// step so wp_delete_attachment() below can still remove their files.
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
 		$comments_deleted = $wpdb->query(
 			$wpdb->prepare(
@@ -272,12 +273,21 @@ final class Mlsimport_Reconciliation_WordPress_Environment implements Mlsimport_
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
 		$comments = $wpdb->delete( $wpdb->comments, array( 'comment_post_ID' => $listing_id ), array( '%d' ) );
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-		$meta = $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->postmeta} WHERE post_id = %d OR post_id IN (SELECT ID FROM {$wpdb->posts} WHERE post_parent = %d)", $listing_id, $listing_id ) );
+		$meta = $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->postmeta} WHERE post_id = %d OR post_id IN (SELECT ID FROM {$wpdb->posts} WHERE post_parent = %d AND post_type != 'attachment')", $listing_id, $listing_id ) );
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-		$posts = $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->posts} WHERE post_parent = %d OR ID = %d", $listing_id, $listing_id ) );
+		$posts = $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->posts} WHERE (post_parent = %d AND post_type != 'attachment') OR ID = %d", $listing_id, $listing_id ) );
 
 		if ( false === $comments_deleted || false === $comments || false === $meta || false === $posts || $posts < 1 ) {
+			// Nothing irreversible has happened: the listing (and every
+			// attachment file) is fully intact and the next run retries it.
 			return false;
+		}
+
+		// The post row is durably gone; deleting the now-orphaned attachments
+		// (rows, meta, and files) can no longer strand a visible listing. A
+		// failure here leaves only an invisible orphaned attachment.
+		foreach ( $attachments as $attachment_id ) {
+			wp_delete_attachment( (int) $attachment_id, true );
 		}
 
 		clean_post_cache( $listing_id );

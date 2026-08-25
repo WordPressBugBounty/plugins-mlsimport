@@ -986,7 +986,7 @@ class Mlsimport_Admin {
 		// Which Import Task created / last updated this property, and its RESO key.
 		$MLSimport_item_inserted = get_post_meta( $post->ID, 'MLSimport_item_inserted', true );
 		$MLSimport_item_updated = get_post_meta( $post->ID, 'MLSimport_item_updated', true );
-		$listing_key = get_post_meta( $post->ID, 'ListingKey', true );
+		$listing_key = get_post_meta( $post->ID, '_mlsimport_listing_key', true );
 
 		// Get the import task ID to retrieve protected statuses
 		// (prefer the inserting task, fall back to the updating task).
@@ -1034,7 +1034,9 @@ class Mlsimport_Admin {
 				if ( function_exists( 'mlsimport_is_standalone_mode' ) && mlsimport_is_standalone_mode() && function_exists( 'mlsimport_property_field_value' ) ) {
 					$field_value = mlsimport_property_field_value( (int) $post->ID, (string) $key );
 				} else {
-					$meta_key    = ( 'ListingKey' !== $key ) ? strtolower( $key ) : $key;
+					// Issue #286: the identity is protected meta, never a lowercased
+					// theme custom field.
+					$meta_key    = ( 'ListingKey' !== $key ) ? strtolower( $key ) : '_mlsimport_listing_key';
 					$field_value = (string) get_post_meta( $post->ID, $meta_key, true );
 				}
 				?>
