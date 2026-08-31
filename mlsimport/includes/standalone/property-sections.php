@@ -271,21 +271,9 @@ function mlsimport_property_feature_names( int $id ): array {
 		return array();
 	}
 
-	// Term names can be packed RESO values ("BambooFloor,Quartz,TileFloor"); split
-	// each into its own amenity so chips stay short and never overflow the grid.
-	$names = array();
-	foreach ( wp_list_pluck( $terms, 'name' ) as $name ) {
-		// Break one packed term into its comma-separated parts.
-		foreach ( explode( ',', $name ) as $part ) {
-			$part = trim( $part );
-			// Keep only non-empty parts.
-			if ( '' !== $part ) {
-				$names[] = $part;
-			}
-		}
-	}
-	// De-dupe and re-index so each amenity chip appears once.
-	return array_values( array_unique( $names ) );
+	// One chip per term — the importer writes one term per value (#290), so
+	// names arrive individual. De-dupe and re-index so each appears once.
+	return array_values( array_unique( array_filter( wp_list_pluck( $terms, 'name' ) ) ) );
 }
 
 /**
@@ -1182,10 +1170,8 @@ function mlsimport_property_breadcrumb_items( int $id, array $data ): array {
  * Every term this listing carries, indexed by lower-cased display text, mapped
  * to its public term archive — the lookup behind mlsimport_property_link_term().
  *
- * Feeds pack several values into one term name ("CornerLot,PublicRoad"), and the
- * page splits those apart before showing them, so each comma-separated part is
- * indexed to the same archive alongside the whole name. A term whose link can't
- * be built is left out, so it simply renders as plain text.
+ * A term whose link can't be built is left out, so it simply renders as
+ * plain text.
  *
  * Built once per post per request: the property page asks for these links from
  * the chips, the facts grid and the amenity list.
@@ -1213,12 +1199,10 @@ function mlsimport_property_term_link_map( int $id ): array {
 			if ( is_wp_error( $url ) ) {
 				continue;
 			}
-			// Index the full name plus each packed part, all pointing at the term.
-			foreach ( array_merge( array( $term->name ), explode( ',', $term->name ) ) as $text ) {
-				$key = strtolower( trim( (string) $text ) );
-				if ( '' !== $key ) {
-					$map[ $key ] = $url;
-				}
+			// Index the term by its display text.
+			$key = strtolower( trim( $term->name ) );
+			if ( '' !== $key ) {
+				$map[ $key ] = $url;
 			}
 		}
 	}

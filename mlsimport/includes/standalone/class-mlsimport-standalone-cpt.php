@@ -72,6 +72,75 @@ class Mlsimport_Standalone_Cpt {
 	}
 
 	/**
+	 * One-time repair for packed taxonomy terms (issue #290).
+	 *
+	 * Before 7.1.2 a multi-enum RESO field arriving as one comma-glued string
+	 * ("Back Yard,Corners Marked") became ONE term whose sanitized slug glued
+	 * every value together — a dead-end archive every feature chip linked to.
+	 * The importer now splits such values at write time; this walks the terms
+	 * that pre-fix imports already created and repairs them in place.
+	 *
+	 * Step by step, per plugin taxonomy:
+	 *   1. Find terms whose name contains a comma (the packed ones).
+	 *   2. For every post carrying a packed term, append the individual parts
+	 *      as their own terms (created on the fly by wp_set_object_terms).
+	 *   3. Delete the packed term — wp_delete_term also detaches it everywhere.
+	 *
+	 * @return int Number of packed terms split (0 on a clean site).
+	 */
+	public static function split_packed_terms(): int {
+		$split = 0;
+		foreach ( self::taxonomy_slugs() as $taxonomy ) {
+			// Step 1 - every term in the taxonomy, attached or not.
+			$terms = get_terms(
+				array(
+					'taxonomy'   => $taxonomy,
+					'hide_empty' => false,
+				)
+			);
+			if ( ! is_array( $terms ) ) {
+				continue;
+			}
+			foreach ( $terms as $term ) {
+				// Only packed names need repair.
+				if ( false === strpos( $term->name, ',' ) ) {
+					continue;
+				}
+				// The individual values hidden inside the packed name.
+				$parts = array_filter( array_map( 'trim', explode( ',', $term->name ) ), 'strlen' );
+
+				// Step 2 - re-file every post carrying the packed term under the
+				// individual parts (append, so its other terms are kept).
+				$post_ids = get_objects_in_term( $term->term_id, $taxonomy );
+				foreach ( ( is_array( $post_ids ) ? $post_ids : array() ) as $post_id ) {
+					wp_set_object_terms( (int) $post_id, $parts, $taxonomy, true );
+				}
+
+				// Step 3 - remove the packed term (and its dead-end archive).
+				wp_delete_term( $term->term_id, $taxonomy );
+				$split++;
+			}
+		}
+		return $split;
+	}
+
+	/**
+	 * Run split_packed_terms() once per site, guarded by an option so the term
+	 * sweep doesn't repeat on every admin_init.
+	 *
+	 * @return void
+	 */
+	public static function maybe_split_packed_terms(): void {
+		// Already repaired: nothing to do.
+		if ( get_option( 'mlsimport_packed_terms_split' ) ) {
+			return;
+		}
+		self::split_packed_terms();
+		// Remember the repair ran so this stays a one-time migration.
+		update_option( 'mlsimport_packed_terms_split', 1 );
+	}
+
+	/**
 	 * The URL base the property archive and single permalinks sit on.
 	 *
 	 * Deliberately NOT 'properties' (#206): a CPT archive rewrite out-ranks

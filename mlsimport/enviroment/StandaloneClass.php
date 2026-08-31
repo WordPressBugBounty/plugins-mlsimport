@@ -141,7 +141,10 @@ class StandaloneClass {
 				// Target kind 2: taxonomy terms.
 				} elseif ( 'tax' === $kind ) {
 					// Multi-enum arrays (Appliances, View...) -> one term per value.
-					foreach ( ( $is_array ? $value : array( $value ) ) as $term ) {
+					// Some feeds send the multi-enum as ONE comma-glued string; split
+					// it so each value still becomes its own term, never a glued term
+					// whose sanitized slug is a dead-end archive (fix #290).
+					foreach ( ( $is_array ? $value : array_map( 'trim', explode( ',', (string) $value ) ) ) as $term ) {
 						// Collect non-empty term names under their taxonomy.
 						if ( '' !== (string) $term ) {
 							$terms_by_tax[ $name ][] = (string) $term;
