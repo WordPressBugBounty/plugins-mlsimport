@@ -36,11 +36,12 @@ if ( ! defined( 'MINUTE_IN_SECONDS' ) ) {
 // ---------------------------------------------------------------------------
 
 /**
- * In-memory counter deltas for the current request.
- * Keys: imported | updated | deleted | syncs | token_failures.
+ * In-memory counter deltas for the current request, nested per connection:
+ * mls_id => (imported | updated | deleted | syncs | token_failures => delta).
+ * mls_id 0 holds unattributed (account-level) deltas — issue #283.
  * Written to wp_options exactly once — on shutdown — by mlsimport_telemetry_flush().
  *
- * @var array<string,int>
+ * @var array<int,array<string,int>>
  */
 $mlsimport_telemetry_pending = array();
 
@@ -53,11 +54,19 @@ $mlsimport_telemetry_pending = array();
  * Allowed $metric: 'imported' | 'updated' | 'deleted' | 'syncs' | 'token_failures'.
  * No DB access — deltas are written to wp_options once, on shutdown, by flush().
  *
+ * Multi-MLS (issue #283): callers pass the connection the activity belongs to
+ * (they have it in hand from the task binding). Flush folds every delta into
+ * the unchanged GLOBAL daily bucket AND, for a positive id, into that
+ * connection's own bucket — so global sums stay the sum of the per-connection
+ * buckets. mls_id 0 = account-level activity with no owning connection
+ * (e.g. SaaS token refresh failures), counted globally only.
+ *
  * @param string $metric One of the five allowed metric keys.
  * @param int    $amount Amount to add (default 1).
+ * @param int    $mls_id Connection the activity belongs to (0 = unattributed).
  * @return void
  */
-function mlsimport_telemetry_bump( string $metric, int $amount = 1 ): void {
+function mlsimport_telemetry_bump( string $metric, int $amount = 1, int $mls_id = 0 ): void {
 	// Whitelist of accepted metric keys.
 	$allowed = array( 'imported', 'updated', 'deleted', 'syncs', 'token_failures' );
 	// Guard: silently ignore an unknown metric key.
@@ -66,12 +75,14 @@ function mlsimport_telemetry_bump( string $metric, int $amount = 1 ): void {
 	}
 	// Reach the request-scoped accumulator.
 	global $mlsimport_telemetry_pending;
-	// Lazily zero-initialise this metric's slot on first use.
-	if ( ! isset( $mlsimport_telemetry_pending[ $metric ] ) ) {
-		$mlsimport_telemetry_pending[ $metric ] = 0;
+	// Normalize a negative id to the unattributed slot.
+	$mls_id = max( 0, $mls_id );
+	// Lazily zero-initialise this connection+metric slot on first use.
+	if ( ! isset( $mlsimport_telemetry_pending[ $mls_id ][ $metric ] ) ) {
+		$mlsimport_telemetry_pending[ $mls_id ][ $metric ] = 0;
 	}
 	// Add the delta (no DB touch here — flush writes on shutdown).
-	$mlsimport_telemetry_pending[ $metric ] += $amount;
+	$mlsimport_telemetry_pending[ $mls_id ][ $metric ] += $amount;
 }
 
 // ---------------------------------------------------------------------------
@@ -79,10 +90,58 @@ function mlsimport_telemetry_bump( string $metric, int $amount = 1 ): void {
 // ---------------------------------------------------------------------------
 
 /**
- * Flush accumulated counter deltas into today's daily bucket.
+ * Fold one connection's pending deltas into one daily-bucket map. Pure.
+ *
+ * Step by step:
+ * 1. Zero-base today's bucket for all five counters (keeping accumulated values).
+ * 2. Add each pending delta into its counter.
+ * 3. Prune buckets older than the retention window.
+ *
+ * Shared by flush() for the GLOBAL map ('daily') and every per-connection
+ * map ('daily_mls'[mls_id]) so both fold the same one way (issue #283).
+ *
+ * @param array  $daily   Daily bucket map (YYYY-MM-DD => counters).
+ * @param array  $pending Metric => delta for this request.
+ * @param string $today   Today's UTC date 'Y-m-d'.
+ * @return array The updated, pruned daily map.
+ */
+function mlsimport_telemetry_fold_bucket( array $daily, array $pending, string $today ): array {
+	// Step 1: zero-base for all five counters in today's bucket.
+	$bucket = array_merge(
+		array(
+			'imported'       => 0,
+			'updated'        => 0,
+			'deleted'        => 0,
+			'syncs'          => 0,
+			'token_failures' => 0,
+		),
+		isset( $daily[ $today ] ) && is_array( $daily[ $today ] ) ? $daily[ $today ] : array()
+	);
+
+	// Step 2: fold this request's deltas into the bucket.
+	foreach ( $pending as $metric => $delta ) {
+		if ( isset( $bucket[ $metric ] ) ) {
+			$bucket[ $metric ] += $delta;
+		}
+	}
+
+	// Step 3: store the bucket, drop buckets past the retention window.
+	$daily[ $today ] = $bucket;
+	return mlsimport_telemetry_prune_buckets( $daily, $today );
+}
+
+/**
+ * Flush accumulated counter deltas into today's daily buckets.
  * No-op when nothing is pending. Reads + writes the single option
  * 'mlsimport_telemetry_state' exactly once, prunes buckets older than 8 days,
  * resets the pending array. Registered on the 'shutdown' action.
+ *
+ * Multi-MLS (issue #283): pending deltas arrive nested per connection.
+ * Every delta folds into the unchanged GLOBAL 'daily' map; a positive
+ * connection id additionally folds into that connection's own map under
+ * 'daily_mls' — so the global 7-day sums equal the sum of the per-connection
+ * buckets by construction. A connection whose fold carried import activity
+ * (imported/updated/deleted) also gets its 'connection_last_import' stamp.
  *
  * @return void
  */
@@ -101,36 +160,41 @@ function mlsimport_telemetry_flush(): void {
 		$state = array();
 	}
 
-	// Ensure the daily bucket map exists.
+	// Ensure the global and per-connection bucket maps exist.
 	if ( ! isset( $state['daily'] ) || ! is_array( $state['daily'] ) ) {
 		$state['daily'] = array();
 	}
-
-	// Today's UTC date is the bucket key; start from any existing bucket.
-	$today  = gmdate( 'Y-m-d' );
-	$bucket = isset( $state['daily'][ $today ] ) ? $state['daily'][ $today ] : array();
-
-	// Initialise zero-base for all five counters in this bucket.
-	$defaults = array(
-		'imported'       => 0,
-		'updated'        => 0,
-		'deleted'        => 0,
-		'syncs'          => 0,
-		'token_failures' => 0,
-	);
-	// Fill any missing counters with 0 while keeping already-accumulated values.
-	$bucket = array_merge( $defaults, $bucket );
-
-	// Fold this request's pending deltas into today's bucket.
-	foreach ( $mlsimport_telemetry_pending as $metric => $delta ) {
-		if ( isset( $bucket[ $metric ] ) ) {
-			$bucket[ $metric ] += $delta;
-		}
+	if ( ! isset( $state['daily_mls'] ) || ! is_array( $state['daily_mls'] ) ) {
+		$state['daily_mls'] = array();
 	}
 
-	// Store the updated bucket, then drop buckets older than the retention window.
-	$state['daily'][ $today ] = $bucket;
-	$state['daily']           = mlsimport_telemetry_prune_buckets( $state['daily'], $today );
+	// Today's UTC date is the bucket key everywhere.
+	$today = gmdate( 'Y-m-d' );
+
+	// Fold every connection's deltas — each connection once, globals once each.
+	foreach ( $mlsimport_telemetry_pending as $mls_id => $pending ) {
+		// Every delta counts globally (legacy fields unchanged).
+		$state['daily'] = mlsimport_telemetry_fold_bucket( $state['daily'], $pending, $today );
+
+		// Unattributed (account-level) deltas stop at the global map.
+		if ( $mls_id <= 0 ) {
+			continue;
+		}
+
+		// This connection's own bucket map.
+		$mls_daily = is_array( $state['daily_mls'][ $mls_id ] ?? null ) ? $state['daily_mls'][ $mls_id ] : array();
+		$state['daily_mls'][ $mls_id ] = mlsimport_telemetry_fold_bucket( $mls_daily, $pending, $today );
+
+		// Import activity stamps this connection's last-import time (#283) —
+		// syncs/token ticks alone are not imports and do not move it.
+		$activity = (int) ( $pending['imported'] ?? 0 ) + (int) ( $pending['updated'] ?? 0 ) + (int) ( $pending['deleted'] ?? 0 );
+		if ( $activity > 0 ) {
+			if ( ! isset( $state['connection_last_import'] ) || ! is_array( $state['connection_last_import'] ) ) {
+				$state['connection_last_import'] = array();
+			}
+			$state['connection_last_import'][ $mls_id ] = time();
+		}
+	}
 
 	// Single write, non-autoloaded.
 	update_option( 'mlsimport_telemetry_state', $state, false );
@@ -202,19 +266,38 @@ function mlsimport_telemetry_set_once( string $key, $value ): void {
  * success evidence — the previous end-of-loop-only stamp left actively
  * syncing sites reporting last_successful_sync = "never".
  *
+ * Multi-MLS (issue #283): the caller passes the connection the pull ran for
+ * (in hand from the task binding). Each pull ticks that connection's 'syncs'
+ * counter, and the outcome is additionally stamped into the per-connection
+ * success/failure maps — the GLOBAL sync_health stamps stay exactly as before.
+ *
  * @param mixed $answer The normalized listings API answer array.
+ * @param int   $mls_id Connection the pull ran for (0 = unattributed).
  * @return void
  */
-function mlsimport_telemetry_record_sync_result( $answer ): void {
+function mlsimport_telemetry_record_sync_result( $answer, int $mls_id = 0 ): void {
+	// One pull = one sync tick, counted against its own connection (#283).
+	// This is also what makes syncs_last_7_days a live counter again.
+	mlsimport_telemetry_bump( 'syncs', 1, $mls_id );
+
 	// A successful pull always carries the feed count under 'results'.
 	if ( is_array( $answer ) && isset( $answer['results'] ) ) {
 		mlsimport_telemetry_set( 'last_sync_success', time() );
+		// Per-connection success stamp (#283).
+		if ( $mls_id > 0 ) {
+			mlsimport_telemetry_record_connection_sync( $mls_id, true );
+		}
 		return;
 	}
 	// Anything else is a failed pull: stamp when it happened and a real
 	// failure class — previously every failure surfaced as "unknown".
+	$code = mlsimport_telemetry_classify_sync_failure( $answer );
 	mlsimport_telemetry_set( 'last_sync_failed', time() );
-	mlsimport_telemetry_set( 'last_sync_failed_code', mlsimport_telemetry_classify_sync_failure( $answer ) );
+	mlsimport_telemetry_set( 'last_sync_failed_code', $code );
+	// Per-connection failure stamp (#283).
+	if ( $mls_id > 0 ) {
+		mlsimport_telemetry_record_connection_sync( $mls_id, false, $code );
+	}
 }
 
 /**
@@ -520,6 +603,9 @@ function mlsimport_telemetry_sample_completeness(): array {
 			),
 		),
 		'no_found_rows'  => true,
+		// Telemetry samples STORED listings; dedupe-hidden copies (#282) are
+		// stored and must count.
+		'mlsimport_include_hidden' => true,
 	);
 
 	// Run the query (guard for environments without get_posts()).
@@ -672,8 +758,14 @@ function mlsimport_telemetry_collect_payload(): array {
 		'no_found_rows'  => true,
 	) ) : array();
 
-	$import_tasks       = array();
-	$auto_update_any    = false;
+	// --- connections registry (issue #283) ---
+	// One record per registered MLS, priority-sorted (1 first). The
+	// class_exists guard mirrors the get_posts/WP_Query guards above: legacy
+	// unit harnesses load this file without the registry class.
+	$connection_records = class_exists( 'Mlsimport_Connections' ) ? Mlsimport_Connections::all() : array();
+
+	$import_tasks    = array();
+	$auto_update_any = false;
 	foreach ( $raw_tasks_query as $task_id ) {
 		$how_many   = (int) get_post_meta( $task_id, 'mlsimport_item_how_many', true );
 		$stat_cron  = (int) get_post_meta( $task_id, 'mlsimport_item_stat_cron', true );
@@ -687,21 +779,38 @@ function mlsimport_telemetry_collect_payload(): array {
 		);
 	}
 
+	// Per-connection workload (issue #283): task/paused/listing counts per
+	// connection, gathered by the module that owns the per-connection half
+	// of the heartbeat. Skipped entirely on an empty registry (also keeps
+	// legacy unit harnesses off the binding-module functions).
+	$connection_workload = $connection_records
+		? mlsimport_telemetry_gather_connection_workload( $connection_records, $raw_tasks_query, $post_type )
+		: array();
+
 	// --- MLS provider / ID ---
+	// Legacy singular fields (decision #272): filled from the PRIORITY-1
+	// connection so the current portal keeps working while it learns the
+	// connections array. An empty registry keeps the pre-multi-MLS derivation.
 	$mls_provider = '';
 	$mls_id       = 0;
-	if ( isset( $opts['mlsimport_mls_name'] ) && '' !== $opts['mlsimport_mls_name'] ) {
-		$mls_id = (int) $opts['mlsimport_mls_name'];
-	}
-	// Derive MLS provider label from the theme/MLS env class name if available.
-	if (
-		isset( $mlsimport ) &&
-		isset( $mlsimport->admin ) &&
-		isset( $mlsimport->admin->mls_env_data ) &&
-		is_object( $mlsimport->admin->mls_env_data )
-	) {
-		$mls_class    = get_class( $mlsimport->admin->mls_env_data );
-		$mls_provider = ( 'stdClass' !== $mls_class ) ? $mls_class : '';
+	if ( $connection_records ) {
+		$priority_one = reset( $connection_records );
+		$mls_id       = (int) $priority_one['mls_id'];
+		$mls_provider = (string) $priority_one['provider_type'];
+	} else {
+		if ( isset( $opts['mlsimport_mls_name'] ) && '' !== $opts['mlsimport_mls_name'] ) {
+			$mls_id = (int) $opts['mlsimport_mls_name'];
+		}
+		// Derive MLS provider label from the theme/MLS env class name if available.
+		if (
+			isset( $mlsimport ) &&
+			isset( $mlsimport->admin ) &&
+			isset( $mlsimport->admin->mls_env_data ) &&
+			is_object( $mlsimport->admin->mls_env_data )
+		) {
+			$mls_class    = get_class( $mlsimport->admin->mls_env_data );
+			$mls_provider = ( 'stdClass' !== $mls_class ) ? $mls_class : '';
+		}
 	}
 
 	// Theme label.
@@ -769,6 +878,15 @@ function mlsimport_telemetry_collect_payload(): array {
 			'import_tasks'        => $import_tasks,
 			'import_tasks_count'  => count( $import_tasks ),
 			'auto_update_enabled' => (bool) $auto_update_any,
+		),
+		// Per-connection health (issue #283, decision #272): one entry per
+		// registered connection, priority order; a single-connection install
+		// sends the identical shape with a one-entry array.
+		'connections'   => mlsimport_telemetry_connections_payload(
+			$connection_records,
+			$state,
+			$today,
+			$connection_workload
 		),
 		'environment'   => array(
 			'plugin_version'    => defined( 'MLSIMPORT_VERSION' ) ? MLSIMPORT_VERSION : '',

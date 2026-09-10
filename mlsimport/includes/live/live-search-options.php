@@ -108,7 +108,7 @@ function mlsimport_live_property_enums(): array {
 	static $memo     = array();
 
 	// No saved enum blob: no options.
-	$raw = get_option( 'mlsimport_mls_metadata_mls_enums', '' );
+	$raw = mlsimport_get_connection_option( 'mlsimport_mls_metadata_mls_enums', '' );
 	if ( ! is_string( $raw ) || '' === $raw ) {
 		return array();
 	}

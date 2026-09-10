@@ -17,7 +17,7 @@ if ( ! defined( 'WPINC' ) ) {
 
 global $mlsimport;
 
-$metadata_populated = get_option( 'mlsimport_mls_metadata_populated', '' );
+$metadata_populated = mlsimport_get_connection_option( 'mlsimport_mls_metadata_populated', '' );
 if ( 'yes' === $metadata_populated ) {
 	$mlsimport->admin->mlsimport_saas_setting_up();
 	$metadata      = mlsimport_field_configuration_metadata();

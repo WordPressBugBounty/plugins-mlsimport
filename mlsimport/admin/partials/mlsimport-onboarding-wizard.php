@@ -134,6 +134,14 @@ $prev_url = admin_url('admin.php?page=mlsimport-onboarding&step=' . $prev_step);
         </div>
         
         <div class="mlsimport-wizard-content-body">
+            <?php
+            /*
+             * Form validation runs on admin_init before this template renders.
+             * Print only this wizard's request-local settings errors above the
+             * form that needs correction; no transient error state is stored.
+             */
+            settings_errors( 'mlsimport_onboarding' );
+            ?>
             <form id="mlsimport-wizard-form" method="post" action="">
                 <?php 
                 // Output nonce field

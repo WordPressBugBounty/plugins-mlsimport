@@ -2874,6 +2874,13 @@ function mlsimport_saas_request_list() {
 		// Success: reshape the list into autocomplete {label,value} pairs.
 		if ( isset( $answer['success'] ) &&  true === $answer['success']  ) {
 			$mls_data      = $answer['mls_list'];
+
+			// Fresh catalogue in hand: refresh registered connections' display
+			// names so an MLS renamed upstream shows its new name everywhere
+			// (Connections table, import task picker) after a cache clear.
+			if ( is_array( $mls_data ) && class_exists( 'Mlsimport_Connections' ) ) {
+				Mlsimport_Connections::sync_names( $mls_data );
+			}
 			// Prepend the "not listed" opt-out choice.
 			$mls_data['0'] = esc_html__( 'My MLS is not on this list', 'mlsimport' );
 
@@ -2953,12 +2960,15 @@ function mlsimport_sanitize_multi_dimensional_array($data){
  * Cron entry point for the daily SaaS reconciliation pass.
  *
  * Bails out early unless at least one non-trashed import task has a title, then
- * calls the one deep reconciliation interface when an MLS name is configured.
+ * hands off to the per-connection runner (#279) when an MLS name is configured:
+ * one sub-run of the deep reconciliation module per registered connection,
+ * or the single legacy unscoped run while no connections are registered.
  *
- * The same function handles the deduplicated one-hour retry hook. Trigger code
- * intentionally owns no snapshot, status, batching, or deletion decisions.
+ * The same function handles the deduplicated one-hour retry hook — a retry
+ * re-runs all connections, and completed ones converge to no-op keeps. Trigger
+ * code intentionally owns no snapshot, status, batching, or deletion decisions.
  *
- * @return array<string, int|string>|null Reconciliation Outcome, or null when ineligible.
+ * @return array<int, array<string, int|string>>|null Outcome per connection, or null when ineligible.
  */
 function mlsimport_saas_reconciliation_event_function() {
 
@@ -2980,17 +2990,11 @@ function mlsimport_saas_reconciliation_event_function() {
 		return null;
 	}
 
-	// Only reconcile when an MLS name is configured.
+	// Only reconcile when an MLS name is configured. The runner sequences one
+	// scoped sub-run per registered connection (legacy unscoped run when the
+	// registry is empty) and records/logs every outcome itself.
 	if ( isset( $options['mlsimport_mls_name'] ) && '' !==  $options['mlsimport_mls_name']  ) {
-		$environment = new Mlsimport_Reconciliation_WordPress_Environment(
-			static function () use ( $mlsimport ): array {
-				return $mlsimport->admin->mlsimport_saas_get_mls_reconciliation_data();
-			}
-		);
-
-		$outcome = ( new Mlsimport_Reconciliation( $environment ) )->reconcile_current_listings();
-		error_log( 'MLSImport reconciliation outcome: ' . wp_json_encode( $outcome ) );
-		return $outcome;
+		return mlsimport_reconciliation_run_connections();
 	}
 
 	return null;
@@ -3096,9 +3100,10 @@ function mlsimport_populate_columns_params_display_value( $value ) {
  * @return void Output is echoed directly.
  */
 function mlsimport_populate_columns_params_display( $postID ) {
-	// Field definitions come from the admin class.
+	// Field definitions come from the admin class, scoped to the TASK's own
+	// connection (#277) so each row's parameters render against its MLS.
 	global $mlsimport;
-	$field_import = $mlsimport->admin->mlsimport_saas_return_mls_fields();
+	$field_import = $mlsimport->admin->mlsimport_saas_return_mls_fields( mlsimport_task_mls_id( (int) $postID ) );
 
         // Fields whose stored value is always shown verbatim (never collapsed to "ALL").
         $select_all_none = array(
@@ -3230,7 +3235,13 @@ if ( ! function_exists( 'mlsimport_populate_columns' ) ) :
 				time(),
 				// Watermarks are stored with wp_date() in site-local time, so
 				// the overdue cutoff must be built the same way to compare.
-				wp_date( 'Y-m-d\TH:i', time() - MLSIMPORT_TASK_HEALTH_OVERDUE_AFTER )
+				wp_date( 'Y-m-d\TH:i', time() - MLSIMPORT_TASK_HEALTH_OVERDUE_AFTER ),
+				// The hourly runner's own eligibility rule (GitHub issue #330):
+				// a task it will never pick up must not read as merely overdue.
+				mlsimport_cron_task_is_eligible(
+					(int) get_post_meta( $post->ID, 'mlsimport_initial_import_completed', true ),
+					(string) get_post_meta( $post->ID, 'mlsimport_spawn_status', true )
+				)
 			);
 			?>
 			<span class="mlsimport-task-health mlsimport-task-health--<?php echo esc_attr( $health['level'] ); ?>">

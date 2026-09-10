@@ -199,6 +199,16 @@ final class Mlsimport_Import_Task_Execution_WordPress_Environment implements Mls
 			);
 		}
 
+		// A connection the SaaS rejected with the stable not_entitled code skips
+		// its imports until it is re-entitled (#276) — no request is sent and the
+		// Import Run surfaces the failure; other connections are unaffected.
+		if ( mlsimport_connection_not_entitled( (int) ( $arguments['mls_id'] ?? 0 ) ) ) {
+			return array(
+				'success' => false,
+				'error'   => 'Your account is not entitled to this MLS. Imports for it are paused.',
+			);
+		}
+
 		// Proven-previous-version parity: breathe for 100ms between batches so
 		// the database and the SaaS API get a gap between bursts of work. The
 		// first batch of a run starts immediately.
@@ -238,6 +248,12 @@ final class Mlsimport_Import_Task_Execution_WordPress_Environment implements Mls
 			}
 		}
 		if ( ! is_array( $response ) || ! isset( $response['data'] ) || ! is_array( $response['data'] ) ) {
+			// The server rejected this mls_id against the account's entitlements
+			// (#276): mark this one connection so the next batch/run skips it.
+			// The failure below still surfaces — never a silent fallback.
+			if ( mlsimport_response_not_entitled( $response ) ) {
+				mlsimport_mark_connection_not_entitled( (int) ( $arguments['mls_id'] ?? 0 ) );
+			}
 			$error = 'Listings request failed.';
 			if ( is_string( $response ) && '' !== $response ) {
 				$error = $response;
@@ -273,10 +289,14 @@ final class Mlsimport_Import_Task_Execution_WordPress_Environment implements Mls
 		}
 		$title_format = (string) get_post_meta( $task_id, 'mlsimport_item_title_format', true );
 		if ( '' === $title_format ) {
-			$sync_options = get_option( 'mlsimport_admin_mls_sync', array() );
+			// Per-connection sync settings (#275), resolved through the
+			// task's OWN connection binding (#277).
+			$sync_options = mlsimport_get_connection_option( 'mlsimport_admin_mls_sync', array(), mlsimport_task_mls_id( $task_id ) );
 			$title_format = is_array( $sync_options ) ? (string) ( $sync_options['title_format'] ?? '' ) : '';
 		}
-		$field_configuration = mlsimport_active_field_configuration();
+		// Field configuration for the task's OWN connection (#277) — the
+		// shared projection cache, keyed by the task's binding.
+		$field_configuration = mlsimport_active_field_configuration( false, mlsimport_task_mls_id( $task_id ) );
 		$use_mls_agent       = ! empty( get_post_meta( $task_id, 'mlsimport_item_use_mls_agent', true ) );
 		$config_version      = hash(
 			'sha256',

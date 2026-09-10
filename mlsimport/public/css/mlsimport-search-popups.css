@@ -78,7 +78,13 @@
 	left: 0;
 	right: 0;
 	top: calc( 100% + 4px );
-	min-width: 240px;
+	/* 240px keeps the slider and its two number fields usable, but the panel must
+	   never be wider than the screen. A hard 240px floor overflowed any cell
+	   narrower than that — on a 375px phone the bar's cells are ~150px, so the
+	   panel ran off the right edge and its Apply button could not be reached.
+	   The floor itself has to come down: max-width cannot rein in min-width,
+	   because min-width wins. */
+	min-width: min( 240px, calc( 100vw - 24px ) );
 	padding: 14px;
 	background: #fff;
 	border: 1px solid var(--mli-border, #e2e2e2);

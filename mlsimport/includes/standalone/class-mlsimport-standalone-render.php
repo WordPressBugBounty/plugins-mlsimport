@@ -213,10 +213,7 @@ class Mlsimport_Standalone_Render {
 		if ( null === $visible || in_array( 'sort', $visible, true ) ) {
 			// selected() on server render so the DOM value matches the preset; otherwise the
 			// select shows its first option and the next AJAX repaint silently sorts by that.
-			$orderby = isset( $args['orderby'] ) && ! is_array( $args['orderby'] ) ? (string) $args['orderby'] : '';
-			if ( '' === $orderby ) {
-				$orderby = Mlsimport_Standalone_Query::default_sort();
-			}
+			$orderby = Mlsimport_Standalone_Query::sort_token( $args );
 			// A DIV, not a LABEL: mlsimport-property-interest.js replaces the select with
 			// a <button>, and a button inside a label swallows its own clicks to the
 			// label's activation behaviour. The label text becomes a plain span instead.

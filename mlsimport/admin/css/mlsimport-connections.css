@@ -1,0 +1,408 @@
+/**
+ * Connections tab styles (issue #280) — field_options "2025" admin style.
+ *
+ * Design tokens (--primary-color, --accent-color, --border-color, ...) come
+ * from the :root block in mlsimport-admin.css, which always loads with this
+ * file. Layout follows the locked #271 prototype: account bar, plan slot
+ * strip, roomy connections table with priority badges and per-row status
+ * pills, and the amber failure banner row under a failing connection.
+ */
+
+/* The tab fills the 2025 card instead of the narrow form column. */
+.mlsimport-connections {
+    width: 100%;
+    font-size: 13px;
+    color: var(--text-primary);
+}
+
+.mlsimport-conn-muted {
+    color: var(--text-secondary);
+}
+
+/* ===== 1. Account block (summary bar / inline connect form) ===== */
+
+.mlsimport-conn-account {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    padding: 16px 18px;
+    margin-bottom: 16px;
+    background: #fff;
+}
+
+.mlsimport-conn-account.is-signedout {
+    align-items: flex-start;
+}
+
+.mlsimport-conn-account-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 16px;
+    flex: none;
+}
+
+.mlsimport-conn-account-icon.is-ok {
+    background: #e6f4ea;
+    color: #1a7f37;
+}
+
+.mlsimport-conn-account-icon.is-warn {
+    background: #fff3d6;
+    color: #9a6700;
+}
+
+.mlsimport-conn-account-who {
+    display: flex;
+    flex-direction: column;
+}
+
+.mlsimport-conn-account-actions {
+    margin-left: auto;
+    display: flex;
+    gap: 10px;
+}
+
+/* Inline connect form (signed-out state). */
+.mlsimport-conn-signin {
+    flex: 1;
+}
+
+.mlsimport-conn-signin p {
+    margin: 2px 0 0;
+}
+
+.mlsimport-conn-signin-fields {
+    display: flex;
+    gap: 12px;
+    margin-top: 10px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    /* Cap the form: on a wide screen the flex:1 fields would otherwise
+       stretch across the whole card with the button orphaned far right. */
+    max-width: 640px;
+}
+
+.mlsimport-conn-signin-fields label {
+    flex: 1;
+    min-width: 180px;
+    max-width: 240px;
+    font-weight: 500;
+}
+
+.mlsimport-conn-signin-fields input {
+    display: block;
+    width: 100%;
+    margin-top: 4px;
+}
+
+.mlsimport-conn-signin-error {
+    color: #b91c1c;
+    font-weight: 500;
+}
+
+.mlsimport-conn-signup-link {
+    color: var(--accent-color);
+    font-weight: 500;
+    text-decoration: none;
+    display: inline-block;
+    margin-top: 8px;
+}
+
+/* ===== 2. Plan slot strip ===== */
+
+.mlsimport-conn-strip {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    margin-bottom: 18px;
+}
+
+.mlsimport-conn-plan {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--background-soft);
+    border-radius: var(--radius-pill);
+    padding: 8px 16px;
+}
+
+.mlsimport-conn-slots {
+    display: flex;
+    gap: 5px;
+}
+
+.mlsimport-conn-slot {
+    width: 14px;
+    height: 14px;
+    border-radius: 4px;
+    border: 1px solid rgba(28, 25, 23, 0.18);
+    background: #fff;
+}
+
+.mlsimport-conn-slot.is-used {
+    background: var(--accent-color);
+    border-color: var(--accent-color);
+}
+
+.mlsimport-conn-strip .button {
+    margin-left: auto;
+}
+
+/* ===== 3. Connections table ===== */
+
+.mlsimport-conn-tblwrap {
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    overflow: hidden;
+    width: 100%;
+}
+
+.mlsimport-conn-tbl {
+    width: 100%;
+    border-collapse: collapse;
+    background: #fff;
+}
+
+.mlsimport-conn-tbl th {
+    text-align: left;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-size: 11px;
+    color: var(--text-secondary);
+    padding: 12px 14px;
+    background: #fafaf8;
+    border-bottom: 1px solid rgba(28, 25, 23, 0.18);
+    font-weight: 600;
+}
+
+.mlsimport-conn-tbl td {
+    padding: 16px 14px;
+    border-bottom: 1px solid var(--border-color);
+    vertical-align: middle;
+}
+
+.mlsimport-conn-group:last-child tr:last-child td {
+    border-bottom: 0;
+}
+
+.mlsimport-conn-grip {
+    cursor: grab;
+    color: var(--text-secondary);
+    font-size: 15px;
+    user-select: none;
+    width: 30px;
+}
+
+.mlsimport-conn-prio {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+}
+
+.mlsimport-conn-name {
+    font-weight: 600;
+    font-size: 15px;
+}
+
+/* Status pill + last-test time. */
+.mlsimport-conn-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 2px 10px;
+    border-radius: var(--radius-pill);
+    font-weight: 600;
+    font-size: 12px;
+}
+
+.mlsimport-conn-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: currentColor;
+}
+
+.mlsimport-conn-pill.is-ok {
+    background: #e6f4ea;
+    color: #1a7f37;
+}
+
+.mlsimport-conn-pill.is-bad {
+    background: #fdecea;
+    color: #b91c1c;
+}
+
+.mlsimport-conn-pill.is-warn {
+    background: #fff3d6;
+    color: #9a6700;
+}
+
+.mlsimport-conn-when {
+    display: block;
+    color: var(--text-secondary);
+    font-size: 12px;
+    margin-top: 2px;
+}
+
+.mlsimport-conn-counts {
+    color: var(--text-secondary);
+}
+
+.mlsimport-conn-counts b {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.mlsimport-conn-acts a {
+    color: var(--accent-color);
+    text-decoration: none;
+    font-weight: 500;
+    margin-right: 10px;
+}
+
+/* Remove is destructive: red, and only fully opaque on hover. */
+.mlsimport-conn-acts a.mlsimport-conn-remove {
+    color: #b91c1c;
+    opacity: 0.75;
+}
+.mlsimport-conn-acts a.mlsimport-conn-remove:hover {
+    opacity: 1;
+}
+
+/* Failing connection: tinted row + the amber banner row under it. */
+.mlsimport-conn-group.is-failing .mlsimport-conn-row td {
+    background: #fffdf5;
+}
+
+.mlsimport-conn-fixrow td {
+    padding: 0 14px 16px;
+    border-top: 0;
+    background: #fffdf5;
+}
+
+.mlsimport-conn-fixbox {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: #fff3d6;
+    border-radius: 8px;
+    padding: 10px 14px;
+    color: #9a6700;
+}
+
+.mlsimport-conn-fixbox .button {
+    margin-left: auto;
+}
+
+/* Footer note + empty state. */
+.mlsimport-conn-note,
+.mlsimport-conn-empty {
+    background: var(--background-soft);
+    border-radius: 8px;
+    padding: 10px 14px;
+    color: var(--text-secondary);
+    margin-top: 16px;
+    max-width: 70ch;
+}
+
+/* ===== 4. WordPress mobile admin layout ================================
+ *
+ * At the 782px core admin breakpoint, every Connections region must contain
+ * its own width. The account actions and plan strip wrap vertically, the tab
+ * strip becomes a compact wrapping row, and the data table scrolls inside its
+ * bordered wrapper instead of widening the whole wp-admin document.
+ */
+@media screen and ( max-width: 782px ) {
+    .nav-tab-wrapper.mlsimport-tab-wrapper {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        padding: 0;
+        margin-top: 24px;
+    }
+
+    .nav-tab-wrapper.mlsimport-tab-wrapper .nav-tab {
+        float: none;
+        flex: 1 1 auto;
+        margin: 0;
+        padding: 10px 12px;
+        text-align: center;
+    }
+
+    .content-nav-tab.mlsimport_2025_card_left_oriented {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+        padding: 16px;
+    }
+
+    .mlsimport-conn-account {
+        align-items: flex-start;
+        flex-wrap: wrap;
+        padding: 14px;
+    }
+
+    .mlsimport-conn-account-who {
+        flex: 1 1 calc( 100% - 48px );
+        min-width: 0;
+    }
+
+    .mlsimport-conn-account-actions {
+        width: 100%;
+        margin-left: 0;
+        flex-wrap: wrap;
+    }
+
+    .mlsimport-conn-account-actions .button {
+        flex: 1 1 140px;
+    }
+
+    .mlsimport-conn-signin {
+        min-width: 0;
+    }
+
+    .mlsimport-conn-signin-fields label {
+        flex: 1 1 100%;
+        min-width: 0;
+        max-width: none;
+    }
+
+    .mlsimport-conn-strip {
+        align-items: stretch;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .mlsimport-conn-plan {
+        justify-content: center;
+    }
+
+    .mlsimport-conn-strip .button {
+        width: 100%;
+        margin-left: 0;
+    }
+
+    .mlsimport-conn-tblwrap {
+        max-width: 100%;
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .mlsimport-conn-tbl {
+        min-width: 720px;
+    }
+}

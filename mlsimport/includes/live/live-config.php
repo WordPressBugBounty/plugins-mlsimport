@@ -56,6 +56,10 @@ function mlsimport_live_config_refresh() {
 		return false;
 	}
 
+	// Refresh the connection registry from mls_entitlements when the SaaS
+	// sends it (#276); a legacy response without it changes nothing.
+	mlsimport_apply_entitlements( $answer );
+
 	// Copy only the whitelisted, scalar mld_details keys into the stored config.
 	$config = array();
 	foreach ( array( 'api_import_url', 'api_token_url', 'api_media_url', 'type', 'expand', 'field_corellation', 'mls_filter_params', 'mls_id' ) as $key ) {

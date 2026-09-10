@@ -264,11 +264,6 @@ body.mlsimport-wizard-active .is-dismissible {
     color: var(--error-color);
 }
 
-.mlsimport-field-error {
-    border-color: var(--error-color) !important;
-    box-shadow: 0 0 0 1px var(--error-color) !important;
-}
-
 /* Responsive adjustments */
 @media (max-width: 782px) {
     .mlsimport-wizard-step-title {
@@ -307,13 +302,12 @@ body.mlsimport-wizard-active .is-dismissible {
         gap: 1rem;
     }
     
-    .mlsimport-wizard-back,
     .mlsimport-wizard-next,
     .mlsimport-wizard-submit {
         width: 100%;
         text-align: center;
     }
-} none !important; /* NOTE: orphaned "none !important;" fragment after the media-query close brace — appears to be a leftover typo; browsers ignore it. Left as-is. */
+}
 
 
 /* Header bar styling */
@@ -571,20 +565,6 @@ body.mlsimport-wizard-active .is-dismissible {
     margin-top: 1.875rem;
     padding-top: 1.25rem;
     border-top: 1px solid var(--border-color);
-}
-
-.mlsimport-wizard-back {
-    padding: 0.5rem 1rem;
-    background-color: var(--background-white);
-    color: var(--text-primary);
-    border: 1px solid var(--border-color);
-    border-radius: 999px;
-    font-weight: 500;
-    transition: all var(--transition-speed) ease;
-}
-
-.mlsimport-wizard-back:hover {
-    background-color: var(--background-soft);
 }
 
 .mlsimport-wizard-next,
@@ -1119,6 +1099,7 @@ body.mlsimport-wizard-active .is-dismissible {
    line-height, 9px 24px padding, 1px border, hairline shadow) is copied from
    the portal standard so the two match exactly. */
 .mlsimport-save-account,
+.mlsimport-create-account,
 .mlsimport-save-mls-data {
     background-color: var(--primary-color) !important;
     color: white !important;
@@ -1135,6 +1116,7 @@ body.mlsimport-wizard-active .is-dismissible {
 }
 
 .mlsimport-save-account:hover,
+.mlsimport-create-account:hover,
 .mlsimport-save-mls-data:hover {
     background-color: var(--primary-hover) !important;
     border-color: var(--primary-hover) !important;

@@ -326,6 +326,39 @@ class Mlsimport_Standalone_Query {
 	}
 
 	/**
+	 * Resolve query sort params to the friendly token used by the public toolbar.
+	 *
+	 * The query contract intentionally accepts both modern tokens (``newest``)
+	 * and legacy block attributes (``orderby=list_date`` + ``order=desc``).
+	 * The toolbar select can only submit tokens, so a raw saved pair must be
+	 * translated before rendering; otherwise the browser falls back to its empty
+	 * Default option and the next AJAX page loses the saved ordering (issue #314).
+	 * A raw pair with no equivalent public option returns an empty token rather
+	 * than inventing a value the select and request handler do not understand.
+	 *
+	 * @param array $params Filter params (orderby, order).
+	 * @return string Friendly sort token, or '' when no public option represents it.
+	 */
+	public static function sort_token( array $params ): string {
+		$orderby = isset( $params['orderby'] ) && ! is_array( $params['orderby'] ) ? (string) $params['orderby'] : '';
+		if ( '' === $orderby ) {
+			return self::default_sort();
+		}
+		if ( isset( self::SORT_TOKENS[ $orderby ] ) ) {
+			return $orderby;
+		}
+
+		$direction = isset( $params['order'] ) && ! is_array( $params['order'] ) && 'asc' === strtolower( (string) $params['order'] ) ? 'asc' : 'desc';
+		foreach ( self::SORT_TOKENS as $token => $sort ) {
+			if ( $orderby === $sort[0] && $direction === $sort[1] ) {
+				return $token;
+			}
+		}
+
+		return '';
+	}
+
+	/**
 	 * The sort token configured in Design Settings → General → "Order by", or ''
 	 * when set to Default (no ordering beyond the tiebreaker). Also read by the
 	 * results toolbar so the Sort select shows the configured order as selected.

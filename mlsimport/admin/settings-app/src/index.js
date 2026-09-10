@@ -504,7 +504,7 @@ function MediaField( { value, onChange } ) {
  * @param {Array}    props.locked   Slugs pinned Enabled-and-first, undraggable.
  * @return {Element} Two rendered drag-and-drop columns.
  */
-function SectionsArrange( { value, onChange, catalog = [], locked = [] } ) {
+function SectionsArrange( { value, onChange, catalog = [], locked = [], defaultInactive = [] } ) {
 	// Holds the { list, index } origin of the item currently being dragged.
 	const drag = useRef( null );
 
@@ -516,20 +516,17 @@ function SectionsArrange( { value, onChange, catalog = [], locked = [] } ) {
 
 	let active = value && Array.isArray( value.active ) ? value.active : [];
 	let inactive = value && Array.isArray( value.inactive ) ? value.inactive : [];
-	// No saved arrangement yet (nothing in either list) → seed every catalog
-	// section as Enabled, in catalog order, so the control isn't empty on first use.
-	if ( ! active.length && ! inactive.length ) {
-		active = catalog.map( ( c ) => c.slug );
-	} else {
-		// A section the catalog gained AFTER the user last saved is in neither list.
-		// Show it as Enabled — the same rule the PHP sanitizer applies on save — so
-		// a new section isn't missing from both columns until they re-save.
-		active = active.concat(
-			catalog
-				.map( ( c ) => c.slug )
-				.filter( ( s ) => ! active.includes( s ) && ! inactive.includes( s ) )
-		);
-	}
+	// A catalog section the saved value never mentions lands where the field's
+	// default puts it — Disabled for the slugs in defaultInactive (the Tabs /
+	// Accordion containers), Enabled otherwise — which is exactly where the PHP
+	// sanitizer will put it on save. This covers both the first use (nothing saved
+	// yet: every section is unmentioned) and a section the catalog gained AFTER the
+	// user last saved, so it is never missing from both columns.
+	const unmentioned = catalog
+		.map( ( c ) => c.slug )
+		.filter( ( s ) => ! active.includes( s ) && ! inactive.includes( s ) );
+	active = active.concat( unmentioned.filter( ( s ) => ! defaultInactive.includes( s ) ) );
+	inactive = inactive.concat( unmentioned.filter( ( s ) => defaultInactive.includes( s ) ) );
 	// Locked sections are always Enabled and always first, in their fixed order —
 	// exactly where the front end renders them, no matter what a stale saved
 	// layout says. The next save persists this healed order.
@@ -791,6 +788,7 @@ function Field( { field, value, onChange } ) {
 						onChange={ onChange }
 						catalog={ sectionsCatalog( field.catalog ) }
 						locked={ field.catalog === 'property' || ! field.catalog ? LOCKED_SECTIONS : [] }
+						defaultInactive={ field.defaultInactive || [] }
 					/>
 				</>
 			);

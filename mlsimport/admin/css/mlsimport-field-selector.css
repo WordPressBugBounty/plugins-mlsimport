@@ -300,16 +300,18 @@
     border-color: rgba(28, 25, 23, 0.18);
 }
 
-/* The queue status stays in normal document flow so failures and Retry remain
-   visible without transient toast timing or cross-script state. Routine
-   saving/saved feedback is the inline per-control indicator below instead. */
-/* Hidden per request (2026-08-19): the live save-status strip is not shown on
-   the import page. JS still writes into it (harmless on a hidden element). */
+/* Routine saving/saved feedback stays hidden because each edited control has
+   its own inline indicator. The queue-level container is reserved for failures
+   that pause all later commands and require an administrator decision. */
 .mlsimport-field-save-status {
     display: none;
 }
 
 .mlsimport-field-save-status.is-error {
+    /* JavaScript appends Retry or Reload here after preserving the failed head
+       command. Override the routine hidden state so that recovery control is
+       reachable instead of leaving the queue permanently paused. */
+    display: block;
     color: #c02617;
 }
 
@@ -455,4 +457,19 @@
     width: auto;
     float: left;
     transition: all 1s ease-out;
+}
+
+/* Per-connection scope selector (multi-MLS): which MLS's fields this tab
+   edits. Sits above the field table in the shared "2025" control style. */
+.mlsimport-field-scope {
+    margin: 0 0 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+}
+
+.mlsimport-field-scope select {
+    border-radius: 8px;
+    min-width: 260px;
 }

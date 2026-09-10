@@ -15,7 +15,6 @@
     var MLSImportWizard = {
         currentStep: '',   // Slug of the step currently being shown
         steps: {},         // Map of step slug -> step config (order defines navigation)
-        formData: {},      // Scratch object for collected form values
         /**
          * Bootstrap the wizard: pull state from localized data and wire it up.
          */
@@ -27,8 +26,6 @@
             // Initialize event listeners
             this.initEvents();
             
-            // Initialize step-specific functionality
-            this.initCurrentStep();
         },
 
         /**
@@ -37,9 +34,6 @@
         initEvents: function() {
             // Form submission
             $('#mlsimport-wizard-form').on('submit', this.handleFormSubmit);
-            
-            // Back button handling
-            $('.mlsimport-wizard-back').on('click', this.handleBackClick);
             
             // Save data when navigating away
             $(window).on('beforeunload', this.saveCurrentData);
@@ -78,34 +72,6 @@
 
         
         /**
-         * Run any per-step setup based on the current step slug.
-         * Most steps do their own setup inline in their templates.
-         */
-        initCurrentStep: function() {
-            // Step-specific initialization
-            switch(this.currentStep) {
-                case 'welcome':
-                    // Nothing special for welcome step
-                    break;
-                case 'account':
-                    // Initialize autocomplete already handled in template
-                    break;
-                case 'field-mapping':
-                    // Template selection handler already in template
-                    break;
-                case 'import-config':
-                    // Initialize Select2 if available already in template
-                    break;
-                case 'test-import':
-                    // Test import handlers already in template
-                    break;
-                case 'success':
-                    // Success page doesn't need special handling
-                    break;
-            }
-        },
-        
-        /**
          * On form submit, persist the data then let the native submit proceed.
          *
          * @param {Event} e - The submit event.
@@ -116,20 +82,6 @@
             MLSImportWizard.saveCurrentData();
             
             // Let the form submit normally - PHP will handle the processing
-            return true;
-        },
-
-        /**
-         * On Back click, persist the data then let the link navigate.
-         *
-         * @param {Event} e - The click event.
-         * @return {boolean} Always true (do not cancel the navigation).
-         */
-        handleBackClick: function(e) {
-            // Save current form data before going back
-            MLSImportWizard.saveCurrentData();
-            
-            // Let the link work normally
             return true;
         },
 
@@ -172,40 +124,6 @@
             });
         },
         
-        // Utility function to show step-specific sections
-        /**
-         * Hide all step sections and reveal only the one matched by selector.
-         *
-         * @param {string} selector - Selector of the section to show.
-         */
-        showStepSection: function(selector) {
-            $('.mlsimport-step-section').hide();
-            $(selector).show();
-        },
-        
-        // Utility function to validate current step
-        /**
-         * Validate that every [required] field in the form has a value.
-         *
-         * @return {boolean} True if all required fields are filled.
-         */
-        validateStep: function() {
-            var isValid = true;
-            var requiredFields = $('#mlsimport-wizard-form').find('[required]');
-
-            // Flag each empty required field and clear the flag when filled
-            requiredFields.each(function() {
-                if (!$(this).val()) {
-                    isValid = false;
-                    $(this).addClass('mlsimport-field-error');
-                } else {
-                    $(this).removeClass('mlsimport-field-error');
-                }
-            });
-            
-            return isValid;
-        },
-        
         // Utility function to show error message
         /**
          * Display an inline error notice above the form and scroll to it.
@@ -245,58 +163,6 @@
     window.MLSImportWizard = MLSImportWizard;
     
 })(jQuery);
-
-/**
- * Helper function to get a URL parameter by name
- *
- * @param {string} name - Query-string parameter name.
- * @return {string} Decoded value, or '' when absent.
- */
-function getUrlParameter(name) {
-    // Escape regex-special bracket characters in the parameter name
-    name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
-    // Build a matcher for `?name=` / `&name=` and run it against the query string
-    var regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
-    var results = regex.exec(location.search);
-    // No match returns empty; otherwise URL-decode (treating '+' as space)
-    return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
-}
-
-/**
- * Helper function to format large numbers with commas
- *
- * @param {number|string} num - Value to format.
- * @return {string} Number with thousands separators.
- */
-function formatNumber(num) {
-    // Insert a comma before every group of three trailing digits
-    return num.toString().replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1,');
-}
-
-/**
- * Helper function to show a loading state on a button
- *
- * @param {jQuery} button      - The button element.
- * @param {string} loadingText - Optional label; defaults to the localized "loading" string.
- */
-function showButtonLoading(button, loadingText) {
-    // Stash the original label so it can be restored later
-    button.data('original-text', button.html());
-    // Swap in the loading label and disable the button
-    button.html(loadingText || mlsimportOnboarding.strings.loading);
-    button.prop('disabled', true);
-}
-
-/**
- * Helper function to restore a button from loading state
- *
- * @param {jQuery} button - The button element.
- */
-function hideButtonLoading(button) {
-    // Restore the stashed label and re-enable the button
-    button.html(button.data('original-text'));
-    button.prop('disabled', false);
-}
 
 
 
@@ -338,6 +204,8 @@ jQuery(document).ready(function (jQuery) {
     jQuery('.mlsimport-save-account').on('click', function (e) {
         e.preventDefault();
         const button = jQuery(this);
+        // A new attempt replaces any field error from the preceding attempt.
+        window.MLSImportWizard.hideError();
         // Show a persistent "saving" label while the request is in flight
         showButtonStatus(button, mlsimportOnboarding.strings.saving, false);
 
@@ -362,12 +230,20 @@ jQuery(document).ready(function (jQuery) {
                 .closest('fieldset')
                 .before(response.data.html);
             } else {
-                // Server reported failure
+                // Validation failures carry the missing field labels. Surface
+                // that message beside the form instead of reducing it to the
+                // button's generic "Error" state (#306).
                 showButtonStatus(button, mlsimportOnboarding.strings.error);
+                const message = response.data && response.data.message
+                    ? response.data.message
+                    : mlsimportOnboarding.strings.error;
+                window.MLSImportWizard.showError(message);
             }
         }).fail(function () {
-            // Transport failure
+            // A transport failure has no server message, but it still needs
+            // visible feedback beyond the transient button label.
             showButtonStatus(button, mlsimportOnboarding.strings.error);
+            window.MLSImportWizard.showError(mlsimportOnboarding.strings.error);
         });
     });
 
@@ -467,7 +343,6 @@ jQuery(document).ready(function (jQuery) {
 function updateContinueButton() {
     // Count how many validated confirmation messages are present
     const validatedCount = jQuery('.mlsimport_warning.mlsimport_validated').length;
-    console.log('nwe thing');
     const continueButton = jQuery('.mlsimport-wizard-content-account .mlsimport-wizard-next');
 
     // Both checks passed (>=2): enable; otherwise disable

@@ -87,6 +87,14 @@ $quick_links = array(
         'url' => admin_url('admin.php?page=mlsimport_plugin_options'),
         'icon' => 'dashicons-admin-settings',
     ),
+    // The wizard stays the first-MLS flow; managing connections and adding
+    // MLS #2+ happens on the Connections screen (decision #271, issue #281).
+    array(
+        'title' => __('MLS Connections', 'mlsimport'),
+        'description' => __('Manage your connections or add another MLS', 'mlsimport'),
+        'url' => admin_url('admin.php?page=mlsimport_plugin_options&tab=connections'),
+        'icon' => 'dashicons-networking',
+    ),
     array(
         'title' => __('Field Mapping', 'mlsimport'),
         'description' => __('Customize MLS field mappings', 'mlsimport'),

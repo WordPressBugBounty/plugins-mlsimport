@@ -4,8 +4,9 @@
  *
  * Single source of truth for turning a RESO field map into mlsimport_listings
  * column values (via the §9 column targets + derivations) and upserting the row
- * by listing_key. Shared by the live write adapter (fields from the import
- * payload) and reindex (fields reconstructed from a post's meta + taxonomies).
+ * by its composite identity (mls_id, listing_key) — issue #278. Shared by the
+ * live write adapter (fields from the import payload) and reindex (fields
+ * reconstructed from a post's meta + taxonomies).
  *
  * @package Mlsimport
  */
@@ -74,7 +75,8 @@ class Mlsimport_Standalone_Row {
 	}
 
 	/**
-	 * Insert or update the row for a listing, keyed by listing_key (UNIQUE).
+	 * Insert or update the row for a listing, keyed by the composite UNIQUE
+	 * (mls_id, listing_key) — the post's provenance meta supplies mls_id.
 	 *
 	 * The index mirrors published listings only: when the post is not published
 	 * (trashed, draft, pending, private) its row is dropped instead of written, so
@@ -95,16 +97,25 @@ class Mlsimport_Standalone_Row {
 			return false;
 		}
 
-		// Stamp the identity columns onto the row before write.
+		// Stamp the identity columns onto the row before write. Row identity is
+		// composite (issue #278): listing_key is unique only WITHIN one MLS, so
+		// the row carries the post's provenance stamp ('mlsimport_mls_id' meta,
+		// written by the import before this runs and by the migration for old
+		// posts). Reading it from the post keeps live import and reindex on the
+		// same single source of truth.
 		$table              = Mlsimport_Standalone_Table::table_name();
 		$row['listing_key'] = $listing_key;
 		$row['post_id']     = $post_id;
+		$row['mls_id']      = (int) get_post_meta( $post_id, 'mlsimport_mls_id', true );
 
 		/** Filter the flat-table row before write. @since 6.3 */
 		$row = (array) apply_filters( 'mlsimport_listings_row', $row, $post_id, $listing_key );
 
+		// Match on BOTH identity columns (mirrors the composite UNIQUE key):
+		// the same key imported by another MLS must land in its own row. The
+		// ?? 0 guards against a filter callback dropping the key from the row.
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$existing = $wpdb->get_var( $wpdb->prepare( "SELECT id FROM {$table} WHERE listing_key = %s", $listing_key ) );
+		$existing = $wpdb->get_var( $wpdb->prepare( "SELECT id FROM {$table} WHERE mls_id = %d AND listing_key = %s", (int) ( $row['mls_id'] ?? 0 ), $listing_key ) );
 
 		// Update in place when a row already exists for this listing_key, else insert.
 		if ( $existing ) {

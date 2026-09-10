@@ -2,12 +2,15 @@
 /**
  * Refactored onboarding step using admin options, keeping original onboarding layout and logic.
  *
- * Onboarding wizard step: MLSImport account + MLS credentials. Mirrors the main
- * credentials partial (mlsimport-admin-options.php) but rendered inline for the
- * wizard: it tests/reports the SaaS and MLS connection status, renders one field
+ * Onboarding wizard step: MLSImport account + MLS credentials. The wizard's own
+ * inline credentials form (the settings page's equivalent surface is the
+ * Connections tab + drawer): it tests/reports the SaaS and MLS connection
+ * status, renders one field
  * per credential from $settings_list, and provides save buttons. The trailing
  * <script> enables the wizard's "Continue" button only once both connections
  * succeed and wires the step navigation.
+ * Account login accepts a username or email through the existing username
+ * option; provider-specific credential labels retain their own meaning.
  *
  * @package    mlsimport
  * @subpackage mlsimport/admin/partials
@@ -25,7 +28,7 @@ $options = get_option('mlsimport_admin_options');
 
 // Field catalog: option key => display label (+ optional 'type' => 'select').
 $settings_list = array(
-	'mlsimport_username'                => array('name' => esc_html__('MLSImport.com Username (not your email)', 'mlsimport')),
+	'mlsimport_username'                => array('name' => esc_html__('MLSImport.com Username or email', 'mlsimport')),
 	'mlsimport_password'                => array('name' => esc_html__('MLSImport.com Password', 'mlsimport')),
 	'mlsimport_mls_name'                => array('type' => 'select', 'name' => esc_html__('Your MLS', 'mlsimport')),
 	'mlsimport_mls_token'               => array('name' => esc_html__('Your API Server token -  provided by your MLS', 'mlsimport')),
@@ -58,9 +61,10 @@ if ('yes' !== $is_mls_connected) {
 }
 
 // Report SaaS account status: empty token = not connected, otherwise connected.
+// The not-connected box names the server's reason (no subscription vs wrong
+// password) — see includes/mlsimport-account-status.php.
 if (trim(string: $token) === '') {
-
-	echo '<div class="mlsimport_warning">' . esc_html__('You are not connected to MlsImport - Please check your Username and Password.', 'mlsimport') . '</div>';
+	echo mlsimport_account_not_connected_html(); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped by the builder.
 } else {
 	echo '<div class="mlsimport_warning mlsimport_validated">' . esc_html__('You are connected to your MlsImport account!', 'mlsimport') . '</div>';
 }
@@ -135,7 +139,10 @@ foreach ($settings_list as $key => $setting) {
     // After the password field, add the "Save account" + "Create My Account" buttons.
     if($key ==='mlsimport_password'){
         echo '<button  class="button button-primary mlsimport-save-account">'.esc_html__('Save account','mlsimport').'</button>';
-                echo '<a href="https://mlsimport.com/mls-import-plugin-pricing" class="button button-primary mlsimport-save-account"  style="margin-left:15px;" target="_blank">'. esc_html__('Create My Account', 'mlsimport').'</a>';
+                // Keep the pricing link visually paired with Save Account, but
+                // give it a behavior-neutral class so the credential-save click
+                // handler cannot prevent its external navigation (#307).
+                echo '<a href="https://mlsimport.com/mls-import-plugin-pricing" class="button button-primary mlsimport-create-account"  style="margin-left:15px;" target="_blank">'. esc_html__('Create My Account', 'mlsimport').'</a>';
         }
 
 
@@ -150,43 +157,3 @@ echo '<button  class="button button-primary mlsimport-save-mls-data">'.esc_html_
 // callback (mlsimport-onboarding.js) once the MLS connection is confirmed.
 echo '<input type="hidden" id="mlsimport_saas_get_metadata" value="' . esc_attr( wp_create_nonce( 'mlsimport_saas_get_metadata' ) ) . '">';
 ?>
-
-<script>
-jQuery(document).ready(function(jQuery) {
-	// Check initial state and disable/enable button accordingly
-	function updateContinueButtonState() {
-		var token = '<?php echo trim($token); ?>';
-		var isConnected = '<?php echo $is_mls_connected; ?>';
-		var $continueButton = jQuery('.mlsimport-wizard-content-account .mlsimport-wizard-next');
-		if (token === '' || isConnected !== 'yes') {
-			$continueButton.prop('disabled', true);
-			$continueButton.addClass('disabled');
-		} else {
-			$continueButton.prop('disabled', false);
-			$continueButton.removeClass('disabled');
-		}
-	}
-
-	// Run on page load
-	updateContinueButtonState();
-
-	// Handle continue button click on account step
-	jQuery('.mlsimport-wizard-content-account .mlsimport-wizard-next').on('click', function(e) {
-		e.preventDefault();
-		
-		// Only proceed if button is not disabled
-		if (!jQuery(this).prop('disabled')) {
-			window.location.href = '<?php echo admin_url('admin.php?page=mlsimport-onboarding&step=field-mapping'); ?>';
-		}
-		
-		return false;
-	});
-
-	// Enable button when MLS connection is successful
-	jQuery('.mlsimport-save-account, .mlsimport-save-mls-data').on('click', function() {
-		// Add slight delay to let AJAX complete
-		setTimeout(updateContinueButtonState, 1000);
-	});
-});
-
-</script>

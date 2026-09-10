@@ -18,9 +18,27 @@
 	--mli-muted: #6b7785;
 }
 
-/* Taxonomy/CPT archive wrapper (archive-mlsimport-property.php). */
+/* Taxonomy/CPT archive wrapper (archive-mlsimport-property.php).
+
+   width:100% is load-bearing, not decoration. Themes routinely make the element this
+   wrapper lands in a FLEX container — Astra's .ast-container is display:flex — and a
+   flex item defaults to flex:0 1 auto, i.e. shrink-to-fit its content, not stretch to
+   the column. Without an explicit width the whole archive therefore sized itself to
+   the cards' max-content width, which made the archive's width depend on the "Cards
+   per row" setting: at 4 the cards asked for more than the column so it clamped to the
+   full 1200px and looked correct, but at 3 they only asked for ~955px and the entire
+   archive — search bar, results toolbar AND grid — collapsed to that, leaving ~245px
+   of dead space down the right. Claiming the full column makes 2, 3 and 4 identical.
+   border-box keeps the 30px padding inside that width instead of overflowing it. */
 .mlsimport-archive {
-	padding: 0 30px;
+	box-sizing: border-box;
+	width: 100%;
+	/* Vertical padding is load-bearing too. The wrapper had `0 30px`, so on a CPT or
+	   taxonomy archive the search bar sat flush against the theme header and the last
+	   row of cards sat flush against the footer — measured 0px on both edges. Themes
+	   do not add that space for us: the archive template emits its own wrapper rather
+	   than the theme's entry markup, so nothing else has a say in it. */
+	padding: 48px 30px 64px;
 }
 
 .mlsimport-listings {
@@ -55,9 +73,22 @@
 	justify-self: stretch;
 }
 
-@media (max-width: 600px) {
+/* Narrow screens: cap the column count regardless of the "Search fields per row"
+   setting. TWO steps, the same ladder the half-map pane uses in
+   mlsimport-half-map.css — 2-up on tablets, single column on phones.
+   The 600px step used to stop at `1fr 1fr`, so the bar stayed 2-up all the way
+   down to 320px. That left each cell ~150px on a phone, narrower than the 240px
+   floor the range and beds popups carry, so an open popup ran off the right edge
+   of the screen with its Apply button out of reach. */
+@media (max-width: 900px) {
 	.mlsimport-listings:not(.mlsimport-listings--map) .mlsimport-search {
 		grid-template-columns: 1fr 1fr;
+	}
+}
+
+@media (max-width: 600px) {
+	.mlsimport-listings:not(.mlsimport-listings--map) .mlsimport-search {
+		grid-template-columns: 1fr;
 	}
 }
 
@@ -772,7 +803,17 @@ a.mlsimport-pager__btn:hover {
 	text-decoration: none;
 }
 
-/* Agents archive */
+/* Agents archive.
+
+   Same shrink-to-fit trap as .mlsimport-archive above: the wrapper is a flex item in
+   the theme's content container, so with no width it sizes to the cards' max-content
+   and the auto-fill grid settles on fewer columns than the column can hold — the
+   directory rendered two cards wide inside a 1200px column with the rest empty. */
+.mlsimport-agents {
+	box-sizing: border-box;
+	width: 100%;
+}
+
 .mlsimport-agents__grid {
 	display: grid;
 	grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));

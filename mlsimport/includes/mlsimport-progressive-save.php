@@ -17,16 +17,19 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Decode current MLS metadata into the domain module's field map.
+ * Decode one connection's MLS metadata into the domain module's field map.
  *
  * Metadata can be stored as the original JSON string or as an already decoded
  * array. Both shapes are accepted here; malformed or absent metadata becomes
- * an empty map so every caller reaches the same normalization path.
+ * an empty map so every caller reaches the same normalization path. Since
+ * multi-MLS (#275) the blob is per-connection: the resolver returns the
+ * "_{mls_id}"-suffixed option for the given (or current) connection.
  *
- * @return array Current MLS metadata keyed by RESO field name.
+ * @param int $mls_id Connection whose metadata to read; 0 = current connection.
+ * @return array That connection's MLS metadata keyed by RESO field name.
  */
-function mlsimport_field_configuration_metadata(): array {
-	$metadata = get_option( 'mlsimport_mls_metadata_mls_data', '' );
+function mlsimport_field_configuration_metadata( int $mls_id = 0 ): array {
+	$metadata = mlsimport_get_connection_option( 'mlsimport_mls_metadata_mls_data', '', $mls_id );
 	$metadata = is_string( $metadata ) ? json_decode( $metadata, true ) : $metadata;
 
 	return is_array( $metadata ) ? $metadata : array();
@@ -63,15 +66,19 @@ function mlsimport_field_configuration_taxonomies(): array {
  * is reported by the module as stale. Cache and public option hooks are updated
  * once only after the database confirms the replacement.
  *
- * @param array $expected    Exact option value previously loaded.
- * @param array $replacement Complete normalized replacement.
+ * @param array  $expected    Exact option value previously loaded.
+ * @param array  $replacement Complete normalized replacement.
+ * @param string $option_name Concrete (per-connection) option to swap; ''
+ *                            resolves the current connection's option (#275).
  * @return bool True only when this caller won the compare-and-swap.
  */
-function mlsimport_field_configuration_compare_and_swap( array $expected, array $replacement ): bool {
+function mlsimport_field_configuration_compare_and_swap( array $expected, array $replacement, string $option_name = '' ): bool {
 	global $wpdb;
 
-	$option_name = 'mlsimport_admin_fields_select';
-	$row         = $wpdb->get_row(
+	if ( '' === $option_name ) {
+		$option_name = mlsimport_connection_option_name( 'mlsimport_admin_fields_select' );
+	}
+	$row = $wpdb->get_row(
 		$wpdb->prepare(
 			"SELECT option_value, autoload FROM {$wpdb->options} WHERE option_name = %s LIMIT 1",
 			$option_name
@@ -90,8 +97,18 @@ function mlsimport_field_configuration_compare_and_swap( array $expected, array 
 			wp_cache_delete( $option_name, 'options' );
 			wp_cache_delete( 'alloptions', 'options' );
 			wp_cache_delete( 'notoptions', 'options' );
-		} elseif ( function_exists( 'mlsimport_active_field_configuration' ) ) {
-			mlsimport_active_field_configuration( true );
+		} else {
+			if ( function_exists( 'mlsimport_active_field_configuration' ) ) {
+				mlsimport_active_field_configuration( true );
+			}
+			// The theme-adapter resync listens on the BASE option's hook name
+			// (loader binds add/update_option_mlsimport_admin_fields_select).
+			// Per-connection storage (#275) uses a suffixed option name, so
+			// WordPress fires "add_option_{$option_name}" instead — announce the
+			// field-selection change on the base name explicitly.
+			if ( 'mlsimport_admin_fields_select' !== $option_name ) {
+				do_action( 'update_option_mlsimport_admin_fields_select', $expected, $replacement, $option_name );
+			}
 		}
 
 		return $added;
@@ -127,28 +144,42 @@ function mlsimport_field_configuration_compare_and_swap( array $expected, array 
 	}
 
 	mlsimport_active_field_configuration( true );
-	do_action( "update_option_{$option_name}", $expected, $replacement, $option_name );
+	// Announce on the BASE hook name: the theme-adapter resync listener is
+	// bound to update_option_mlsimport_admin_fields_select regardless of which
+	// connection's suffixed option (#275) actually stored the change.
+	do_action( 'update_option_mlsimport_admin_fields_select', $expected, $replacement, 'mlsimport_admin_fields_select' );
 	do_action( 'updated_option', $option_name, $expected, $replacement );
 
 	return true;
 }
 
 /**
- * Construct the authoritative module around the WordPress option store.
+ * Construct the authoritative module around one connection's option store.
  *
- * The loader always returns an array and the writer delegates to the exact
- * compare-and-swap adapter above. Each request gets a small stateless service;
- * all durable state remains in the one backward-compatible WordPress option.
+ * Step by step (#275 — per-connection field mapping):
+ * 1. Resolve the concrete option name once: the given connection's suffixed
+ *    'mlsimport_admin_fields_select_{mls_id}', or the current connection's
+ *    when no mls_id is passed (every legacy call site).
+ * 2. Bind BOTH the loader and the compare-and-swap writer to that one name,
+ *    so load and persistence can never address different connections. The
+ *    revision key and CAS semantics are unchanged — just scoped per option.
  *
+ * @param int $mls_id Connection to bind to; 0 = current connection.
  * @return Mlsimport_Field_Configuration Configured domain service.
  */
-function mlsimport_field_configuration(): Mlsimport_Field_Configuration {
+function mlsimport_field_configuration( int $mls_id = 0 ): Mlsimport_Field_Configuration {
+	// Step 1: one resolution, shared by both storage callbacks.
+	$option_name = mlsimport_connection_option_name( 'mlsimport_admin_fields_select', $mls_id );
+
+	// Step 2: loader and CAS are closures over the same resolved name.
 	return new Mlsimport_Field_Configuration(
-		static function () {
-			$value = get_option( 'mlsimport_admin_fields_select', array() );
+		static function () use ( $option_name ) {
+			$value = get_option( $option_name, array() );
 			return is_array( $value ) ? $value : array();
 		},
-		'mlsimport_field_configuration_compare_and_swap'
+		static function ( array $expected, array $replacement ) use ( $option_name ) {
+			return mlsimport_field_configuration_compare_and_swap( $expected, $replacement, $option_name );
+		}
 	);
 }
 
@@ -179,25 +210,36 @@ function mlsimport_normalized_field_configuration(): array {
  *
  * The projection is cached for the request because import adapters consult it
  * once per listing. Rebuilding and sorting 1,000 parallel fields for every
- * listing would turn schema safety into an avoidable import bottleneck.
+ * listing would turn schema safety into an avoidable import bottleneck. The
+ * cache is keyed by connection (#277 — a task-bound import may read another
+ * connection's projection); a refresh drops EVERY cached projection so the
+ * existing compare-and-swap invalidation stays a single call.
  *
  * @param bool $refresh Rebuild after this request has changed the option.
+ * @param int  $mls_id  Connection to read; 0 = the current connection.
  * @return array Normalized configuration containing current metadata fields only.
  */
-function mlsimport_active_field_configuration( bool $refresh = false ): array {
-	static $configuration = null;
+function mlsimport_active_field_configuration( bool $refresh = false, int $mls_id = 0 ): array {
+	static $configurations = array();
 
-	if ( null !== $configuration && ! $refresh ) {
-		return $configuration;
+	// One cache slot per resolved connection; 0 resolves to the current one so
+	// legacy callers and task-scoped callers share a slot when they coincide.
+	$slot = $mls_id > 0 ? $mls_id : mlsimport_current_mls_id();
+
+	if ( $refresh ) {
+		$configurations = array();
+	}
+	if ( isset( $configurations[ $slot ] ) ) {
+		return $configurations[ $slot ];
 	}
 
-	$configuration = mlsimport_field_configuration()->read_active(
-		mlsimport_field_configuration_metadata(),
+	$configurations[ $slot ] = mlsimport_field_configuration( $mls_id )->read_active(
+		mlsimport_field_configuration_metadata( $mls_id ),
 		mlsimport_hardocde_theme_schema(),
 		mlsimport_field_configuration_taxonomies()
 	);
 
-	return $configuration;
+	return $configurations[ $slot ];
 }
 
 /**
@@ -205,22 +247,27 @@ function mlsimport_active_field_configuration( bool $refresh = false ): array {
  *
  * @param array $metadata     Newly gathered MLS metadata.
  * @param array $theme_schema Active theme defaults.
+ * @param int   $mls_id       Connection to reconcile; 0 = current connection.
  * @return array Field Configuration Result.
  */
-function mlsimport_reconcile_field_configuration( array $metadata, array $theme_schema ): array {
-	return mlsimport_field_configuration()->reconcile( $metadata, $theme_schema, mlsimport_field_configuration_taxonomies() );
+function mlsimport_reconcile_field_configuration( array $metadata, array $theme_schema, int $mls_id = 0 ): array {
+	return mlsimport_field_configuration( $mls_id )->reconcile( $metadata, $theme_schema, mlsimport_field_configuration_taxonomies() );
 }
 
 /**
  * Import an exported configuration through the same schema and storage owner.
  *
+ * The target connection's own metadata blob drives normalization; fields the
+ * blob does not know become dormant until that MLS's metadata is gathered.
+ *
  * @param array $incoming Exported legacy-compatible option array.
+ * @param int   $mls_id   Connection to import into; 0 = current connection.
  * @return array Field Configuration Result.
  */
-function mlsimport_import_field_configuration( array $incoming ): array {
-	return mlsimport_field_configuration()->import_configuration(
+function mlsimport_import_field_configuration( array $incoming, int $mls_id = 0 ): array {
+	return mlsimport_field_configuration( $mls_id )->import_configuration(
 		$incoming,
-		mlsimport_field_configuration_metadata(),
+		mlsimport_field_configuration_metadata( $mls_id ),
 		mlsimport_hardocde_theme_schema(),
 		mlsimport_field_configuration_taxonomies()
 	);
@@ -253,10 +300,14 @@ function mlsimport_ajax_change_field_configuration() {
 		wp_send_json_error( array( 'error' => array( 'code' => 'invalid_json', 'message' => 'The Field Configuration command is not valid JSON.' ) ), 400 );
 	}
 
-	$result = mlsimport_field_configuration()->change(
+	// Per-connection scope: the tab posts the mls_id it was rendered for; a
+	// request without one (legacy) resolves to the current connection.
+	$mls_id = mlsimport_field_mapping_request_scope( isset( $_POST['mls_id'] ) && is_scalar( $_POST['mls_id'] ) ? wp_unslash( $_POST['mls_id'] ) : null );
+
+	$result = mlsimport_field_configuration( $mls_id )->change(
 		$revision,
 		$command,
-		mlsimport_field_configuration_metadata(),
+		mlsimport_field_configuration_metadata( $mls_id ),
 		mlsimport_field_configuration_taxonomies(),
 		mlsimport_hardocde_theme_schema()
 	);

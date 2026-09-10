@@ -12,6 +12,14 @@
  * exercise the one public reconciliation seam while production retains the raw
  * SQL performance required for large listing inventories.
  *
+ * Multi-MLS (issue #279): constructed with a positive mls_id, this environment
+ * is CONNECTION-SCOPED — its inventory is limited in SQL to posts stamped
+ * 'mlsimport_mls_id' = mls_id (#278), so another connection's, orphaned, and
+ * unstamped listings can structurally never enter a sub-run's plan; its lock
+ * methods are no-ops because the per-connection loop owns the one global lock
+ * spanning all sub-runs. With mls_id 0 (default) behavior is the unchanged
+ * legacy single-connection run.
+ *
  * @package MLSImport
  */
 
@@ -44,12 +52,22 @@ final class Mlsimport_Reconciliation_WordPress_Environment implements Mlsimport_
 	private $lock_token = '';
 
 	/**
+	 * Connection scope: 0 = legacy unscoped run, >0 = only this connection's
+	 * stamped listings (and a loop-owned lock).
+	 *
+	 * @var int
+	 */
+	private $mls_id = 0;
+
+	/**
 	 * Receive the SaaS fetch at the external API boundary.
 	 *
 	 * @param callable $snapshot_fetcher Returns the raw reconciliation response.
+	 * @param int      $mls_id           Connection scope (#279); 0 = unscoped legacy run.
 	 */
-	public function __construct( callable $snapshot_fetcher ) {
+	public function __construct( callable $snapshot_fetcher, int $mls_id = 0 ) {
 		$this->snapshot_fetcher = $snapshot_fetcher;
+		$this->mls_id           = $mls_id;
 	}
 
 	/**
@@ -58,6 +76,12 @@ final class Mlsimport_Reconciliation_WordPress_Environment implements Mlsimport_
 	 * @return bool True only for the process that created the option.
 	 */
 	public function acquire_lock(): bool {
+		// Connection-scoped sub-run (#279): the per-connection loop already
+		// holds the one global lock spanning every sub-run — claim nothing.
+		if ( $this->mls_id > 0 ) {
+			return true;
+		}
+
 		$this->lock_token = wp_generate_uuid4();
 		if ( add_option( self::LOCK_OPTION, $this->lock_token, '', false ) ) {
 			return true;
@@ -73,6 +97,12 @@ final class Mlsimport_Reconciliation_WordPress_Environment implements Mlsimport_
 	 * @return void
 	 */
 	public function release_lock(): void {
+		// Connection-scoped sub-run (#279): the loop owns the global lock and
+		// releases it once after the last sub-run — nothing to release here.
+		if ( $this->mls_id > 0 ) {
+			return;
+		}
+
 		if ( '' !== $this->lock_token && get_option( self::LOCK_OPTION ) === $this->lock_token ) {
 			delete_option( self::LOCK_OPTION );
 		}
@@ -132,6 +162,11 @@ final class Mlsimport_Reconciliation_WordPress_Environment implements Mlsimport_
 	 * Statuses are joined into each row; status is read only when protection
 	 * exists because unprotected absence needs no status lookup.
 	 *
+	 * Connection scope (#279): with a positive mls_id an extra INNER JOIN keeps
+	 * only posts whose 'mlsimport_mls_id' provenance stamp (#278) equals this
+	 * connection — posts stamped for another connection, orphan-stamped posts,
+	 * and unstamped pre-migration posts never enter the inventory at all.
+	 *
 	 * @return array<int, array<string, mixed>> Complete Managed Listing inventory.
 	 * @throws RuntimeException When a database batch cannot be read completely.
 	 */
@@ -140,13 +175,25 @@ final class Mlsimport_Reconciliation_WordPress_Environment implements Mlsimport_
 
 		$listings = array();
 		$last_id  = 0;
-		$fields   = mlsimport_active_field_configuration();
+		// Status reads use the field configuration of THIS connection (#275);
+		// mls_id 0 resolves to the current connection, the legacy behavior.
+		$fields   = mlsimport_active_field_configuration( false, $this->mls_id );
 		$tax_map  = isset( $fields['mls-fields-map-taxonomy'] ) ? $fields['mls-fields-map-taxonomy'] : array();
+
+		// Scoped runs add the provenance join (and its two placeholders) so the
+		// connection boundary is enforced by the database, not by later PHP.
+		$provenance_join = '';
+		$provenance_args = array();
+		if ( $this->mls_id > 0 ) {
+			$provenance_join = "INNER JOIN {$wpdb->postmeta} provenance
+				    ON posts.ID = provenance.post_id AND provenance.meta_key = %s AND provenance.meta_value = %s";
+			$provenance_args = array( 'mlsimport_mls_id', (string) $this->mls_id );
+		}
 
 		do {
 			$wpdb->last_error = '';
 			// Intentional batched raw read; ADR-0010 keeps this path SQL-first.
-			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			$rows = $wpdb->get_results(
 				$wpdb->prepare(
 					"SELECT posts.ID,
@@ -159,6 +206,7 @@ final class Mlsimport_Reconciliation_WordPress_Environment implements Mlsimport_
 					    ON posts.ID = listing_key.post_id AND listing_key.meta_key = %s
 					 INNER JOIN {$wpdb->postmeta} owner
 					    ON posts.ID = owner.post_id AND owner.meta_key = %s AND owner.meta_value != ''
+					 {$provenance_join}
 					 LEFT JOIN {$wpdb->posts} task
 					    ON task.ID = CAST(owner.meta_value AS UNSIGNED)
 					   AND task.post_type = 'mlsimport_item' AND task.post_status != 'trash'
@@ -169,11 +217,15 @@ final class Mlsimport_Reconciliation_WordPress_Environment implements Mlsimport_
 					 GROUP BY posts.ID, listing_key.meta_value, owner.meta_value, task.ID
 					 ORDER BY posts.ID ASC
 					 LIMIT %d",
-					'_mlsimport_listing_key',
-					'MLSimport_item_inserted',
-					'mlsimport_item_standardstatusprotect',
-					$last_id,
-					self::READ_BATCH
+					array_merge(
+						array( '_mlsimport_listing_key', 'MLSimport_item_inserted' ),
+						$provenance_args,
+						array(
+							'mlsimport_item_standardstatusprotect',
+							$last_id,
+							self::READ_BATCH,
+						)
+					)
 				),
 				ARRAY_A
 			);
@@ -227,6 +279,16 @@ final class Mlsimport_Reconciliation_WordPress_Environment implements Mlsimport_
 		$post_type = get_post_type( $listing_id );
 		$owner_id  = (int) get_post_meta( $listing_id, 'MLSimport_item_inserted', true );
 		$live_key  = (string) get_post_meta( $listing_id, '_mlsimport_listing_key', true );
+		// Dedupe (issue #282): this raw-SQL path bypasses the WP delete hooks,
+		// so the doomed listing's address group is captured here (its meta is
+		// gone after the raw delete below) and re-evaluated after success —
+		// deleting a flagged winner promotes its hidden loser, and deleting a
+		// loser leaves no dangling flag behind.
+		$address_key = (string) get_post_meta( $listing_id, 'mlsimport_address_key', true );
+		// Telemetry (#283): the deletion counts against the listing's OWN
+		// connection — read the provenance stamp (#278) before the raw delete
+		// wipes its meta. Covers both scoped and legacy unscoped runs.
+		$provenance_mls = (int) get_post_meta( $listing_id, 'mlsimport_mls_id', true );
 		if ( ! $post_type || $owner_id <= 0 || '' === $live_key || $live_key !== $listing_key ) {
 			return false;
 		}
@@ -291,8 +353,13 @@ final class Mlsimport_Reconciliation_WordPress_Environment implements Mlsimport_
 		}
 
 		clean_post_cache( $listing_id );
+		// Dedupe (issue #282): the post row is durably gone — settle the
+		// surviving copies of its address group (promote a hidden loser).
+		if ( '' !== $address_key && function_exists( 'mlsimport_dedupe_evaluate' ) ) {
+			mlsimport_dedupe_evaluate( $address_key, (string) $post_type );
+		}
 		mlsimport_record_activity( 'deleted', $listing_id, $listing_key, $owner_id, 'reconciliation', '', '', $reason );
-		mlsimport_telemetry_bump( 'deleted' );
+		mlsimport_telemetry_bump( 'deleted', 1, $provenance_mls );
 		return true;
 	}
 

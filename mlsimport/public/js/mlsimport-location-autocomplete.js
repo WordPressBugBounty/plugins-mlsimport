@@ -32,11 +32,17 @@
 		var timer   = null;
 		var request = null;
 		var active  = -1;
+		// Set while the list is shown and had to escape a clipping ancestor.
+		var unfloat = null;
 
 		function close() {
 			list.hidden = true;
 			list.innerHTML = '';
 			active = -1;
+			if ( unfloat ) {
+				unfloat();
+				unfloat = null;
+			}
 		}
 
 		// Move the highlight and mirror it onto the input, so Enter picks what the
@@ -88,6 +94,14 @@
 			} );
 			active = -1;
 			list.hidden = false;
+			// The list is absolutely positioned under the input, so a hero with
+			// overflow hidden/clip (a Cover block, a slider) crops it. The shared
+			// helper from mlsimport-search-popups.js re-anchors it to the viewport;
+			// read at show time so enqueue order does not matter. Once per showing:
+			// a refetch while open only re-fills the already floated list.
+			if ( ! unfloat && 'function' === typeof window.mlsimportFloatFree ) {
+				unfloat = window.mlsimportFloatFree( list, input );
+			}
 		}
 
 		function fetchSuggestions( term ) {

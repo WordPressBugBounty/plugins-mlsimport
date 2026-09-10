@@ -155,6 +155,9 @@ class Mlsimport_Provider_Family {
 		delete_option( 'mlsimport_provider_type_mls_id' );
 		delete_option( 'mlsimport_live_mls_config' );
 		delete_option( 'mlsimport_connection_test' );
+		// Flat legacy flag only: each connection's own "_{mls_id}" populated
+		// flag (#275) stays, so switching back to a prior MLS keeps its
+		// gathered state; the save path clears the newly saved MLS's flag.
 		delete_option( 'mlsimport_mls_metadata_populated' );
 
 		self::clear_access_tokens();

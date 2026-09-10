@@ -334,8 +334,11 @@ add_action( 'mlsimport_reconciliation_event', 'mlsimport_prune_activity_log' );
  *   2. the last-24h activity totals are non-zero,
  *   3. the per-user 'mlsimport_activity_banner_dismissed' meta is NOT today's date.
  *
- * Mirrors the inline-script pattern from mlsimport_handle_dismiss_protected_notice()
- * in mlsimport.php.
+ * The inline script delegates from the banner because WordPress creates the
+ * `.notice-dismiss` button after `admin_notices` has rendered. The sequence is:
+ * 1. render the banner and its per-user dismissal nonce;
+ * 2. listen on the already-present banner for a future dismiss-button click;
+ * 3. persist today's dismissal date through the authenticated AJAX action.
  *
  * @return void
  */
@@ -420,10 +423,20 @@ function mlsimport_render_activity_banner(): void {
 	(function() {
 		var banner = document.querySelector('.mlsimport-activity-banner');
 		if ( ! banner ) { return; }
-		var dismissBtn = banner.querySelector('.notice-dismiss');
-		if ( ! dismissBtn ) { return; }
-		var nonce = banner.querySelector('.mlsimport-activity-banner-nonce').getAttribute('data-nonce');
-		dismissBtn.addEventListener('click', function() {
+		var nonceNode = banner.querySelector('.mlsimport-activity-banner-nonce');
+		if ( ! nonceNode ) { return; }
+		var nonce = nonceNode.getAttribute('data-nonce');
+
+		/*
+		 * WordPress injects the dismiss button after this inline script runs.
+		 * Delegating from the existing banner catches that later-created control
+		 * before the core document handler removes the notice from the page.
+		 */
+		banner.addEventListener('click', function(event) {
+			var target = event.target;
+			var dismissBtn = target && target.closest ? target.closest('.notice-dismiss') : null;
+			if ( ! dismissBtn || ! banner.contains(dismissBtn) ) { return; }
+
 			var xhr = new XMLHttpRequest();
 			xhr.open('POST', ajaxurl);
 			xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');

@@ -40,6 +40,26 @@
 	}
 
 	/**
+	 * The nearest ancestor that turns position:fixed into "fixed to me" instead of
+	 * "fixed to the viewport": any transform, perspective or filter (or a will-change
+	 * announcing one) makes an element the containing block for fixed descendants.
+	 * Slider Revolution layers, Elementor motion effects and animated heroes all do
+	 * this, so a viewport-pinned popup inside them lands far away from its toggle.
+	 *
+	 * @param {Element} el Element to walk up from.
+	 * @return {Element|null} The transformed ancestor, or null when fixed means viewport.
+	 */
+	function transformedAncestor( el ) {
+		for ( var node = el.parentElement; node && node !== document.body; node = node.parentElement ) {
+			var style = window.getComputedStyle( node );
+			if ( 'none' !== style.transform || 'none' !== style.perspective || 'none' !== style.filter || /transform|perspective|filter/.test( style.willChange ) ) {
+				return node;
+			}
+		}
+		return null;
+	}
+
+	/**
 	 * Re-anchor a popup to the viewport so a clipping ancestor cannot cut it off.
 	 *
 	 * The panels are position:absolute inside their field, which means ANY ancestor
@@ -50,17 +70,38 @@
 	 * on scroll/resize. Pages without a clipping ancestor keep the simpler
 	 * absolutely-positioned behaviour untouched.
 	 *
+	 * Step by step:
+	 * 1. No clipping ancestor: return null, the stylesheet positioning stands.
+	 * 2. A transformed ancestor (e.g. a Slider Revolution layer) would capture the
+	 *    fixed panel AND still clip it, so the panel leaves that subtree: it is moved
+	 *    to <body> for as long as it is open. The `.is-open` descendant rule can no
+	 *    longer reach it there, so display is set inline, and the panel remembers its
+	 *    owner field so the dismiss handler still treats clicks inside it as "inside".
+	 * 3. Pin the panel under the toggle in viewport coordinates and keep following
+	 *    the toggle on scroll/resize.
+	 * 4. On close: stop following, put the panel back in its original slot, clear
+	 *    every inline style.
+	 *
 	 * @param {Element} panel  The popup element.
 	 * @param {Element} anchor The toggle the popup hangs from.
 	 * @return {Function|null} Call to restore the popup, or null when not needed.
 	 */
 	function floatFree( panel, anchor ) {
-		// Nothing to escape: leave the CSS positioning exactly as it was.
+		// Step 1: nothing to escape, leave the CSS positioning exactly as it was.
 		if ( ! panel || ! anchor || ! hasClippingAncestor( anchor ) ) {
 			return null;
 		}
 
-		// Pin the panel under the toggle in viewport coordinates.
+		// Step 2: a transformed ancestor captures position:fixed, so leave the subtree.
+		var slot = null;
+		if ( transformedAncestor( panel ) ) {
+			slot = { parent: panel.parentNode, next: panel.nextSibling };
+			panel.mlsimportOwner = anchor.closest( '.mlsimport-range, .mlsimport-bedsbaths, .mlsimport-ms' );
+			document.body.appendChild( panel );
+			panel.style.display = 'block';
+		}
+
+		// Step 3: pin the panel under the toggle in viewport coordinates.
 		function place() {
 			var rect = anchor.getBoundingClientRect();
 			panel.style.position = 'fixed';
@@ -75,10 +116,15 @@
 		window.addEventListener( 'scroll', place, true );
 		window.addEventListener( 'resize', place );
 
-		// Restore the stylesheet's own positioning when the popup closes.
+		// Step 4: restore the stylesheet's own positioning (and slot) when the popup closes.
 		return function () {
 			window.removeEventListener( 'scroll', place, true );
 			window.removeEventListener( 'resize', place );
+			if ( slot ) {
+				slot.parent.insertBefore( panel, slot.next );
+				panel.mlsimportOwner = null;
+				panel.style.display = '';
+			}
 			panel.style.position = '';
 			panel.style.left     = '';
 			panel.style.top      = '';
@@ -163,6 +209,12 @@
 		// Close every registered popup except the one containing the event target.
 		function closeOthers( e ) {
 			var inside = e.target && e.target.closest ? e.target.closest( '.mlsimport-range, .mlsimport-bedsbaths' ) : null;
+			// A panel floatFree() moved to <body> is no longer under its field, so resolve
+			// its owner through the reference the move left on it.
+			var panel  = ! inside && e.target && e.target.closest ? e.target.closest( '.mlsimport-range__popup, .mlsimport-bedsbaths__popup' ) : null;
+			if ( panel && panel.mlsimportOwner ) {
+				inside = panel.mlsimportOwner;
+			}
 			dismissables.forEach( function ( c ) {
 				if ( c.root !== inside ) {
 					c.close();

@@ -37,6 +37,7 @@
 	var iconUrl           = cfg && cfg.iconUrl;
 	var searchFields      = ( cfg && cfg.searchFields ) || [];
 	var taxonomies        = ( cfg && cfg.taxonomies ) || [];
+	var itemListFilterKeys = ( cfg && cfg.itemListFilterKeys ) || [];
 	var allKeys           = searchFields.map( function ( f ) { return f.key; } );
 
 	// Friendly sort presets -> the orderby/order attribute pair the render path uses.
@@ -183,6 +184,27 @@
 		} );
 	}
 
+	// A scalar preset whose text must be preserved verbatim. Unlike
+	// numberControl, this does not parse the value: keyword phrases,
+	// subdivision names, combined locations and ISO dates are meaningful
+	// strings to the query layer.
+	function textControl( props, key, label, type ) {
+		if ( ! TextControl ) {
+			return null;
+		}
+		return el( TextControl, {
+			key:      key,
+			label:    label,
+			type:     type || 'text',
+			value:    props.attributes[ key ] || '',
+			onChange: function ( v ) {
+				var attr = {};
+				attr[ key ] = v;
+				props.setAttributes( attr );
+			}
+		} );
+	}
+
 	// The sort preset select, reading/writing the orderby + order attribute pair.
 	function sortControl( props ) {
 		if ( ! SelectControl ) {
@@ -211,9 +233,28 @@
 	function initialFilterPanel( props, title, opts ) {
 		opts = opts || {};
 		var children = taxonomies.map( function ( tax ) { return taxControl( props, tax ); } );
+		if ( opts.full ) {
+			// Property List owns the complete server-supported preset surface.
+			// Keep these item-list-only so Slider and Map retain their smaller,
+			// deliberate inspectors while site builders can configure every
+			// listing constraint promised by item_list_attributes() (issue #313).
+			children.push( textControl( props, 'keywords', 'Keywords' ) );
+			children.push( textControl( props, 'location', 'Location' ) );
+		}
 		children.push( rangeControl( props, 'Price', 'price_min', 'price_max' ) );
 		children.push( numberControl( props, 'beds', 'Min beds' ) );
 		children.push( numberControl( props, 'baths', 'Min baths' ) );
+		if ( opts.full ) {
+			children.push( rangeControl( props, 'Living Area (sq ft)', 'sqft_min', 'sqft_max' ) );
+			children.push( rangeControl( props, 'Lot Size', 'lot_min', 'lot_max' ) );
+			children.push( rangeControl( props, 'Year Built', 'year_min', 'year_max' ) );
+			children.push( numberControl( props, 'garage_min', 'Garage Spaces' ) );
+			children.push( numberControl( props, 'stories', 'Stories' ) );
+			children.push( numberControl( props, 'hoa_max', 'Max HOA Fee' ) );
+			children.push( numberControl( props, 'dom_max', 'Max Days on Market' ) );
+			children.push( textControl( props, 'subdivision', 'Subdivision' ) );
+			children.push( textControl( props, 'list_date_min', 'Listed After', 'date' ) );
+		}
 		// Agent post ID — narrows the set to that agent's listings (the mlsimport_list_agent_id
 		// link the agent profile uses). Empty (or 0) means every agent.
 		children.push( numberControl( props, 'agent', 'Agent (post ID)' ) );
@@ -358,7 +399,7 @@
 		// Initial filter presets + the per-field toggles. The same rich inspector the
 		// Half Map uses, minus the map Layout panel.
 		if ( isItemList ) {
-			return el( InspectorControls, { key: 'inspector' }, [ resultsPanel( props, 'Settings' ), initialFilterPanel( props, 'Initial filters' ), fieldsPanel ] );
+			return el( InspectorControls, { key: 'inspector' }, [ resultsPanel( props, 'Settings' ), initialFilterPanel( props, 'Initial filters', { full: true } ), fieldsPanel ] );
 		}
 
 		// Results block: just the trimmed panel + the per-field toggles.
@@ -445,16 +486,14 @@
 				count:           { type: 'string', 'default': '12' },
 				show_filter_bar: { type: 'string', 'default': '1' },
 				fields_per_row:  { type: 'string', 'default': '4' },
-				search_fields:   { type: 'string', 'default': '' },
-				price_min:       { type: 'string', 'default': '' },
-				price_max:       { type: 'string', 'default': '' },
-				beds:            { type: 'string', 'default': '' },
-				baths:           { type: 'string', 'default': '' },
-				agent:           { type: 'string', 'default': '' },
-				orderby:         { type: 'string', 'default': '' },
-				order:           { type: 'string', 'default': '' }
+				search_fields:   { type: 'string', 'default': '' }
 			};
-			taxonomies.forEach( function ( tax ) { itemAttrs[ tax.key ] = { type: 'string', 'default': '' }; } );
+			// PHP supplies the canonical set used by item_list_attributes(). The
+			// editor now serializes every server-supported preset even when a
+			// taxonomy currently has no terms and cannot render a picker.
+			itemListFilterKeys.forEach( function ( key ) {
+				itemAttrs[ key ] = { type: 'string', 'default': '' };
+			} );
 			return itemAttrs;
 		}
 

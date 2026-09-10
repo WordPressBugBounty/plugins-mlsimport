@@ -48,7 +48,7 @@ $auto_update = isset($import_data['auto_update']) ? $import_data['auto_update'] 
 // Decode the cached MLS enum metadata used to populate the filter dropdowns.
 // Get MLS metadata
 global $mlsimport;
-$mls_metadata = get_option('mlsimport_mls_metadata_mls_enums', '');
+$mls_metadata = mlsimport_get_connection_option( 'mlsimport_mls_metadata_mls_enums', '' );
 $enums_data = json_decode($mls_metadata, true);
 
 // Property type choices: from MLS enums when present, else a default set.

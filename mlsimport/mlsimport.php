@@ -3,7 +3,7 @@
  * Plugin Name:       MlsImport
  * Plugin URI:        https://mlsimport.com/
  * Description:       MLS Import - The MLSImport plugin facilitates the connection to your real estate MLS database, allowing you to download and synchronize real estate property data from the MLS.
- * Version:           7.1.2
+ * Version:           7.2
  * Requires at least: 5.2
  * Requires PHP:      7.4
  * License: GPLv3
@@ -40,7 +40,7 @@ if ( ! defined( 'WPINC' ) ) {
 
 
 // Current plugin version (kept in sync with the header above and the readme).
-define( 'MLSIMPORT_VERSION', '7.1.2');
+define( 'MLSIMPORT_VERSION', '7.2');
 // Marketing/portal host used to build sign-up and affiliate links.
 define( 'MLSIMPORT_CLUBLINK', 'mlsimport.com' );
 // Scheme for the portal host links.
@@ -230,6 +230,50 @@ require_once plugin_dir_path( __FILE__ ) . 'includes/class-mlsimport-stored-list
 require_once plugin_dir_path( __FILE__ ) . 'includes/class-mlsimport-stored-listing-title.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/class-mlsimport-stored-listing-media.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-listing-key-migration.php';
+// Multi-MLS connection registry + the one-time single->multi MLS migration
+// (the migration file hooks itself on init, after the listing-key migration).
+require_once plugin_dir_path( __FILE__ ) . 'includes/class-mlsimport-connections.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-multimls-migration.php';
+// Per-connection option resolution + settings export/import transfer (#275):
+// every read/write of the "_{mls_id}"-suffixed per-MLS state goes through these.
+require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-connection-options.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-settings-transfer.php';
+// N-entitlement SaaS contract consumer (#276): entitlements parsing, the
+// mls_id echo guard, and the stable not_entitled rejection handling.
+require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-entitlements.php';
+// Import task connection binding + cron isolation (#277): a task belongs to
+// ONE connection for life; the hourly cron gates each task on ITS connection.
+require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-task-binding.php';
+// Per-connection reconciliation (#279): the daily event runs the untouched
+// decision module once per connection, each with an echo-guarded scoped
+// snapshot and an inventory limited to that connection's stamped listings.
+require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-reconciliation-connections.php';
+// Connections screen (#280): the settings-page Connections tab — screen data
+// (registry rows + activity + plan cap + account state) and its AJAX handlers
+// (drag-reorder priority, per-row connection test, account disconnect).
+require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-connections-screen.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-connections-ajax.php';
+// Add-MLS drawer (#281): connection-scoped metadata gather (shared with the
+// admin metadata AJAX) + the drawer's refuse/test/register/seed flow.
+require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-metadata-gather.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-connections-add.php';
+// The follow-up field-mapping seed the drawer posts after a saved add (#325).
+require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-connections-seed.php';
+// Edit-connection drawer (tab consolidation): the retired "MLS Connection"
+// credentials tab's replacement — refuse/test/store flow that updates a
+// registered connection's credentials (and mirrors the current connection's
+// into the flat options).
+require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-connections-edit.php';
+// Remove-connection flow: a row's Remove action — drops the record + its
+// per-connection options and promotes the next-priority connection when the
+// current one was removed. Imported listings and tasks stay.
+require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-connections-remove.php';
+// Dedupe mechanics (#282): one visible copy per physical address across
+// connections — winner by priority, loser hidden (never deleted), promoted
+// back automatically when the winner disappears. Address normalization is
+// the pure half; the evaluator/hooks half depends on it.
+require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-dedupe-address.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-dedupe.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/class-mlsimport-stored-listing-wordpress-environment.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/class-mlsimport-stored-listing-write.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/class-mlsimport-stored-listing-adapter-factory.php';
@@ -250,13 +294,21 @@ require_once plugin_dir_path( __FILE__ ) . 'enviroment/CentrisResoClass.php';
 require_once plugin_dir_path( __FILE__ ) . 'enviroment/ProviderResoClasses.php';
 require_once plugin_dir_path( __FILE__ ) . 'enviroment/UnsupportedResoClass.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/addons/agents_offices.php';
+// Why the last SaaS login failed (no subscription vs bad password) and the
+// one "not connected" box every screen prints.
+require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-account-status.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-onboarding.php';
 
 require_once plugin_dir_path( __FILE__ ) . 'includes/class-mlsimport-field-configuration.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-field-selector-functions.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-progressive-save.php';
+// Per-connection field-mapping UI: the one scope-resolution rule shared by the
+// field_options tab, the field-configuration AJAX, and the metadata-gather AJAX.
+require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-field-mapping-scope.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-metadata-autotrigger.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-telemetry.php';
+// #283: per-connection telemetry (sync stamps + the connections payload seam).
+require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-telemetry-connections.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-activity-log.php';
 // #208: internal incident alerts (dedup + resolve) and import/connection health watch.
 require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-alerts.php';
@@ -407,7 +459,9 @@ if ( ! wp_next_scheduled( 'event_mls_import_auto' ) ) {
  * - Uses 'fields' => 'ids' so only post IDs are loaded (saves memory)
  * - Batches with posts_per_page/paged, so memory does not spike for large data sets
  * - Calls gc_collect_cycles() periodically to further reduce memory leaks
- * - Skips processing if MLS is not connected or token is missing
+ * - Bails only when the SaaS token is missing (global, one account); each
+ *   task is then gated on its OWN connection (#277) — a broken or deleted
+ *   connection skips its tasks while healthy connections keep importing
  * 
  * @return void
  */
@@ -468,27 +522,29 @@ function mlsimport_saas_event_mls_import_auto_function() {
         return;
     }
 
-    // 2. Check if MLS connection is valid - exit if not
-    $is_mls_connected = get_option('mlsimport_connection_test', '');
-    //error_log('[AutoCron] After connection check: ' . (memory_get_usage(true) / 1024 / 1024) . ' MB');
-    if ('yes' !== $is_mls_connected) {
-        // Same rule as the token exit above: a sync attempt that cannot run
-        // records why, so the heartbeat can surface it.
-        mlsimport_telemetry_set( 'last_sync_failed', time() );
-        mlsimport_telemetry_set( 'last_sync_failed_code', 'mls_not_connected' );
-        //error_log('[AutoCron] No valid connection, exiting.');
-        return;
-    }
+    // 2. The connection-status check is no longer a global bail-out (#277):
+    // each task is gated on ITS OWN connection inside the loop below, so one
+    // broken MLS never blocks tasks on healthy connections. Only the SaaS
+    // token above stays global — one account, one token.
 
     // Claim the run lock now that we are committed to processing.
     set_transient( 'mlsimport_cron_running', 1, 15 * MINUTE_IN_SECONDS );
 
+    // Every operation after lock acquisition belongs to one committed cron
+    // run. Keep that complete run inside a try/finally boundary so a Throwable
+    // from task discovery, connection gating, or one Import Run cannot leave
+    // the site locked until the transient TTL expires (#303).
+    try {
     // Heartbeat (#208): record that a cron import is now running, so the next
     // cron entry can tell a clean finish from a process that died mid-loop.
     mlsimport_cron_heartbeat_start();
 
-    // Record sync attempt in telemetry
-    mlsimport_telemetry_bump( 'syncs' );
+    // Record sync attempt in telemetry. The 'syncs' counter is no longer
+    // bumped here (#283): a run-level tick belongs to no single connection
+    // and would double-count against the per-pull tick that
+    // mlsimport_telemetry_record_sync_result() now records — one pull, one
+    // tick, attributed to the pull's own connection, so the global syncs sum
+    // stays equal to the sum of the per-connection buckets.
     mlsimport_telemetry_set( 'last_sync_attempt', time() );
 
     // 3. Set batch size for gathering and initialize loop variables
@@ -538,18 +594,50 @@ function mlsimport_saas_event_mls_import_auto_function() {
 
     // 5. Order by starvation (issue #203): the query above returns tasks in
     // the same fixed order every hour, so when an early large task ate the
-    // whole cycle the bottom tasks were skipped run after run. Sorting by the
-    // last-sync watermark puts the longest-unsynced region first in line.
+    // whole cycle the bottom tasks were skipped run after run. The queue key
+    // is the newer of last success and last ATTEMPT (issue #330): ordering
+    // by success alone let one task whose run never completes keep the
+    // oldest stamp and hold first place every hour while the rest starved.
     $cron_task_watermarks = array();
     foreach ($cron_task_ids as $prop_id) {
-        $cron_task_watermarks[ $prop_id ] = (string) get_post_meta( $prop_id, 'mlsimport_last_date', true );
+        $cron_task_watermarks[ $prop_id ] = mlsimport_cron_task_queue_key(
+            (string) get_post_meta( $prop_id, 'mlsimport_last_date', true ),
+            (string) get_post_meta( $prop_id, 'mlsimport_last_attempt', true )
+        );
     }
     unset($cron_task_ids);
 
-    // 6. Process every task, most starved first
+    // 6. Process every task, most starved first. A broken connection is
+    // recorded ONCE per run, not once per task — the entry is identical and
+    // re-writing telemetry for every skipped task would only amplify writes.
+    $failed_connections = array();
     foreach (mlsimport_cron_task_order($cron_task_watermarks) as $prop_id) {
         $logs = 'Loop custom post: ' . $prop_id . PHP_EOL;
         mlsimport_debuglogs_per_plugin($logs);
+
+        // Per-connection failure isolation (#277): gate this task on ITS OWN
+        // connection. A broken connection's tasks skip with a recorded reason;
+        // a DELETED connection's tasks skip with a deduplicated health
+        // incident and are never re-defaulted; healthy connections keep
+        // importing in this same run.
+        $mlsimport_gate = mlsimport_cron_task_gate( (int) $prop_id );
+        if ( 'import' !== $mlsimport_gate['action'] ) {
+            if ( 'skip_missing' === $mlsimport_gate['action'] ) {
+                mlsimport_alert_open(
+                    'task_connection_missing:' . (int) $prop_id,
+                    'task_connection_missing',
+                    array( 'task_id' => (int) $prop_id, 'mls_id' => $mlsimport_gate['mls_id'] )
+                );
+            } elseif ( ! isset( $failed_connections[ $mlsimport_gate['mls_id'] ] ) ) {
+                $failed_connections[ $mlsimport_gate['mls_id'] ] = true;
+                mlsimport_record_connection_sync_failure( $mlsimport_gate['mls_id'], $mlsimport_gate['code'] );
+            }
+            mlsimport_debuglogs_per_plugin(
+                'Task ' . $prop_id . ' skipped: connection ' . $mlsimport_gate['mls_id']
+                . ' ' . $mlsimport_gate['action'] . ' (' . $mlsimport_gate['code'] . ')' . PHP_EOL
+            );
+            continue;
+        }
 
         // Call processing function for this item. The feed count it pulls
         // is recorded inside mlsimport_make_listing_requests() (last_feed_found).
@@ -568,10 +656,13 @@ function mlsimport_saas_event_mls_import_auto_function() {
     }
 
     // Heartbeat (#208): clean finish — also resolves an open died-run incident.
-    mlsimport_cron_heartbeat_finish();
-
-    // Release the run lock so the next scheduled run can proceed.
-    delete_transient( 'mlsimport_cron_running' );
+    } finally {
+        // A failed task still ends this cron invocation. Mark the heartbeat as
+        // finished and release the overlap lock while PHP continues propagating
+        // the original Throwable to the caller for logging and diagnosis.
+        mlsimport_cron_heartbeat_finish();
+        delete_transient( 'mlsimport_cron_running' );
+    }
 
     // last_sync_success is no longer stamped here (issue #207 finding 1): the
     // end-of-loop stamp reported success even when every request failed, and
@@ -911,10 +1002,10 @@ function force_recount_all_terms() {
 
 
 
-// mlsimport_save_account_callback() (wp_ajax_mlsimport_save_account) moved to
-// includes/mlsimport-onboarding.php next to its sibling handler
-// mlsimport_ajax_test_account_connection(), so both credential-save paths live
-// together and are covered by tests/unit/save-account-token-purge-test.php.
+// mlsimport_save_account_callback() (wp_ajax_mlsimport_save_account) lives in
+// includes/mlsimport-onboarding.php with the wizard code that submits it. This
+// also keeps the live credential-save path loadable by the focused credential
+// sanitization and token-purge regression harnesses.
 
 
 
@@ -924,6 +1015,9 @@ function force_recount_all_terms() {
 add_action('wp_ajax_mlsimport_save_mls_data', 'mlsimport_save_mls_data_callback');
 function mlsimport_save_mls_data_callback() {
 	check_ajax_referer('mlsimport_onboarding_nonce', 'security');
+	if ( ! current_user_can( 'manage_options' ) ) {
+		wp_send_json_error( array( 'message' => 'Unauthorized' ), 403 );
+	}
 
 	$options = get_option('mlsimport_admin_options', []);
 	$options = is_array( $options ) ? $options : array();
@@ -947,8 +1041,12 @@ function mlsimport_save_mls_data_callback() {
 	} else {
 		Mlsimport_Provider_Family::clear_access_tokens();
 		delete_option( 'mlsimport_connection_test' );
-		delete_option( 'mlsimport_mls_metadata_populated' );
 	}
+
+	// Saving credentials always forces a fresh metadata gather for the SAVED
+	// MLS. The populated flag is per-connection (#275): only this connection's
+	// flag is cleared — other connections' gathered state stays isolated.
+	mlsimport_delete_connection_option( 'mlsimport_mls_metadata_populated', (int) $new_mls_id );
 
 	update_option('mlsimport_admin_options', $options);
 

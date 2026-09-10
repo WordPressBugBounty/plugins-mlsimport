@@ -4,7 +4,7 @@ Tags: idx, idx-plugin, mls, real-estate, wordpress-idx
 Requires at least: 5.2
 Tested up to: 7.0.2
 Requires PHP: 7.4
-Stable tag: 7.1.2
+Stable tag: 7.2
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -103,6 +103,13 @@ Read the terms and conditions of using MLSimport APIs here : https://mlsimport.c
 
 
 == Changelog ==
+= 7.2 =
+* Multiple MLS connections on one site - you are no longer limited to a single MLS. A new Connections tab lists every MLS you have connected with its live status, when it was last tested, and how many listings it brought in; you can add another MLS from the same screen, test or disconnect one at a time, and drag the rows to set which MLS takes precedence. How many connections you can add is set by your MLSImport plan.
+* Adding a second MLS does not disturb the first - each connection keeps its own credentials, its own field mapping and its own sync settings, and your existing MLS is carried over automatically on update as your first connection, with its current mapping and settings intact. Nothing needs to be re-entered or re-imported.
+* Each import task belongs to one MLS - when you create an import task you pick which connection it pulls from, and its search filters come from that MLS's own values. Existing tasks keep working exactly as before.
+* One broken MLS no longer stops the others - if a connection's credentials expire or its provider goes down, only that connection's tasks pause (with the reason recorded); tasks on your other MLSs keep importing on the same hourly run. Daily reconciliation is likewise done per connection, so a feed that cannot be read is skipped instead of putting your listings at risk.
+* The same property from two MLSs is shown once - when overlapping feeds carry the same address twice, the copy from your higher-priority connection is displayed and the other is hidden from search, sliders, maps and feeds. Hidden never means deleted: if the shown copy is removed or unpublished, the other one is brought back automatically.
+
 = 7.1.2 =
 * Fixed feature links on a listing all pointing to one empty page - when an MLS sends a multi-value field (lot features, appliances, views...) as one comma-glued text instead of a list, each value now becomes its own term with its own working archive page. A one-time automatic repair also splits the glued terms that earlier imports already created, so existing sites are fixed without re-importing.
 * Updated the bundled Action Scheduler library to 3.9.3 - removes the PHP 8.4 deprecation notices it produced on every admin page (which could quickly fill debug.log on sites with logging enabled) and slims the plugin package.

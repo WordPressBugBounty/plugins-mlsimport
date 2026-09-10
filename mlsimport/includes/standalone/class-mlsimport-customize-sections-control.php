@@ -40,7 +40,15 @@ class Mlsimport_Customize_Sections_Control extends WP_Customize_Control {
 	public $catalog = array();
 
 	/**
-	 * Hand the catalog and the current value to the JS control.
+	 * Slugs the field's default keeps disabled; a catalog entry the saved value
+	 * never mentions is shown as Disabled when it is listed here, Enabled otherwise.
+	 *
+	 * @var string[]
+	 */
+	public $default_inactive = array();
+
+	/**
+	 * Hand the catalog, the default-disabled set and the current value to the JS control.
 	 *
 	 * @return void
 	 */
@@ -53,7 +61,8 @@ class Mlsimport_Customize_Sections_Control extends WP_Customize_Control {
 		foreach ( $this->catalog as $slug => $label ) {
 			$catalog[] = array( 'slug' => $slug, 'label' => $label );
 		}
-		$this->json['catalog'] = $catalog;
+		$this->json['catalog']         = $catalog;
+		$this->json['defaultInactive'] = array_values( (array) $this->default_inactive );
 
 		// Current setting value; decode a JSON string into an array.
 		$value = $this->value();

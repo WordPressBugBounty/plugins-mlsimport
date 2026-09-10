@@ -16,6 +16,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Exit if accessed directly
 }
 
+$settings_import_value = '';
+
 // Handle the toggle-form submit: only when the tool-actions nonce is present and valid.
 if (isset($_POST['mlsimport_tool_actions']) &&
 	wp_verify_nonce(  sanitize_text_field( wp_unslash( $_POST['mlsimport_tool_actions'] ) ), 'mlsimport_tool_actions')) {
@@ -30,24 +32,48 @@ if (isset($_POST['mlsimport_tool_actions']) &&
 		$disable_history = intval( $_POST['mlsimport-disable-history'] );
 		update_option( 'mlsimport-disable-history', $disable_history );
 	}
-	
+	// Persist the WordPress-theme choice (moved here from the retired "MLS
+	// Connection" tab): merge the single key into mlsimport_admin_options so
+	// every other stored value survives untouched.
+	if ( isset( $_POST['mlsimport_admin_options']['mlsimport_theme_used'] ) ) {
+		$mlsimport_admin_options = get_option( 'mlsimport_admin_options', array() );
+		$mlsimport_admin_options = is_array( $mlsimport_admin_options ) ? $mlsimport_admin_options : array();
+		$mlsimport_admin_options['mlsimport_theme_used'] = intval( $_POST['mlsimport_admin_options']['mlsimport_theme_used'] );
+		update_option( 'mlsimport_admin_options', $mlsimport_admin_options );
+	}
+
+	if ( isset( $_POST['mlsimport-import-settings'] ) ) {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			add_settings_error( 'mlsimport_settings_transfer', 'forbidden', __( 'You are not allowed to import plugin settings.', 'mlsimport' ), 'error' );
+		} else {
+			$settings_import_value = isset( $_POST['mlsimport-settings-import'] )
+				? trim( (string) wp_unslash( $_POST['mlsimport-settings-import'] ) )
+				: '';
+			$settings_import_result = mlsimport_import_settings_json( $settings_import_value );
+			if ( $settings_import_result['success'] ) {
+				$settings_import_value = '';
+				add_settings_error( 'mlsimport_settings_transfer', 'imported', __( 'Settings imported successfully.', 'mlsimport' ), 'updated' );
+			} else {
+				add_settings_error( 'mlsimport_settings_transfer', 'invalid_json', __( 'Paste a valid JSON object exported by MLSImport.', 'mlsimport' ), 'error' );
+			}
+		}
+	}
+
 }
 ?>
 
 <form method="post" name="cleanup_options" action="">
 	<?php
 		global $mlsimport;
-		// Emit the settings API nonce/hidden fields and any registered sections.
-		settings_fields( $this->plugin_name . '_administrative_options' );
-		do_settings_sections( $this->plugin_name . '_administrative_options' );
-		// Load the administrative options and (re)initialise plugin/SaaS state.
-		$options = get_option( $this->plugin_name . '_administrative_options' );
+		// Initialise plugin/SaaS state before rendering the tools.
 		$mlsimport->admin->mlsimport_saas_setting_up();
 	 	//mlsimport_saas_event_mls_import_auto_function();
 		//mlsimport_saas_reconciliation_event_function(); 
 	?>
   
 <h1> <?php esc_html_e( 'Administrative Tools', 'mlsimport' ); ?></h1>
+
+<?php settings_errors( 'mlsimport_settings_transfer' ); ?>
 
 
 <?php
@@ -99,7 +125,21 @@ if ( 0 ===  intval($disable_history)  ) {
 </div>
 
 
-		 
+
+<div class="mlsimport_tool_block">
+	<h4> <?php esc_html_e( 'Your WordPress Theme (auto-detected — change only if the detection is wrong)', 'mlsimport' ); ?> </h4>
+	<?php
+	// Theme selector (moved here from the retired "MLS Connection" tab):
+	// rendered from the resolved theme id — saved answer when there is one,
+	// detected theme when there is not (#242).
+	print wp_kses(
+		mlsiport_mls_select_list( 'mlsimport_theme_used', mlsimport_resolve_theme_id(), MLSIMPORT_THEME ),
+		mlsimport_allowed_html_tags_content()
+	);
+	?>
+</div>
+
+
 <?php submit_button( __( 'Save Changes', 'mlsimport' ), 'mlsimport_button button save_data', 'submit', true ); ?>
 
 <div class="mlsimport_tool_block mlsimport_tool_card">
@@ -121,6 +161,47 @@ if ( 0 ===  intval($disable_history)  ) {
 		</br></br><?php esc_html_e( 'If, for some reason, you want to force the syncronization event to run every two hours(minimum time frame permitted by this plugin) you can set a cron job on your server enviroment and call this url : http://yourwebsite.com/?mlsimport_cron=yes.', 'mlsimport' ); ?>
 		</br></br><strong><?php esc_html_e( 'Example : 0   */2 *   *   *   wget https://yourwebsite.com/?mlsimport_cron=yes', 'mlsimport' ); ?></strong> .
 	</div>
+</div>
+
+<?php
+// The legacy cron-log partial had no route and assumed the file always existed,
+// which turned a missing optional log into PHP warnings. Keep the useful viewer
+// on the existing Tools surface and treat an absent log as the normal empty state.
+$cron_log_path = MLSIMPORT_PLUGIN_PATH . 'logs/cron_logs.log';
+$cron_log_size = is_readable( $cron_log_path ) ? (int) filesize( $cron_log_path ) : 0;
+?>
+<div id="mlsimport-cron-log-viewer" class="mlsimport_tool_block mlsimport_tool_card">
+	<h3><?php esc_html_e( 'Property Update logs', 'mlsimport' ); ?></h3>
+	<?php if ( ! is_readable( $cron_log_path ) ) : ?>
+		<p><?php esc_html_e( 'No cron log entries yet.', 'mlsimport' ); ?></p>
+	<?php else : ?>
+		<p>
+			<?php
+			echo esc_html(
+				sprintf(
+					/* translators: %d: cron log file size in bytes. */
+					__( 'Cron Log File Size is %d bytes', 'mlsimport' ),
+					$cron_log_size
+				)
+			);
+			?>
+		</p>
+		<?php if ( $cron_log_size < 3000000 ) : ?>
+			<pre class="mlsimport-cron-log-content"><?php echo esc_html( (string) file_get_contents( $cron_log_path ) ); ?></pre>
+		<?php else : ?>
+			<p><?php esc_html_e( 'The file is too large to be displayed. You can read it in mlsimport/logs/cron_logs.log.', 'mlsimport' ); ?></p>
+		<?php endif; ?>
+	<?php endif; ?>
+</div>
+
+<div id="mlsimport-settings-transfer" class="mlsimport_tool_block mlsimport_tool_card">
+	<h3><?php esc_html_e( 'Export or import settings', 'mlsimport' ); ?></h3>
+	<p><?php esc_html_e( 'Copy the export JSON for a backup, or paste an MLSImport export below to restore its settings.', 'mlsimport' ); ?></p>
+	<label class="mlsimport-label" for="mlsimport-settings-export"><?php esc_html_e( 'Export settings', 'mlsimport' ); ?></label>
+	<textarea id="mlsimport-settings-export" class="large-text code" rows="10" readonly><?php echo esc_textarea( wp_json_encode( mlsimport_export_settings_payload(), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES ) ); ?></textarea>
+	<label class="mlsimport-label" for="mlsimport-settings-import"><?php esc_html_e( 'Import settings', 'mlsimport' ); ?></label>
+	<textarea id="mlsimport-settings-import" name="mlsimport-settings-import" class="large-text code" rows="10"><?php echo esc_textarea( $settings_import_value ); ?></textarea>
+	<button type="submit" class="button mlsimport_button" name="mlsimport-import-settings" value="1"><?php esc_html_e( 'Import Settings', 'mlsimport' ); ?></button>
 </div>
 
 <fieldset class="mlsimport-fieldset mlsimport_tool_block mlsimport_tool_card">

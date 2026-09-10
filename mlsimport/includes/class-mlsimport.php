@@ -226,9 +226,6 @@ class Mlsimport {
 		$this->loader->add_action( 'update_option_' . $this->plugin_name . '_admin_fields_select', $this->admin, 'update_option_mlsimport_admin_fields_select' );
 		$this->loader->add_action( 'add_option_' . $this->plugin_name . '_admin_fields_select', $this->admin, 'update_option_mlsimport_admin_fields_select' );
 
-		// React to changes of the administrative options.
-		$this->loader->add_action( 'update_option_' . $this->plugin_name . '_administrative_options', $this->admin, 'update_option_mlsimport_administrative_options' );
-
 		// Add menu item
 		$this->loader->add_action( 'admin_menu', $this->admin, 'add_plugin_admin_menu' );
 

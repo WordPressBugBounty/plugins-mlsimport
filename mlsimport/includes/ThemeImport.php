@@ -335,7 +335,8 @@ class ThemeImport {
 	 *
 	 * Stores array{status, since} in the mlsimport_connection_health option:
 	 * 'healthy', 'credentials_invalid' (server rejected the stored account),
-	 * or 'credentials_missing' (nothing configured). Transient failures such
+	 * 'no_subscription' (password accepted, account not active — #322) or
+	 * 'credentials_missing' (nothing configured). Transient failures such
 	 * as network timeouts never call this, so a working state is not lost to
 	 * a hiccup. Re-recording an unchanged status is skipped so 'since' keeps
 	 * pointing at when the state actually began.
@@ -373,7 +374,10 @@ class ThemeImport {
 	 *
 	 * Reads the stored username/password, POSTs them, and on success stores the
 	 * token in a transient plus the expiry timestamp in an option. Bumps the
-	 * 'token_failures' telemetry counter on every failure path.
+	 * 'token_failures' telemetry counter on every failure path — WITHOUT a
+	 * connection id (#283): the SaaS JWT is account-level, shared by every
+	 * connection, so its failures belong to no single MLS and count only in
+	 * the global bucket.
 	 *
 	 * @return bool True on successful refresh, false otherwise.
 	 */
@@ -435,19 +439,27 @@ class ThemeImport {
 		// Decode the JSON token response.
 		$body = wp_remote_retrieve_body($response);
 		$data = json_decode($body, true);
+		$code = intval( $response['response']['code'] ?? 0 );
 
 		// Reject any response missing success/token/expires.
 		if (!isset($data['success']) || !$data['success'] || !isset($data['token']) || !isset($data['expires'])) {
 			mlsimport_telemetry_bump( 'token_failures' );
 			delete_option( 'mlsimport_token_refresh_lock' );
-			// The server answered and said no → the credentials themselves are
-			// bad (terminal until the user fixes them). A malformed/partial
-			// body is a server hiccup instead and leaves health untouched.
+			// The server answered and said no → terminal until the user acts.
+			// HTTP 403 means the password was right but the account has no
+			// active subscription (#322); anything else is bad credentials.
+			// A malformed/partial body is a server hiccup instead and leaves
+			// health untouched.
 			if ( is_array( $data ) && array_key_exists( 'success', $data ) && ! $data['success'] ) {
-				self::setConnectionHealth( 'credentials_invalid' );
+				self::setConnectionHealth( 403 === $code ? 'no_subscription' : 'credentials_invalid' );
+				// Same verdict, remembered for the "not connected" screens.
+				mlsimport_account_status_record( array( 'success' => false, 'error_code' => $code ) );
 			}
 			return false;
 		}
+
+		// A working login wipes any remembered failure reason (#322).
+		mlsimport_account_status_record( $data );
 		
 		// Store new token and expiry
 		//$mlsimport->admin->mlsimport_saas_store_mls_api_token_transient($data['token']);
@@ -669,6 +681,16 @@ class ThemeImport {
                        // success activity entry still needs it afterward.
                        $ownerTaskId = intval(get_post_meta($deleteId, 'MLSimport_item_inserted', true));
 
+                       // Dedupe (issue #282): this raw-SQL path bypasses the WP delete
+                       // hooks, so capture the address group now (meta is gone after the
+                       // raw delete) and re-evaluate it after success — deleting a flagged
+                       // winner must promote its hidden loser.
+                       $dedupeAddressKey = (string) get_post_meta($deleteId, 'mlsimport_address_key', true);
+                       // Telemetry (#283): the deletion counts against the
+                       // listing's OWN connection — read the provenance stamp
+                       // (#278) before the raw delete wipes its meta.
+                       $provenanceMlsId = (int) get_post_meta($deleteId, 'mlsimport_mls_id', true);
+
                        global $wpdb;
                        // Raw SQL delete skips wp_delete_post (too slow), so nothing cleans the
                        // property's term relationships, term counts or listings row. Do that
@@ -697,9 +719,15 @@ class ThemeImport {
                                wp_delete_attachment($attachmentId, true);
                        }
 
+                       // Dedupe (issue #282): the post row is durably gone — settle the
+                       // surviving copies of its address group (promote a hidden loser).
+                       if ('' !== $dedupeAddressKey && function_exists('mlsimport_dedupe_evaluate')) {
+                               mlsimport_dedupe_evaluate($dedupeAddressKey, (string) $postType);
+                       }
+
                        // Record the deletion in the activity feed only after it happened.
                        mlsimport_record_activity( 'deleted', $deleteId, $ListingKey, $ownerTaskId, 'reconciliation' );
-                       mlsimport_telemetry_bump( 'deleted' );
+                       mlsimport_telemetry_bump( 'deleted', 1, $provenanceMlsId );
 
                        $logEntry = 'MYSQL DELETE -> Property with id ' . $deleteId . ' (' . $postType . ') (status ' . $deleteIdStatus . ') and ' . $ListingKey . ' was deleted on ' . current_time('Y-m-d\TH:i') . PHP_EOL;
                        $this->writeImportLogs($logEntry, 'delete');
@@ -742,8 +770,13 @@ public function mlsimportSaasPrepareToImportPerItem( $property, $itemIdArray, $t
 	}
 
 	// Translate the shallow legacy option array into the stable module settings.
+	// The listing's provenance (issue #278) is the task's OWN connection binding
+	// (#277) read straight from post meta — deliberately NO current-connection
+	// fallback on the write path (decision #266): an unbound task stamps 0
+	// rather than silently adopting whichever connection is globally selected.
 	$settings = array(
 		'task_id'             => (int) ( $itemIdArray['item_id'] ?? 0 ),
+		'mls_id'              => (int) get_post_meta( (int) ( $itemIdArray['item_id'] ?? 0 ), 'mlsimport_item_mls_id', true ),
 		'source'              => (string) $tipImport,
 		'statuses'            => is_array( $mlsimportItemOptionData['mlsimport_item_standardstatus'] ?? null )
 			? $mlsimportItemOptionData['mlsimport_item_standardstatus']

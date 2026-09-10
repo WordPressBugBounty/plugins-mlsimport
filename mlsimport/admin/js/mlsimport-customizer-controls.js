@@ -57,11 +57,15 @@
 			};
 
 			// Surface any catalog choice the saved value never mentions (e.g. a
-			// section added after the user last saved) so it is never hidden.
+			// section added after the user last saved) so it is never hidden. It
+			// lands where the field's default puts it — Disabled for the slugs in
+			// defaultInactive (the Tabs/Accordion containers), Enabled otherwise —
+			// which is where the PHP sanitizer will put it on save.
 			var known = control.state.active.concat( control.state.inactive );
+			var off = control.params.defaultInactive || [];
 			control.catalog.forEach( function ( c ) {
 				if ( known.indexOf( c.slug ) === -1 ) {
-					control.state.active.push( c.slug );
+					control.state[ off.indexOf( c.slug ) === -1 ? 'active' : 'inactive' ].push( c.slug );
 				}
 			} );
 

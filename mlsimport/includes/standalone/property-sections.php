@@ -350,6 +350,9 @@ function mlsimport_property_agent( int $id, callable $meta ): ?array {
 		// the MLS attribution must always name the FEED listing agent/office (#169).
 		'feed_name'    => (string) $meta( 'ListAgentFullName' ),
 		'feed_office'  => (string) $meta( 'ListOfficeName' ),
+		// RESO ListAgentPreferredPhone: the phone the listing agent asks to be
+		// reached on. Printed after the agent name in the attribution line.
+		'feed_phone'   => (string) $meta( 'ListAgentPreferredPhone' ),
 		'license'      => $ameta( 'ListAgentStateLicense' ),
 		'agent_mls_id' => $ameta( 'ListAgentMlsId' ),
 		'office_mls_id' => $ameta( 'ListOfficeMlsId' ),
@@ -757,6 +760,13 @@ function mlsimport_property_features_list_html( array $names, int $id = 0 ): str
  * Interior. A section that renders nothing is dropped rather than offered as a
  * dead tab, the same "no data, no section" rule the sections themselves obey.
  *
+ * Without a 'sections' list (the property template, the shortcode, the block and
+ * the Elementor widget all dispatch a section with only the post id) the
+ * container holds the nine field sections followed by Features — the "Details"
+ * a tabbed or accordion layout is expected to group (#311). Whatever the list,
+ * the two containers themselves are never panes, so a container cannot nest
+ * itself.
+ *
  * The pane carries the heading, so the section inside it is asked to omit its own.
  *
  * @param int   $id   Property post ID.
@@ -764,11 +774,13 @@ function mlsimport_property_features_list_html( array $names, int $id = 0 ): str
  * @return array<string,array{0:string,1:string}> slug => [ title, html ].
  */
 function mlsimport_property_container_panes( int $id, array $args ): array {
-	// The ordered slug list the container was told to hold.
-	$slugs = isset( $args['sections'] ) ? (array) $args['sections'] : array();
-	if ( empty( $slugs ) ) {
-		return array();
-	}
+	// Step 1: the ordered slug list the container was told to hold, or the default
+	// "Details" set when the caller passed none.
+	$slugs = ! empty( $args['sections'] )
+		? (array) $args['sections']
+		: array_merge( array_keys( mlsimport_property_field_section_titles() ), array( 'features' ) );
+	// Step 2: a container never holds a container (no recursion).
+	$slugs = array_diff( $slugs, array( 'tabs', 'accordion' ) );
 
 	// The section registry maps each slug to its render fn + label.
 	$registry = mlsimport_get_property_sections();
@@ -921,15 +933,18 @@ function mlsimport_property_features( int $id = 0, array $args = array() ): stri
 		return '';
 	}
 
-	// Titled section wrapping the amenity chips.
-	$html  = mlsimport_property_section_open( 'features', __( 'Features & Amenities', 'mlsimport' ), 'grid' );
+	// Titled section wrapping the amenity chips; inside a Tabs/Accordion pane the
+	// pane carries the heading, so 'hide_title' drops this one.
+	$title = empty( $args['hide_title'] ) ? __( 'Features & Amenities', 'mlsimport' ) : '';
+	$html  = mlsimport_property_section_open( 'features', $title, 'grid' );
 	$html .= $list;
 	$html .= mlsimport_property_section_close();
 	return $html;
 }
 
 /**
- * Details as Tabs — Details + Features in a tabbed panel (mlsimport-property-tabs.js).
+ * Details as Tabs — the container's panes (field sections + Features by default,
+ * or the 'sections' list) in a tabbed panel (mlsimport-property-tabs.js).
  *
  * @param int   $id   Property post ID.
  * @param array $args Behavioral options.
@@ -965,7 +980,8 @@ function mlsimport_property_tabs( int $id = 0, array $args = array() ): string {
 }
 
 /**
- * Details as Accordion — Details + Features in native <details> panels (no JS).
+ * Details as Accordion — the container's panes (field sections + Features by
+ * default, or the 'sections' list) in native <details> panels (no JS).
  *
  * @param int   $id   Property post ID.
  * @param array $args Behavioral options.
@@ -2897,6 +2913,7 @@ function mlsimport_property_attribution( int $id = 0, array $args = array() ): s
 	$agent  = ! empty( $data['agent'] ) ? $data['agent'] : array();
 	$office = isset( $agent['feed_office'] ) ? (string) $agent['feed_office'] : '';
 	$name   = isset( $agent['feed_name'] ) ? (string) $agent['feed_name'] : '';
+	$phone  = isset( $agent['feed_phone'] ) ? (string) $agent['feed_phone'] : '';
 
 	// "Listing courtesy of <office>" line, when the feed office is known.
 	$courtesy = '';
@@ -2904,13 +2921,19 @@ function mlsimport_property_attribution( int $id = 0, array $args = array() ): s
 		$courtesy = sprintf( /* translators: %s: listing office name. */ __( 'Listing courtesy of %s', 'mlsimport' ), $office );
 	}
 
-	// Meta facts: MLS#, feed listing agent, last-updated — each added when present.
+	// Meta facts: MLS#, feed listing agent, agent preferred phone, last-updated —
+	// each added when present.
 	$facts = array();
 	if ( '' !== (string) $data['mls_id'] ) {
 		$facts[] = sprintf( /* translators: %s: MLS id. */ __( 'MLS# %s', 'mlsimport' ), $data['mls_id'] );
 	}
 	if ( '' !== $name ) {
 		$facts[] = sprintf( /* translators: %s: listing agent name. */ __( 'Listing agent %s', 'mlsimport' ), $name );
+	}
+	// The feed agent's preferred phone (RESO ListAgentPreferredPhone), straight
+	// after the name so the line reads "Listing agent <name> · Phone <phone>".
+	if ( '' !== $phone ) {
+		$facts[] = sprintf( /* translators: %s: listing agent phone number. */ __( 'Phone %s', 'mlsimport' ), $phone );
 	}
 	if ( '' !== (string) $data['updated'] ) {
 		$facts[] = sprintf( /* translators: %s: date. */ __( 'Data last updated %s', 'mlsimport' ), $data['updated'] );

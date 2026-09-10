@@ -2,7 +2,8 @@
  * Field Configuration browser controller.
  *
  * One controller owns the list view and one ordered mutation queue. Every save
- * posts four fixed variables (action, nonce, revision, JSON command), applies
+ * posts four fixed variables (action, nonce, revision, JSON command) — plus the
+ * scoped mls_id when the tab is bound to one connection (multi-MLS) — applies
  * the authoritative server result, and advances the revision before the next
  * command starts. Network interruptions receive three automatic retries. Any
  * persistent or rejected save pauses later work and leaves the administrator's
@@ -24,7 +25,30 @@
         $('.mlsimport-field-selector-container').each(function () {
             createController($(this));
         });
+
+        // Per-connection scope selector (multi-MLS): switching MLS reloads the
+        // tab with ?mls=<id>, so the whole page — partial, hidden scope input,
+        // controller — re-renders bound to the picked connection.
+        $(document).on('change', '#mlsimport-field-mls-scope', function () {
+            var url = new URL(window.location.href);
+            url.searchParams.set('mls', this.value);
+            window.location.href = url.toString();
+        });
     });
+
+    /**
+     * The connection this rendered tab is scoped to (0 = legacy/current).
+     *
+     * The partial resolves the scope server-side and exposes it in the hidden
+     * #mlsimport_field_scope input; every mutation posts it back so the save
+     * can never land on a different connection than the one rendered.
+     *
+     * @return {string} The scoped mls_id, or '' when unscoped.
+     */
+    function scopedMlsId() {
+        var value = $('#mlsimport_field_scope').val();
+        return value && parseInt(value, 10) > 0 ? value : '';
+    }
 
     /**
      * Create the UI state, event bindings, sortable behavior, and save queue.
@@ -264,17 +288,22 @@
             var item = state.queue[0];
             var $indicated = indicatorCells(item.command);
             addSaveIndicator($indicated);
+            var request = {
+                action: mlsimport_params.action,
+                security: mlsimport_params.nonce,
+                revision: state.revision,
+                command: JSON.stringify(item.command)
+            };
+            // Scoped tab (multi-MLS): pin the save to the rendered connection.
+            if (scopedMlsId()) {
+                request.mls_id = scopedMlsId();
+            }
             $.ajax({
                 url: mlsimport_params.ajax_url,
                 type: 'POST',
                 dataType: 'json',
                 timeout: 20000,
-                data: {
-                    action: mlsimport_params.action,
-                    security: mlsimport_params.nonce,
-                    revision: state.revision,
-                    command: JSON.stringify(item.command)
-                }
+                data: request
             }).done(function (response) {
                 if (!response || !response.success || !response.data || !response.data.success) {
                     resolveSaveIndicators($indicated, false);
@@ -343,10 +372,13 @@
                 $row.find('.mlsimport-postmeta-input').val(field.postmeta || '');
                 $row.find('.mlsimport-taxonomy-select').val(field.taxonomy || '');
             });
-            $.each(result.order || [], function (_, fieldKey) {
-                $body.append(rowFor(fieldKey));
+            // The authoritative order stamps data-field-order directly, so the
+            // stored order survives even while a sorted view owns the display.
+            $.each(result.order || [], function (index, fieldKey) {
+                var $ordered = rowFor(fieldKey);
+                $ordered.attr('data-field-order', index).find('.field-position').text((index + 1) + '. ');
+                $body.append($ordered);
             });
-            refreshPositions();
             updateStats();
             applyView();
         }
@@ -418,8 +450,18 @@
          *
          * These positions are presentation state until the server returns its
          * authoritative order; no complete order array is placed on the wire.
+         *
+         * data-field-order must always mirror the STORED custom order, so only
+         * the custom-order view — where DOM order IS the stored order — may
+         * re-derive it from DOM positions. In a sorted view the DOM is display
+         * order; stamping it would corrupt the stored order client-side (the
+         * "Custom Order" option would then replay the sorted order until a
+         * reload). There the authoritative result re-stamps it instead.
          */
         function refreshPositions() {
+            if (($sort.val() || 'custom_order') !== 'custom_order') {
+                return;
+            }
             rows().each(function (index) {
                 $(this).attr('data-field-order', index).find('.field-position').text((index + 1) + '. ');
             });

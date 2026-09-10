@@ -318,6 +318,30 @@
 			root.style.setProperty( 'width', corrected + 'px', 'important' );
 			root.style.setProperty( 'max-width', corrected + 'px', 'important' );
 		}
+		unclipAncestors( root );
+	}
+
+	/**
+	 * Let the full-bleed block show through its content column. Pinning puts the
+	 * block at x=0 and viewport-wide, but a theme that clips its content wrappers
+	 * horizontally (Enfold sets `overflow-x: clip` on .container, .template-page,
+	 * .post-entry and .entry-content) still cuts it down to the column. An
+	 * ancestor can only clip the block when it is narrower than the viewport, so
+	 * only those get an inline `overflow: visible !important`; the page-wide
+	 * wrappers (body, #wrap_all) keep their clipping, which is what stops a
+	 * horizontal scrollbar, and the block itself never overhangs them.
+	 * @param {Element} root The half-map block root.
+	 */
+	function unclipAncestors( root ) {
+		var viewport = document.documentElement.clientWidth;
+		var el       = root.parentElement;
+		while ( el && el !== document.body ) {
+			var overflowX = window.getComputedStyle( el ).overflowX;
+			if ( ( 'hidden' === overflowX || 'clip' === overflowX ) && el.getBoundingClientRect().width < viewport ) {
+				el.style.setProperty( 'overflow', 'visible', 'important' );
+			}
+			el = el.parentElement;
+		}
 	}
 
 	/**

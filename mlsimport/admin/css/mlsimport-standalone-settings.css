@@ -326,3 +326,36 @@
 #mlsimport-standalone-app .components-button.is-tertiary:focus:not( :disabled ) {
 	box-shadow: 0px 1px 2px rgba( 28, 25, 23, 0.08 );
 }
+
+/* ===========================================================================
+   Mobile layout
+
+   WordPress collapses its admin navigation at 782px. At that width the fixed
+   210px settings rail and the field panel no longer fit side by side: the panel
+   is squeezed into a narrow strip and the full-height card can cover the Save
+   action below it. Stack the same two public controls in document order so the
+   menu, active panel, and Save button each own a separate vertical region.
+   =========================================================================== */
+@media screen and ( max-width: 782px ) {
+	.mlsimport-settings-tabs {
+		flex-direction: column;
+		align-items: stretch;
+	}
+
+	.mlsimport-settings-tabs__menu {
+		flex: 0 1 auto;
+		width: 100%;
+		box-sizing: border-box;
+		padding: 0 0 12px;
+		margin: 0 0 12px;
+		border-right: 0;
+		border-bottom: 1px solid var(--border-color, rgba(28, 25, 23, 0.12));
+	}
+
+	.mlsimport-settings-tabs__panel {
+		width: 100%;
+		box-sizing: border-box;
+		min-height: 0;
+		padding: 8px 4px 4px;
+	}
+}

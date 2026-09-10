@@ -95,12 +95,14 @@ jQuery( document ).ready(
 		* Start Import per item
 		*/
 
-		// Start a single import task. Two triggers share this handler: the normal
-		// "start" button and the onboarding "run test" button (which forces a small
-		// 5-item onboarding import). Kicks off the per-item log poll, then the import.
-		jQuery( '#mlsimport-start_item,#mlsimport-run-test' ).on(
+		// Start a single import from the Import Task editor. The onboarding wizard
+		// owns its Run Test button separately because it uses a dedicated endpoint,
+		// server-side five-listing cap, and completion polling. Binding that button
+		// here as well starts two different requests from one click and makes them
+		// compete for the global import mutex.
+		jQuery( '#mlsimport-start_item' ).on(
 			'click',
-			function (event) {
+			function () {
 				console.log( 'mlsimport-start' );
 				// Gather the task's identifiers and requested batch size from the DOM.
 				var ajaxurl     = mlsimport_vars.ajax_url;
@@ -112,33 +114,6 @@ jQuery( document ).ready(
 				// Reset the status line to a "starting" message.
 				jQuery( '#mlsimport_item_status' ).empty();
 				jQuery( '#mlsimport_item_status' ).append( "Starting the import. Please stand by!" );
-
-
-				// Onboarding "run test" path: disable the button, show a spinner and a
-				// progress bar, and force a fixed 5-item onboarding import.
-				if (event.target.id === 'mlsimport-run-test') {
-					// Do something only when #mlsimport-run-test is clicked
-		
-
-							
-					jQuery(this).prop('disabled', true);
-					jQuery('#mlsimport-test-spinner').show();
-					jQuery('.mlsimport-status-message')
-						.removeClass('pending')
-						.addClass('progress')
-						.html('<p><?php _e("Starting import... Please wait.", "mlsimport"); ?></p>' +
-						'<div class="mlsimport-progress-bar"><div class="mlsimport-progress-bar-inner" style="width: 20%"></div></div>');
-
-					how_many=5;	
-					is_onboard=1;
-
-
-				} else {
-					// Handle #mlsimport-start_item click
-					console.log('Start item clicked');
-				}
-
-			
 
 
 				clearInterval( log_refresh_interval_per_item );
@@ -161,7 +136,7 @@ jQuery( document ).ready(
                                                         console.log( data );
                                                         if ( data && data.success === false && data.message ) {
                                                                 jQuery( '#mlsimport_item_status' ).empty().append( data.message );
-                                                                jQuery( '#mlsimport-start_item,#mlsimport-run-test' ).prop( 'disabled', true );
+														jQuery( '#mlsimport-start_item' ).prop( 'disabled', true );
                                                         }
 
                                                 },
@@ -181,7 +156,7 @@ jQuery( document ).ready(
                                                                 message = errorThrown.statusText;
                                                         }
                                                         jQuery( '#mlsimport_item_status' ).empty().append( message );
-                                                        jQuery( '#mlsimport-start_item,#mlsimport-run-test' ).prop( 'disabled', true );
+														jQuery( '#mlsimport-start_item' ).prop( 'disabled', true );
                                                 }
                                         }
                                 );// end ajax
@@ -712,14 +687,21 @@ function mlsimport_saas_get_metadata()
 	// Nonce and admin-ajax endpoint for the metadata request.
 	var nonce = jQuery('#mlsimport_saas_get_metadata').val();
 	var ajaxurl = mlsimport_vars.ajax_url;
+	var request = {
+		'action'   : 'mlsimport_saas_get_metadata_function',
+		'security' : nonce
+	};
+	// Scoped field tab (multi-MLS): gather for the rendered connection, not
+	// blindly for the current one. Absent input (other pages) => legacy scope.
+	var scope = jQuery('#mlsimport_field_scope').val();
+	if (scope && parseInt(scope, 10) > 0) {
+		request.mls_id = scope;
+	}
 	jQuery.ajax(
 		{
 			type: 'POST',
 			url: ajaxurl,
-			data: {
-				'action'            :   'mlsimport_saas_get_metadata_function',
-				'security'			:	nonce
-			},
+			data: request,
 			success: function (data) {
 				console.log( data );
 				jQuery( '.mlsimport_populate_warning' ).remove();

@@ -41,6 +41,9 @@ if ( ! defined( 'MLSIMPORT_TASK_HEALTH_OVERDUE_AFTER' ) ) {
  *    own staleness rule (30 minutes) is a dead worker: flag it stuck. This is
  *    the issue's reported scenario — "Importing 10 out of 100" forever.
  * 3. A running import with a fresh heartbeat is healthy: show its progress.
+ * 3b. A cron-enabled task the hourly runner refuses (its first manual import
+ *    never completed, GitHub issue #330) is not "overdue", it is never going
+ *    to sync: say so and name the only remedy, one finished manual import.
  * 4. A cron-enabled task without a watermark cannot hourly-sync at all (the
  *    sync refuses to start without one): warn to run one manual import. A
  *    watermark that fell behind the overdue cutoff means the hourly sync has
@@ -55,9 +58,11 @@ if ( ! defined( 'MLSIMPORT_TASK_HEALTH_OVERDUE_AFTER' ) ) {
  * @param bool                 $cron_enabled           Whether hourly auto-sync is on for the task.
  * @param int                  $now                    Current Unix timestamp.
  * @param string               $watermark_stale_before Watermarks older than this ('Y-m-d\TH:i') are overdue.
+ * @param bool                 $eligible               Whether the hourly runner will process this task at all
+ *                                                     (mlsimport_cron_task_is_eligible()). Defaults to true.
  * @return array<string, string> Badge as level ('ok'|'warning'|'error'|'neutral'), label, message.
  */
-function mlsimport_task_health( array $status, string $watermark, bool $cron_enabled, int $now, string $watermark_stale_before ): array {
+function mlsimport_task_health( array $status, string $watermark, bool $cron_enabled, int $now, string $watermark_stale_before, bool $eligible = true ): array {
 	$state = (string) ( $status['state'] ?? '' );
 
 	// 0. Never ran at all: no run status and no watermark is a task waiting
@@ -79,6 +84,21 @@ function mlsimport_task_health( array $status, string $watermark, bool $cron_ena
 		);
 	}
 
+	// 1b. A run stopped by hand (the Stop button is the only writer of this
+	// state) is unfinished on purpose: say where it stopped and what finishes
+	// it, instead of letting it fall through to "Sync overdue" (issue #330).
+	if ( 'stopped' === $state ) {
+		return array(
+			'level'   => 'warning',
+			'label'   => 'Import stopped',
+			'message' => sprintf(
+				'Stopped at listing %1$d of %2$d. Run a manual import to finish it.',
+				(int) ( $status['handled'] ?? 0 ),
+				(int) ( $status['expected'] ?? 0 )
+			),
+		);
+	}
+
 	// 2. A silent 'running' status: the worker heartbeats after every listing,
 	// so a heartbeat older than the engine's 30-minute staleness rule means
 	// the worker died and nothing will update this task again — call it stuck.
@@ -94,6 +114,18 @@ function mlsimport_task_health( array $status, string $watermark, bool $cron_ena
 		);
 	}
 
+	// 2b. A silent 'waiting' status: the run claimed the slot and its process
+	// died before the first progress write (a count request that never
+	// returned, a killed cron request). Same staleness rule, same verdict —
+	// nothing will move this task again (issue #330).
+	if ( 'waiting' === $state && $now - (int) ( $status['activity_at'] ?? 0 ) > MLSIMPORT_TASK_HEALTH_STUCK_AFTER ) {
+		return array(
+			'level'   => 'error',
+			'label'   => 'Stuck',
+			'message' => 'Died while preparing the import — no worker activity for over 30 minutes.',
+		);
+	}
+
 	// 3. A live import: recent activity means it is genuinely progressing —
 	// show where it is.
 	if ( 'running' === $state ) {
@@ -105,6 +137,18 @@ function mlsimport_task_health( array $status, string $watermark, bool $cron_ena
 				(int) ( $status['handled'] ?? 0 ),
 				(int) ( $status['expected'] ?? 0 )
 			),
+		);
+	}
+
+	// 3b. Cron on but the runner will never pick this task up: its first manual
+	// import never reached 'completed' (GitHub issue #330). Every hourly run
+	// skips it before any request is made, so "overdue" would be a lie — the
+	// watermark below is a leftover, not a last successful sync.
+	if ( $cron_enabled && ! $eligible ) {
+		return array(
+			'level'   => 'warning',
+			'label'   => 'Initial import incomplete',
+			'message' => 'The hourly sync skips this task until one manual import finishes. Press Start Import and let it complete.',
 		);
 	}
 

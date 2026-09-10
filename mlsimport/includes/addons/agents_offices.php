@@ -214,24 +214,32 @@ add_action('template_redirect', 'mlsimport_fetch_and_save_mls_data');
 
 
 /**
- * Updates custom fields based on the theme ID.
+ * Register the Agents & Offices fields for the active supported theme.
  *
- * If the theme ID is 991, it modifies the `wpresidence_admin` options by adding new custom fields.
- * If the theme ID is 992, it updates the `additional_features` meta field for properties.
- * The function runs only once by checking `mlsimport_custom_fields_updated`.
+ * Step by step:
+ * 1. Read the active theme, MLS ID, and mirrored current-connection token from
+ *    the plugin options.
+ * 2. Stop unless the current connection is one of the supported MLSPIN feeds
+ *    and has a token.
+ * 3. For WpResidence, append the two theme custom fields once and stamp the
+ *    successful option update.
+ * 4. For Houzez, append the two additional-feature definitions once to the
+ *    current property.
+ *
+ * @return void
  */
 function mlsimport_update_custom_fields() {
-    // Read the active theme and MLS from plugin options.
+    // Read the active theme and current connection from mirrored plugin options.
     $options = get_option('mlsimport_admin_options');
     $theme_id = isset($options['mlsimport_theme_used']) ? intval($options['mlsimport_theme_used']) : 0;
     $mls_id = isset($options['mlsimport_mls_name']) ? sanitize_text_field(trim($options['mlsimport_mls_name'])) : '';
+    // Credential values are trim-only so valid token bytes are never altered.
+    $mls_token = isset($options['mlsimport_mls_token']) ? trim((string) $options['mlsimport_mls_token']) : '';
 
 
 
-// Ensure MLS ID is 110 or 200 before proceeding
-    // NOTE: $mls_token is not defined in this function's scope (see SPOTTED notes).
+    // This addon is available only for the two MLSPIN feeds with credentials.
     if (!in_array($mls_id, ['110', '200']) || !$mls_token) {
-        // error_log("MLSImport: Invalid MLS ID ({$mls_id}) or missing token. Skipping.");
         return;
     }
 

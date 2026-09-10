@@ -42,20 +42,41 @@ final class Mlsimport_Stored_Listing_WordPress_Environment {
 	/**
 	 * Find a Managed Listing and the versions needed by the unchanged check.
 	 *
+	 * Listing identity is composite (issue #278): ListingKey is guaranteed
+	 * unique only WITHIN one MLS, so the lookup matches BOTH the stable key and
+	 * the source connection's 'mlsimport_mls_id' provenance meta. Existing posts
+	 * carry that meta from the multi-MLS migration; new posts are stamped by
+	 * write_required_data() on every create/update.
+	 *
 	 * @param string $listing_key Stable MLS identity.
 	 * @param string $post_type   Configured theme property post type.
+	 * @param int    $mls_id      Source MLS connection id from the task binding.
 	 * @return array<string, mixed>|null Existing listing snapshot, or null.
 	 */
-	public function find_listing( string $listing_key, string $post_type ): ?array {
+	public function find_listing( string $listing_key, string $post_type, int $mls_id ): ?array {
 		$ids = get_posts(
 			array(
 				'post_type'      => $post_type,
 				'post_status'    => 'any',
 				'posts_per_page' => 1,
 				'fields'         => 'ids',
-				'meta_key'       => '_mlsimport_listing_key',
-				'meta_value'     => $listing_key,
 				'no_found_rows'  => true,
+				// Identity lookup, not a display query: a listing hidden as a
+				// dedupe loser (#282) MUST still be found by its own MLS's
+				// next import, or every update would create a duplicate post.
+				'mlsimport_include_hidden' => true,
+				// Both clauses must match: same key from another MLS is a
+				// DIFFERENT listing and must not be found here.
+				'meta_query'     => array(
+					array(
+						'key'   => '_mlsimport_listing_key',
+						'value' => $listing_key,
+					),
+					array(
+						'key'   => 'mlsimport_mls_id',
+						'value' => (string) $mls_id,
+					),
+				),
 			)
 		);
 		if ( empty( $ids ) ) {
@@ -164,6 +185,100 @@ final class Mlsimport_Stored_Listing_WordPress_Environment {
 	}
 
 	/**
+	 * Re-apply the API core/theme meta block (plus normalized bathrooms) to a post.
+	 *
+	 * Called from every full write AND from the 'unchanged' outcome (issue #333):
+	 * these keys are the theme's own fields (Houzez fave_property_id and friends),
+	 * which the theme itself can blank from its save paths after we wrote them.
+	 * Re-asserting them each sync is cheap — update_post_meta() is a read-and-skip
+	 * when the stored value already matches — and it is the only way a once-
+	 * blanked value comes back without waiting for the MLS to touch the listing.
+	 *
+	 * @param int                  $listing_id Managed Listing post ID.
+	 * @param array<string, mixed> $property   Incoming raw property.
+	 * @return void
+	 */
+	public function reassert_meta( int $listing_id, array $property ): void {
+		$meta = is_array( $property['meta'] ?? null ) ? $property['meta'] : array();
+		$bathrooms = $property['extra_meta']['BathroomsTotalDecimal']
+			?? ( $property['extra_meta']['BathroomsTotalInteger'] ?? ( $property['extra_meta']['BathroomsFull'] ?? '' ) );
+		foreach ( array( 'property_bathrooms', 'fave_property_bathrooms', 'REAL_HOMES_property_bathrooms' ) as $key ) {
+			$meta[ $key ] = '' === $bathrooms || null === $bathrooms ? '' : (float) $bathrooms;
+		}
+		foreach ( $meta as $key => $value ) {
+			// Every key in the API's core/theme meta block is read by the themes
+			// as ONE text value (get_post_meta( $id, $key, true ) straight into
+			// trim(), explode(), esc_html()...). No theme reads one of these keys
+			// back as an array: gallery and repeater keys are written by the
+			// adapters, not here. So an array here is never intended — it is a
+			// SaaS-side artefact — and it is flattened before the row exists.
+			// Two artefacts are known:
+			//  1. Issue #301: an older SaaS build passes RESO Coordinates through
+			//     as its GeoJSON-ordered [lng, lat] array, while the themes'
+			//     combined-location keys are "lat,lng" strings. Houzez's
+			//     added_post_meta hook explode()s fave_property_location with no
+			//     is-string guard, so the array would kill this very write.
+			//     Reorder it into the string the theme expects.
+			//  2. Issue #331: for Trestle/Rapattoni/RMLS connections the SaaS
+			//     comma-split EVERY string schema field, so single-value keys
+			//     (zip, street, unparsed address, country, ListingId...) arrived
+			//     as a one-element list, and an address holding a comma arrived
+			//     shredded. Houzez trim()s these in wp_head and PHP 8 fatals on
+			//     an array, so every property page returned 500. Joining on the
+			//     same comma restores the original value exactly.
+			if ( is_array( $value ) ) {
+				if ( 2 === count( $value )
+					&& in_array( (string) $key, array( 'fave_property_location', 'REAL_HOMES_property_location', 'property_coordinates' ), true ) ) {
+					$value = ( array_values( $value )[1] ) . ',' . ( array_values( $value )[0] );
+				} else {
+					$value = implode( ',', array_map( 'strval', $value ) );
+				}
+			}
+			$this->write_meta_row( $listing_id, (string) $key, $value );
+		}
+	}
+
+	/**
+	 * Write one theme meta row so the value we wrote is the value that stays.
+	 *
+	 * Issue #333: Houzez's "Auto Property ID" option hooks added/updated_post_meta
+	 * (Houzez_Post_Type_Property::save_property_post_type) and replaces every
+	 * fave_property_id write with its {ID} pattern — an empty pattern leaves the
+	 * row blank. That option is for listings agents type in by hand; an MLS
+	 * listing's Property ID is its MLS number, so for that one key the Houzez
+	 * callback is detached for the duration of the write and re-attached at the
+	 * same priority right after, throwing or not. Every other key, and every
+	 * other theme, is a plain update_post_meta().
+	 *
+	 * @param int    $listing_id Managed Listing post ID.
+	 * @param string $key        Meta key from the API core/theme block.
+	 * @param mixed  $value      Flattened scalar value.
+	 * @return void
+	 */
+	private function write_meta_row( int $listing_id, string $key, $value ): void {
+		if ( 'fave_property_id' !== $key || ! class_exists( 'Houzez_Post_Type_Property' ) ) {
+			update_post_meta( $listing_id, $key, $value );
+			return;
+		}
+		$callback = array( 'Houzez_Post_Type_Property', 'save_property_post_type' );
+		$detached = array();
+		foreach ( array( 'added_post_meta', 'updated_post_meta' ) as $hook ) {
+			$priority = has_action( $hook, $callback );
+			if ( false !== $priority ) {
+				remove_action( $hook, $callback, (int) $priority );
+				$detached[ $hook ] = (int) $priority;
+			}
+		}
+		try {
+			update_post_meta( $listing_id, $key, $value );
+		} finally {
+			foreach ( $detached as $hook => $priority ) {
+				add_action( $hook, $callback, $priority, 4 );
+			}
+		}
+	}
+
+	/**
 	 * Persist normalized core meta, mapped fields, taxonomies, title, and versions.
 	 *
 	 * @param int                  $listing_id Managed Listing post ID.
@@ -173,18 +288,7 @@ final class Mlsimport_Stored_Listing_WordPress_Environment {
 	 * @return bool Whether all required WordPress operations succeeded.
 	 */
 	public function write_required_data( int $listing_id, array $property, array $projection, array $settings ): bool {
-		$meta = is_array( $property['meta'] ?? null ) ? $property['meta'] : array();
-		$bathrooms = $property['extra_meta']['BathroomsTotalDecimal']
-			?? ( $property['extra_meta']['BathroomsTotalInteger'] ?? ( $property['extra_meta']['BathroomsFull'] ?? '' ) );
-		foreach ( array( 'property_bathrooms', 'fave_property_bathrooms', 'REAL_HOMES_property_bathrooms' ) as $key ) {
-			$meta[ $key ] = '' === $bathrooms || null === $bathrooms ? '' : (float) $bathrooms;
-		}
-		foreach ( $meta as $key => $value ) {
-			// API-produced core/theme meta is already shaped for WordPress. Preserve
-			// arrays so update_post_meta() retains its normal serialization contract;
-			// only selected raw extra_meta uses the Field module's string rules.
-			update_post_meta( $listing_id, (string) $key, $value );
-		}
+		$this->reassert_meta( $listing_id, $property );
 		foreach ( (array) ( $projection['post_meta'] ?? array() ) as $key => $value ) {
 			update_post_meta( $listing_id, (string) $key, (string) $value );
 		}
@@ -212,6 +316,11 @@ final class Mlsimport_Stored_Listing_WordPress_Environment {
 		if ( is_wp_error( $title_result ) ) {
 			return false;
 		}
+
+		// Provenance stamp (issue #278): which MLS connection owns this listing.
+		// Runs on create AND update so a stale value can never survive; the value
+		// comes from the task's binding via the settings — never a global read.
+		update_post_meta( $listing_id, 'mlsimport_mls_id', (int) ( $settings['mls_id'] ?? 0 ) );
 
 		$modification = (string) ( $property['extra_meta']['ModificationTimestamp'] ?? '' );
 		update_post_meta( $listing_id, 'mlsimport_stored_modification_timestamp', $modification );
@@ -318,8 +427,13 @@ final class Mlsimport_Stored_Listing_WordPress_Environment {
 			(string) ( $property['StandardStatus'] ?? ( $property['extra_meta']['MlsStatus'] ?? '' ) )
 		);
 		if ( function_exists( 'mlsimport_telemetry_bump' ) ) {
-			$telemetry_action = array( 'created' => 'imported', 'updated' => 'edited', 'deleted' => 'deleted' )[ $action ] ?? $action;
-			mlsimport_telemetry_bump( $telemetry_action );
+			// 'updated' maps to the 'updated' telemetry counter — an earlier
+			// 'edited' mapping was silently dropped by the metric whitelist,
+			// so update counts never reached the heartbeat (fixed in #283).
+			$telemetry_action = array( 'created' => 'imported', 'updated' => 'updated', 'deleted' => 'deleted' )[ $action ] ?? $action;
+			// Counted against the task's own connection (#283) — the same
+			// mls_id this write stamps as the listing's provenance (#278).
+			mlsimport_telemetry_bump( $telemetry_action, 1, (int) ( $settings['mls_id'] ?? 0 ) );
 		}
 	}
 

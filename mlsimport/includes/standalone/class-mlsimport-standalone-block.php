@@ -200,11 +200,23 @@ class Mlsimport_Standalone_Block {
 			self::EDITOR_HANDLE,
 			'MLSImportBlock',
 			array(
-				'name'         => self::NAME,
-				'iconUrl'      => $url . 'img/mlsimport_menu.png',
-				'searchFields' => self::search_fields(),
-				'taxonomies'   => self::taxonomy_options(),
-				'blocks'       => array(
+				'name'               => self::NAME,
+				'iconUrl'            => $url . 'img/mlsimport_menu.png',
+				'searchFields'       => self::search_fields(),
+				'taxonomies'         => self::taxonomy_options(),
+				// Generate the browser-side Property List schema from the same
+				// canonical filter list as item_list_attributes(). Otherwise a
+				// PHP-supported preset can render when injected in code but be
+				// discarded when Gutenberg saves it (issue #313).
+				'itemListFilterKeys' => array_values(
+					array_filter(
+						Mlsimport_Standalone_Shortcodes::filter_keys(),
+						static function ( string $key ): bool {
+							return 'limit' !== $key;
+						}
+					)
+				),
+				'blocks'             => array(
 					array(
 						'name'        => self::NAME,
 						'title'       => __( 'MLS Listings', 'mlsimport' ),

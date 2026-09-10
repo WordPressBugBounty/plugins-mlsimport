@@ -153,14 +153,8 @@ final class Mlsimport_Import_Task_Execution {
 				'reason'  => 'no_active_run',
 			);
 		}
-		// Scope agreed for issue #199: only manual runs chunk, so only manual
-		// runs are revived. A resumed automatic run would recount mid-run.
-		if ( 'manual' !== (string) ( $run['source'] ?? '' ) ) {
-			return array(
-				'revived' => false,
-				'reason'  => 'not_manual',
-			);
-		}
+		// Automatic runs chunk too since issue #330, and a resumed chunk reuses
+		// the count persisted on the run record, so every source is revived.
 		$now = $this->environment->now();
 		if ( $now - (int) ( $run['activity_at'] ?? 0 ) < self::REVIVE_AFTER_SECONDS ) {
 			return array(
@@ -248,7 +242,11 @@ final class Mlsimport_Import_Task_Execution {
 		}
 		$request = isset( $run['request'] ) && is_array( $run['request'] ) ? $run['request'] : array();
 		$source  = (string) ( $run['source'] ?? 'manual' );
-		$found   = max( 0, (int) ( $request['found'] ?? 0 ) );
+		// A resumed chunk reuses the plan persisted by the first worker: the
+		// count is taken once per run (issue #330). Listings keep changing
+		// during a long import, so counting again mid-run would move the
+		// goal posts and end the run early or late.
+		$found   = max( 0, (int) ( $run['found'] ?? ( $request['found'] ?? 0 ) ) );
 
 		// A stale worker may wake after a replacement claimed the site-wide
 		// slot. It must stop before changing state, fetching, or saving.
@@ -264,9 +262,11 @@ final class Mlsimport_Import_Task_Execution {
 			return $result;
 		}
 
-		// Automatic runs count changed listings at execution time. Manual runs
-		// intentionally retain the count already shown on the task screen.
-		if ( 'automatic' === $source ) {
+		// Automatic runs count changed listings at execution time, on the first
+		// worker only (a resumed chunk carries the count on the run record).
+		// Manual runs intentionally retain the count already shown on the task
+		// screen.
+		if ( 'automatic' === $source && ! isset( $run['found'] ) ) {
 			try {
 				$count_response = $this->environment->count_listings( $run );
 			} catch ( Throwable $exception ) {
@@ -315,6 +315,7 @@ final class Mlsimport_Import_Task_Execution {
 			$run_id,
 			array(
 				'state'       => 'running',
+				'found'       => $found,
 				'handled'     => $handled,
 				'expected'    => $expected,
 				'error'       => $error,
@@ -431,15 +432,16 @@ final class Mlsimport_Import_Task_Execution {
 				break;
 			}
 
-			// Resumable chunking (issue #199): a manual worker whose time budget
-			// is spent must not start another batch inside this same request —
+			// Resumable chunking (issue #199): a worker whose time budget is
+			// spent must not start another batch inside this same request —
 			// strict hosts kill long requests at limits the plugin cannot see.
 			// Position and totals were persisted with the last listing, so this
 			// worker queues a follow-up worker for the same run, keeps the
 			// site-wide slot, and exits. Only a worker that reaches the end of
-			// the plan finishes the run below.
-			if ( 'manual' === $source
-				&& $handled < $expected
+			// the plan finishes the run below. Automatic runs chunk too (issue
+			// #330): an hourly delta the size of a whole task used to run in
+			// one cron request, die, and restart from zero every hour.
+			if ( $handled < $expected
 				&& ( $this->environment->now() - $chunk_started_at ) >= self::CHUNK_BUDGET_SECONDS ) {
 				// Count the hand-off on the run record (issue #216): the finished
 				// run's telemetry snapshot reports 1 + handoffs + revivals as its

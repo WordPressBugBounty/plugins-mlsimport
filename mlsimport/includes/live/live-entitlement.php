@@ -40,6 +40,9 @@ function mlsimport_live_entitlement_refresh(): void {
 
 	// Entitled: record 'yes' and throttle the next check to a day out.
 	if ( is_array( $answer ) && ! empty( $answer['mls_data'] ) ) {
+		// Refresh the connection registry from mls_entitlements when the SaaS
+		// sends it (#276); a legacy response without it changes nothing.
+		mlsimport_apply_entitlements( $answer );
 		update_option( 'mlsimport_live_entitlement_state', 'yes' );
 		set_transient( 'mlsimport_live_entitlement_checked', 1, DAY_IN_SECONDS );
 		return;
@@ -52,10 +55,11 @@ function mlsimport_live_entitlement_refresh(): void {
 		// subscription paid for. Setup re-fetches it on re-subscribe.
 		update_option( 'mlsimport_live_entitlement_state', 'no' );
 		// Drop the MLS metadata + live config the subscription paid for; setup
-		// re-fetches all of it on re-subscribe.
-		delete_option( 'mlsimport_mls_metadata_mls_data' );
-		delete_option( 'mlsimport_mls_metadata_mls_enums' );
-		delete_option( 'mlsimport_mls_metadata_populated' );
+		// re-fetches all of it on re-subscribe. The blobs are per-connection
+		// (#275): drop the current connection's copies.
+		mlsimport_delete_connection_option( 'mlsimport_mls_metadata_mls_data' );
+		mlsimport_delete_connection_option( 'mlsimport_mls_metadata_mls_enums' );
+		mlsimport_delete_connection_option( 'mlsimport_mls_metadata_populated' );
 		delete_option( 'mlsimport_live_mls_config' );
 		// Throttle a day out like the entitled path.
 		set_transient( 'mlsimport_live_entitlement_checked', 1, DAY_IN_SECONDS );

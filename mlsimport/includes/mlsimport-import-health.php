@@ -197,18 +197,31 @@ function mlsimport_connection_health_notice() {
 	}
 	$health = get_option( 'mlsimport_connection_health', array() );
 	$status = is_array( $health ) ? (string) ( $health['status'] ?? '' ) : '';
-	if ( 'credentials_invalid' !== $status && 'credentials_missing' !== $status ) {
+	if ( 'credentials_invalid' !== $status && 'credentials_missing' !== $status && 'no_subscription' !== $status ) {
 		return;
 	}
 
-	$message = 'credentials_missing' === $status
-		? esc_html__( 'MLSImport cannot connect: no account credentials are configured, so imports and hourly sync are stopped.', 'mlsimport' )
-		: esc_html__( 'MLSImport cannot connect: the SaaS rejected your account credentials, so imports and hourly sync are stopped. Re-enter your MLSImport username and password.', 'mlsimport' );
+	// Step 1: the sentence and the link for the state. Missing / rejected
+	// credentials send the admin to the settings page; an account with no
+	// active subscription (#322) is sent to the portal's plans page instead,
+	// because no password change can fix it.
+	if ( 'no_subscription' === $status ) {
+		$message   = esc_html__( 'MLSImport cannot connect: your MLSImport account was found, but it has no active subscription, so imports and hourly sync are stopped. Please subscribe at mlsimport.com.', 'mlsimport' );
+		$link_url  = MLSIMPORT_ACCOUNT_SUBSCRIBE_URL;
+		$link_text = esc_html__( 'View plans', 'mlsimport' );
+	} else {
+		$message   = 'credentials_missing' === $status
+			? esc_html__( 'MLSImport cannot connect: no account credentials are configured, so imports and hourly sync are stopped.', 'mlsimport' )
+			: esc_html__( 'MLSImport cannot connect: the SaaS rejected your account credentials, so imports and hourly sync are stopped. Re-enter your MLSImport username and password.', 'mlsimport' );
+		$link_url  = admin_url( 'admin.php?page=mlsimport_plugin_options' );
+		$link_text = esc_html__( 'Open MLSImport settings', 'mlsimport' );
+	}
 
+	// Step 2: one error notice, never any credential value.
 	echo '<div class="notice notice-error"><p><strong>MLSImport</strong> — '
 		. $message
-		. ' <a href="' . esc_url( admin_url( 'admin.php?page=mlsimport_plugin_options' ) ) . '">'
-		. esc_html__( 'Open MLSImport settings', 'mlsimport' )
+		. ' <a href="' . esc_url( $link_url ) . '">'
+		. $link_text
 		. '</a></p></div>';
 }
 add_action( 'admin_notices', 'mlsimport_connection_health_notice' );

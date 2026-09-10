@@ -1,0 +1,231 @@
+/**
+ * Add-MLS drawer styles (issue #281) — field_options "2025" admin style.
+ *
+ * The right slide-over panel + scrim for adding MLS #2+ from the Connections
+ * tab. Design tokens (--primary-color, --accent-color, --border-color, ...)
+ * come from the :root block in mlsimport-admin.css. Layout follows the locked
+ * #271 prototype: fixed right panel with a header, a 3-segment step bar, the
+ * step panes, and a fixed footer for the step buttons.
+ */
+
+/* Scrim: dims the whole admin behind the drawer; clicking it closes. */
+.mlsimport-drawer-scrim {
+    position: fixed;
+    inset: 0;
+    background: rgba(28, 25, 23, 0.28);
+    z-index: 99998;
+}
+
+/* The drawer itself: full-height right panel above the admin chrome. */
+.mlsimport-drawer {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 430px;
+    background: #fff;
+    z-index: 99999;
+    box-shadow: -16px 0 40px rgba(28, 25, 23, 0.22);
+    display: flex;
+    flex-direction: column;
+    font-size: 13px;
+    color: var(--text-primary);
+}
+
+@media (max-width: 900px) {
+    .mlsimport-drawer {
+        width: 88%;
+    }
+}
+
+/* The display:flex above would defeat the hidden attribute (an author rule
+   always beats the UA [hidden] rule) — closed means closed. */
+.mlsimport-drawer[hidden],
+.mlsimport-drawer-scrim[hidden] {
+    display: none;
+}
+
+/* Header: title + close. */
+.mlsimport-drawer-head {
+    display: flex;
+    align-items: center;
+    padding: 18px 22px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.mlsimport-drawer-head h3 {
+    margin: 0;
+    font-size: 17px;
+}
+
+.mlsimport-drawer-close {
+    margin-left: auto;
+    font-size: 18px;
+    color: var(--text-secondary);
+    background: none;
+    border: 0;
+    cursor: pointer;
+    padding: 0;
+}
+
+/* Scrollable body between the fixed header and footer. */
+.mlsimport-drawer-body {
+    padding: 6px 22px 22px;
+    overflow: auto;
+    flex: 1;
+    /* A scrollable flex child must be allowed to shrink above the fixed footer. */
+    min-height: 0;
+}
+
+/* 3-segment step bar; segments light up to the current step. */
+.mlsimport-drawer-steps {
+    display: flex;
+    gap: 8px;
+    margin: 16px 0 4px;
+}
+
+.mlsimport-drawer-steps span {
+    flex: 1;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--border-color);
+}
+
+.mlsimport-drawer-steps span.is-on {
+    background: var(--accent-color);
+}
+
+/* Field labels + inputs inside the panes. */
+.mlsimport-drawer-label {
+    display: block;
+    font-weight: 500;
+    margin: 14px 0 4px;
+}
+
+.mlsimport-drawer .mlsimport-input {
+    width: 100%;
+}
+
+/* Test result box: neutral while testing, green on pass, red on failure. */
+/* The hidden attribute must win over the flex display below — without this
+   the empty result box renders as a blank pill before any message exists. */
+.mlsimport-drawer-result[hidden] {
+    display: none;
+}
+
+.mlsimport-drawer-result {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 16px;
+    padding: 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--background-soft);
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+
+.mlsimport-drawer-result.is-ok {
+    border-color: #1a7f37;
+    background: #e6f4ea;
+    color: #1a7f37;
+}
+
+.mlsimport-drawer-result.is-bad {
+    border-color: #b91c1c;
+    background: #fdecea;
+    color: #b91c1c;
+}
+
+/* Fixed footer with the step buttons. */
+.mlsimport-drawer-foot {
+    margin-top: auto;
+    padding: 16px 22px;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    gap: 10px;
+}
+
+/* wp-admin's .wp-core-ui .button display rule would defeat the hidden
+   attribute on the per-step footer buttons — hidden means hidden. */
+.mlsimport-drawer-foot .button[hidden] {
+    display: none;
+}
+
+/* The jQuery UI autocomplete list rendered inside the drawer (appendTo).
+   wp-admin ships no jQuery UI theme CSS, so the list gets its own look. */
+.mlsimport-drawer .ui-autocomplete {
+    max-height: 260px;
+    overflow-y: auto;
+    /* jQuery UI sizes the list to its longest label (inline width), which
+       pushed it past the drawer's right edge and cut the names. The list
+       starts at the search input's left edge (the body padding), so capping
+       it at the drawer width minus both paddings keeps it exactly as wide as
+       the input; long labels wrap instead of overflowing. */
+    box-sizing: border-box;
+    max-width: calc(100% - 44px);
+    z-index: 100000;
+    background: #fff;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: 0 5px 22px rgba(28, 25, 23, 0.12);
+    list-style: none;
+    margin: 4px 0 0;
+    padding: 4px;
+}
+
+/* jQuery UI 1.13 (WP-bundled) wraps each item in .ui-menu-item-wrapper and
+   marks the focused one with .ui-state-active. */
+.mlsimport-drawer .ui-autocomplete .ui-menu-item-wrapper {
+    display: block;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    padding: 7px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    color: var(--text-primary);
+}
+
+.mlsimport-drawer .ui-autocomplete .ui-menu-item-wrapper.ui-state-active,
+.mlsimport-drawer .ui-autocomplete .ui-menu-item-wrapper:hover {
+    background: var(--background-soft);
+    border: 0;
+    margin: 0;
+}
+
+/* On the WordPress mobile viewport the drawer owns the full screen. Keeping a
+   narrow scrim gutter makes controls sit partly outside the usable panel and
+   lets the body cover the footer. The body remains the only scrolling region;
+   header and action buttons stay directly reachable. */
+@media screen and ( max-width: 782px ) {
+    .mlsimport-drawer {
+        width: 100%;
+        max-width: 100%;
+    }
+
+    .mlsimport-drawer-head,
+    .mlsimport-drawer-foot {
+        flex: none;
+        padding-left: 16px;
+        padding-right: 16px;
+    }
+
+    .mlsimport-drawer-body {
+        padding-left: 16px;
+        padding-right: 16px;
+    }
+
+    /* Same cap as above, for the narrower mobile body padding. */
+    .mlsimport-drawer .ui-autocomplete {
+        max-width: calc(100% - 32px);
+    }
+
+    .mlsimport-drawer-foot {
+        flex-wrap: wrap;
+    }
+
+    .mlsimport-drawer-foot .button {
+        flex: 1 1 120px;
+    }
+}

@@ -44,11 +44,17 @@ class Mlsimport_Standalone_Listings_Query {
 
 		$table = $wpdb->prefix . 'mlsimport_listings';
 
+		// Cross-connection dedupe (issue #282): a flagged duplicate loser
+		// carries the 'mlsimport_duplicate_of' meta and must be absent from
+		// EVERY front-end surface. Excluding it here hides it from all
+		// flat-table read paths (search, sliders, maps, coords) at once.
 		return "FROM {$table} L"
 			. " INNER JOIN {$wpdb->posts} P"
 			. ' ON P.ID = L.post_id'
 			. " AND P.post_status = 'publish'"
-			. " AND P.post_type = 'mlsimport_property'";
+			. " AND P.post_type = 'mlsimport_property'"
+			. " AND NOT EXISTS (SELECT 1 FROM {$wpdb->postmeta} DUP"
+			. " WHERE DUP.post_id = L.post_id AND DUP.meta_key = 'mlsimport_duplicate_of')";
 	}
 
 	/**

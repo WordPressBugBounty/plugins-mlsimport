@@ -44,8 +44,15 @@ $mli_cols = function_exists( 'mlsimport_search_cols_style' ) ? mlsimport_search_
 	// Every searchable field — taxonomies then fast-table columns (no geo) — from
 	// the shared catalog, so this form and the Search Form block never drift.
 	if ( class_exists( 'Mlsimport_Page_Block_Search_Fields' ) && function_exists( 'mlsimport_render_search_field' ) ) {
-		// Walk every field in the shared catalog (taxonomies then fast-table columns).
-		foreach ( Mlsimport_Page_Block_Search_Fields::catalog() as $mli_field ) {
+		// An explicit selection also sets the ORDER, so a form can lead with the fields
+		// that matter to this site — e.g. a hero search offering Location, Type and
+		// Price should hand the visitor those same three first on the results page.
+		// Without a selection the shared catalog order applies (taxonomies, then
+		// fast-table columns), which is the long-standing default.
+		$mli_order = null !== $mli_visible
+			? $mli_visible
+			: Mlsimport_Page_Block_Search_Fields::catalog();
+		foreach ( $mli_order as $mli_field ) {
 			// Skip fields toggled off for this form.
 			if ( ! $mli_show( $mli_field ) ) {
 				continue;

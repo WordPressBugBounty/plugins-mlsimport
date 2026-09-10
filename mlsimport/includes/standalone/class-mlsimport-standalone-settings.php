@@ -256,7 +256,7 @@ function mlsimport_standalone_settings_ui(): array {
 		'map_cluster_max_zoom'  => array( 'help' => __( 'Clusters show up to this zoom level; zoom in past it and the listings split into individual pins.', 'mlsimport' ) ),
 		'media_section_type'    => array( 'control' => 'buttons', 'subtab' => 'pp_general', 'help' => __( 'Choose how to display the listing images or video.', 'mlsimport' ) ),
 		'details_columns'       => array( 'control' => 'buttons', 'subtab' => 'pp_layout', 'help' => __( 'How many columns each details section (Interior, Exterior, Financial…) runs. Collapses automatically on narrow screens.', 'mlsimport' ) ),
-		'property_sections'     => array( 'subtab' => 'pp_layout', 'help' => __( 'Drag sections between Enabled and Disabled to choose which appear, and reorder within a list.', 'mlsimport' ) ),
+		'property_sections'     => array( 'subtab' => 'pp_layout', 'help' => __( 'Drag sections between Enabled and Disabled to choose which appear, and reorder within a list. "Sections as Tabs" and "Sections as Accordion" group the detail sections and Features into one panel — enable one of them and disable the flat sections it holds.', 'mlsimport' ) ),
 		'mls_logo_id'           => array( 'control' => 'media', 'subtab' => 'pp_attribution', 'help' => __( "Your MLS's required attribution logo. Shown in the MLS Attribution section and on listing cards.", 'mlsimport' ) ),
 		'attribution_text'      => array( 'subtab' => 'pp_attribution', 'rows' => 10, 'help' => __( 'The disclaimer your MLS requires, shown on every property. Use %mls_id% for the listing\'s MLS number and %year% for the current year. You can also use %agent_phone% and %agent_email% for the listing agent the MLS sent, and %office_phone%, %office_email% or %attribution_contact% for the listing office. Each stays empty unless that field is ticked under MLS Import Settings → Listing Details, so tick List Office Phone, List Office Email or Attribution Contact there before using them. Basic HTML (links, bold, paragraphs) is allowed.', 'mlsimport' ) ),
 		'tour_times'            => array( 'subtab' => 'pp_tour', 'help' => __( 'Time slots offered in the "Schedule a Tour" picker on the property page. Comma-separated, e.g. 9:00 AM, 11:30 AM, 2:00 PM, 4:30 PM. Leave blank to hide the time picker.', 'mlsimport' ) ),
@@ -399,11 +399,16 @@ function mlsimport_standalone_settings_field_json( string $key, array $field, ar
 		}
 		$out['options'] = $opts;
 	}
-	// sections/toggles carry a React catalog id + the default-on set.
+	// sections/toggles carry a React catalog id + the default-on set, and the
+	// slugs the field's default keeps disabled (so an unmentioned catalog entry
+	// is shown where the PHP sanitizer will put it on save).
 	if ( in_array( $control, array( 'sections', 'toggles' ), true ) ) {
 		$out['catalog'] = ( isset( $field['catalog'] ) && isset( $catalog_map[ $field['catalog'] ] ) ) ? $catalog_map[ $field['catalog'] ] : '';
 		if ( ! empty( $u['default_active'] ) ) {
 			$out['defaultActive'] = $u['default_active'];
+		}
+		if ( ! empty( $field['default']['inactive'] ) ) {
+			$out['defaultInactive'] = array_values( (array) $field['default']['inactive'] );
 		}
 	}
 	// A textarea can request a row count.
@@ -428,12 +433,16 @@ function mlsimport_standalone_section_catalog(): array {
 	// The sections offered in the "Arrange Sections" layout control — the prototype
 	// single-page set. The gallery/slider/masonry variants are represented by the
 	// single 'property_gallery' slot (the look is chosen in "Media Section Type").
+	// The two containers (Tabs / Accordion) group the field sections + Features;
+	// they are offered here but start disabled (see the default below), because
+	// enabling one alongside the flat field sections shows the same data twice.
 	$allowed = array(
 		'breadcrumbs', 'property_gallery', 'title_bar', 'subnav', 'overview', 'description',
 		'virtual_tour', 'map',
 		'interior', 'exterior', 'structure', 'utilities', 'financial',
 		'schools', 'location', 'listing_info', 'other',
-		'features', 'calculator', 'agent_card', 'similar', 'attribution',
+		'features', 'tabs', 'accordion',
+		'calculator', 'agent_card', 'similar', 'attribution',
 		'mobile_agent_bar',
 	);
 	$registry = function_exists( 'mlsimport_get_property_sections' ) ? mlsimport_get_property_sections() : array();
@@ -447,14 +456,20 @@ function mlsimport_standalone_section_catalog(): array {
 }
 
 /**
- * Default sections order: every known section enabled, none disabled.
+ * Default sections order: every known section enabled, in catalog order, except
+ * the Tabs and Accordion containers, which start disabled — they re-group the
+ * field sections + Features, so a page that shows both the flat sections and a
+ * container repeats the same data (#311). The operator enables a container by
+ * dragging it to Enabled (and, normally, the flat sections it holds to Disabled).
  *
  * @return array{active:string[],inactive:string[]}
  */
 function mlsimport_standalone_sections_default(): array {
+	$off = array( 'tabs', 'accordion' );
+	$all = array_keys( mlsimport_standalone_section_catalog() );
 	return array(
-		'active'   => array_keys( mlsimport_standalone_section_catalog() ),
-		'inactive' => array(),
+		'active'   => array_values( array_diff( $all, $off ) ),
+		'inactive' => array_values( array_intersect( $all, $off ) ),
 	);
 }
 
@@ -467,7 +482,8 @@ function mlsimport_standalone_sections_default(): array {
  * by default and placed next to the catalog neighbour it follows, so a new
  * section reaches existing installs in the right place instead of staying
  * invisible until they happen to re-save their design settings. A section the
- * user has explicitly disabled stays disabled.
+ * user has explicitly disabled stays disabled, and a newcomer the default keeps
+ * disabled (the Tabs/Accordion containers) stays off until the user enables it.
  *
  * @return string[]
  */
@@ -480,9 +496,11 @@ function mlsimport_standalone_active_sections(): array {
 	$active   = array_values( (array) $layout['active'] );
 	$inactive = isset( $layout['inactive'] ) ? (array) $layout['inactive'] : array();
 	$catalog  = array_keys( mlsimport_standalone_section_catalog() );
+	// Newcomers the default keeps disabled are never auto-enabled.
+	$off      = mlsimport_standalone_sections_default()['inactive'];
 
 	foreach ( $catalog as $i => $slug ) {
-		if ( in_array( $slug, $active, true ) || in_array( $slug, $inactive, true ) ) {
+		if ( in_array( $slug, $active, true ) || in_array( $slug, $inactive, true ) || in_array( $slug, $off, true ) ) {
 			continue;
 		}
 
@@ -666,14 +684,16 @@ function mlsimport_standalone_archive_filters_default(): array {
 /**
  * Sanitize an "Arrange Sections" value into { active, inactive } slug lists.
  * Only known slugs survive, each appears once, a slug can't be in both lists,
- * and any known section missing from the input is appended to active so new
- * sections default to enabled.
+ * and any known section missing from the input lands where the field's default
+ * puts it: appended to active, unless the default keeps it disabled (the
+ * Tabs/Accordion containers), in which case it is appended to inactive.
  *
- * @param mixed         $raw   Posted value.
- * @param string[]|null $known Allowed slugs for this catalog (null = property catalog).
+ * @param mixed         $raw              Posted value.
+ * @param string[]|null $known            Allowed slugs for this catalog (null = property catalog).
+ * @param string[]      $default_inactive Slugs the field's default keeps disabled.
  * @return array{active:string[],inactive:string[]}
  */
-function mlsimport_sanitize_sections( $raw, ?array $known = null ): array {
+function mlsimport_sanitize_sections( $raw, ?array $known = null, array $default_inactive = array() ): array {
 	$raw   = is_array( $raw ) ? $raw : array();
 	// Default to the property catalog when no explicit allow-list is given.
 	$known = null !== $known ? $known : array_keys( mlsimport_standalone_section_catalog() );
@@ -694,10 +714,14 @@ function mlsimport_sanitize_sections( $raw, ?array $known = null ): array {
 	$active   = isset( $raw['active'] ) ? $clean( $raw['active'] ) : array();
 	$inactive = array_values( array_diff( isset( $raw['inactive'] ) ? $clean( $raw['inactive'] ) : array(), $active ) );
 
-	// Any known slug the input never mentioned defaults to enabled.
+	// Any known slug the input never mentioned lands where the default puts it.
 	foreach ( $known as $slug ) {
 		if ( ! in_array( $slug, $active, true ) && ! in_array( $slug, $inactive, true ) ) {
-			$active[] = $slug;
+			if ( in_array( $slug, $default_inactive, true ) ) {
+				$inactive[] = $slug;
+			} else {
+				$active[] = $slug;
+			}
 		}
 	}
 
@@ -790,7 +814,9 @@ function mlsimport_sanitize_standalone_options( $input ): array {
 		switch ( $field['type'] ) {
 			case 'sections':
 				$catalog     = isset( $field['catalog'] ) && is_callable( $field['catalog'] ) ? array_keys( call_user_func( $field['catalog'] ) ) : null;
-				$out[ $key ] = mlsimport_sanitize_sections( $raw, $catalog );
+				// Unmentioned slugs land where this field's default puts them.
+				$off         = isset( $field['default']['inactive'] ) ? (array) $field['default']['inactive'] : array();
+				$out[ $key ] = mlsimport_sanitize_sections( $raw, $catalog, $off );
 				break;
 			case 'int':
 				$out[ $key ] = absint( $raw );

@@ -220,12 +220,17 @@ function mlsimport_customizer_add_field( $wp_customize, string $section_id, arra
 			if ( ! empty( $field['catalog'] ) && is_callable( $field['catalog'] ) ) {
 				$catalog = (array) call_user_func( $field['catalog'] );
 			}
-			// Custom reorder/enable-disable arranger control.
+			// Custom reorder/enable-disable arranger control. It also learns which
+			// slugs the field's default keeps disabled, so a catalog entry the saved
+			// value never mentions is shown where the sanitizer will put it on save.
 			$wp_customize->add_control(
 				new Mlsimport_Customize_Sections_Control(
 					$wp_customize,
 					$setting_id,
-					$control_args + array( 'catalog' => $catalog )
+					$control_args + array(
+						'catalog'          => $catalog,
+						'default_inactive' => isset( $field['default']['inactive'] ) ? array_values( (array) $field['default']['inactive'] ) : array(),
+					)
 				)
 			);
 			break;

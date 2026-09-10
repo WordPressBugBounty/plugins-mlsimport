@@ -110,11 +110,15 @@ final class Mlsimport_Stored_Listing_Write {
 
 		// Resolve the existing Managed Listing before deciding whether an excluded
 		// status means "skip" or "delete". The adapter supplies only its genuine
-		// storage variation: the property post type.
+		// storage variation: the property post type. Listing identity is composite
+		// (issue #278): ListingKey is unique only WITHIN one MLS, so the lookup is
+		// qualified by the task connection's mls_id — MLS B's import can never
+		// find (and overwrite or delete) MLS A's same-key listing.
 		$listing_key = (string) $property['ListingKey'];
 		$existing    = $this->environment->find_listing(
 			$listing_key,
-			$this->adapter->property_post_type()
+			$this->adapter->property_post_type(),
+			(int) ( $settings['mls_id'] ?? 0 )
 		);
 
 		// Compare raw and PrettyEnums status forms through the project's shared
@@ -161,6 +165,14 @@ final class Mlsimport_Stored_Listing_Write {
 		// Avoid the expensive field/media rewrite only when both independent
 		// change signals agree. A missing or unparsable MLS timestamp deliberately
 		// falls through to an update because freshness cannot be proven.
+		//
+		// "Unchanged" skips the projection, taxonomies, title and media — NOT the
+		// small theme meta block. Issue #333: Houzez blanks fave_property_id from
+		// its own save paths (front-end edit, Auto Property ID), and with a full
+		// skip that blank stayed frozen until the MLS touched the listing, while a
+		// manual import (no config_version) healed it — the ticket's exact
+		// symptom. Re-asserting the block every sync is a handful of no-op meta
+		// reads per listing, so the guard keeps its purpose and the site self-heals.
 		if ( null !== $existing ) {
 			$incoming_mod_raw = (string) ( $property['extra_meta']['ModificationTimestamp'] ?? '' );
 			$stored_mod_raw   = (string) ( $existing['modification_timestamp'] ?? '' );
@@ -175,6 +187,7 @@ final class Mlsimport_Stored_Listing_Write {
 				'' !== $config_version &&
 				hash_equals( $stored_config, $config_version )
 			) {
+				$this->environment->reassert_meta( (int) ( $existing['id'] ?? 0 ), $property );
 				return array(
 					'outcome'    => 'unchanged',
 					'listing_id' => (int) ( $existing['id'] ?? 0 ),

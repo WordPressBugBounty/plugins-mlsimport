@@ -73,6 +73,9 @@ class Mlsimport_Standalone_Reindex {
 				'posts_per_page' => -1,
 				'fields'         => 'ids',
 				'no_found_rows'  => true,
+				// Maintenance, not display: dedupe-hidden copies (#282) keep
+				// their flat-table rows fresh for the moment they are promoted.
+				'mlsimport_include_hidden' => true,
 			)
 		);
 
