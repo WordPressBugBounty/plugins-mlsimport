@@ -4,7 +4,7 @@ Tags: idx, idx-plugin, mls, real-estate, wordpress-idx
 Requires at least: 5.2
 Tested up to: 7.0.2
 Requires PHP: 7.4
-Stable tag: 7.2
+Stable tag: 7.2.1
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -108,6 +108,10 @@ In standalone (theme-agnostic) mode, the plugin renders its own search, cards, h
 See `docs/standalone-hooks-guide.md` for the detailed guide (a worked example for every hook), `docs/standalone-hooks.md` for the at-a-glance signature tables, `includes/standalone/mlsimport-hooks.php` for the canonical machine-readable list, and `docs/adr/0006-standalone-hook-conventions.md` for the naming/argument conventions. Themes override templates by copying them into a `mlsimport/` sub-directory (the WooCommerce pattern).
 
 == Changelog ==
+= 7.2.1 =
+* The "Data last updated" date on a property page now shows the hour and minute too (for example "March 4, 2026 1:03 am"), converted to your site's timezone. The "Updated" date in the property title bar and overview shows the same time.
+* Fixed the Connections tab still showing your old MLS limit after a plan change - the number of MLS connections your plan allows is now re-checked with your MLSImport account every time you open the tab, so an upgrade on mlsimport.com unlocks "+ Add MLS" right away without signing in again.
+
 = 7.2 =
 * Multiple MLS connections on one site - you are no longer limited to a single MLS. A new Connections tab lists every MLS you have connected with its live status, when it was last tested, and how many listings it brought in; you can add another MLS from the same screen, test or disconnect one at a time, and drag the rows to set which MLS takes precedence. How many connections you can add is set by your MLSImport plan.
 * Adding a second MLS does not disturb the first - each connection keeps its own credentials, its own field mapping and its own sync settings, and your existing MLS is carried over automatically on update as your first connection, with its current mapping and settings intact. Nothing needs to be re-entered or re-imported.

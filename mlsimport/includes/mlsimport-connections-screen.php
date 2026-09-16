@@ -260,10 +260,11 @@ function mlsimport_connections_activity(): array {
  * Step by step:
  * 1. Registry rows in priority order, each with its derived status view and
  *    activity counts (zeros when a connection has no activity yet).
- * 2. Plan slots: used = registered connections, cap = the #276 entitlement
- *    cap (minimum 1). at_cap switches "+ Add MLS" to "Upgrade plan".
- * 3. Account state: connected = a SaaS token exists for the saved account
+ * 2. Account state: connected = a SaaS token exists for the saved account
  *    credentials; the username identifies the account in the summary bar.
+ * 3. Plan slots: used = registered connections, cap = the #276 entitlement
+ *    cap (minimum 1), re-read from the SaaS first when the account is
+ *    connected. at_cap switches "+ Add MLS" to "Upgrade plan".
  *
  * @return array{rows:array, used:int, cap:int, at_cap:bool,
  *               account:array{connected:bool, username:string}}
@@ -284,15 +285,23 @@ function mlsimport_connections_screen_data(): array {
 		);
 	}
 
-	// Step 2: plan slot strip numbers.
-	$used = count( $rows );
-	$cap  = mlsimport_entitlement_cap();
-
-	// Step 3: account state — a non-empty token proves the saved account
+	// Step 2: account state — a non-empty token proves the saved account
 	// credentials authenticate (the getter refreshes from them when needed).
 	$options = get_option( 'mlsimport_admin_options', array() );
 	$options = is_array( $options ) ? $options : array();
 	$token   = trim( (string) $mlsimport->admin->mlsimport_saas_get_mls_api_token_from_transient() );
+
+	// Step 3: plan slot strip numbers. The cap belongs to the mlsimport.com
+	// account and changes without this site doing anything (a plan upgrade
+	// on the portal, a cap granted after the site signed in), so a connected
+	// account re-reads it from the SaaS on every render of this screen
+	// instead of showing whatever was cached at sign-in. A failed or legacy
+	// answer changes nothing (mlsimport_apply_entitlements() degrade rules).
+	if ( '' !== $token ) {
+		mlsimport_refresh_entitlements();
+	}
+	$used = count( $rows );
+	$cap  = mlsimport_entitlement_cap();
 
 	return array(
 		'rows'    => $rows,

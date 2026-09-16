@@ -362,9 +362,11 @@ function mlsimport_property_agent( int $id, callable $meta ): ?array {
 }
 
 /**
- * Format an ISO/MySQL timestamp to the site's date format. '' when unparseable.
+ * Format an ISO/MySQL timestamp to the site's date format plus hour:minute. '' when empty.
  *
  * Pure-ish (uses WP date settings); DB-free so the view model stays cheap.
+ * RESO ModificationTimestamp is UTC, so wp_date() converts it to the site's
+ * timezone before printing the hour (e.g. "November 4, 2025 1:45 pm").
  *
  * @param string $ts Timestamp string (e.g. RESO ModificationTimestamp).
  * @return string
@@ -381,10 +383,10 @@ function mlsimport_property_format_date( string $ts ): string {
 		// Already a human display string (e.g. "June 5, 2026 at 02:10pm") — keep it.
 		return $ts;
 	}
-	// Use the site's configured date format when WP is loaded, else a sane default.
-	$format = function_exists( 'get_option' ) ? (string) get_option( 'date_format', 'F j, Y' ) : 'F j, Y';
-	// Localized date when available; plain UTC gmdate() as the DB-free fallback.
-	return function_exists( 'date_i18n' ) ? (string) date_i18n( $format, $time ) : gmdate( $format, $time );
+	// Site's date format, then hour and minute only (no seconds, whatever the site time format).
+	$format = ( function_exists( 'get_option' ) ? (string) get_option( 'date_format', 'F j, Y' ) : 'F j, Y' ) . ' g:i a';
+	// Localized, site-timezone date when available; plain UTC gmdate() as the DB-free fallback.
+	return function_exists( 'wp_date' ) ? (string) wp_date( $format, $time ) : gmdate( $format, $time );
 }
 
 /**
