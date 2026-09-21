@@ -39,6 +39,8 @@ class Mlsimport_Standalone_Shortcodes {
 		'garage_min',
 		'stories',
 		'subdivision',
+		// The "MLS #" search box: the public MLS number, matched exactly.
+		'listing_id',
 		'list_date_min',
 		'location',
 		'city',

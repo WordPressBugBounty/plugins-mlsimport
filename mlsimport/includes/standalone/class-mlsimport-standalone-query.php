@@ -41,9 +41,12 @@ class Mlsimport_Standalone_Query {
 
 	/**
 	 * Exact-match string filters: param => column. Evaluated after numerics.
+	 * listing_id is the public MLS number; the column's collation makes the match
+	 * case-insensitive, so "tb8541851" finds "TB8541851".
 	 */
 	private const EQUALITY = array(
 		'subdivision' => 'subdivision',
+		'listing_id'  => 'listing_id',
 	);
 
 	/**
@@ -203,6 +206,22 @@ class Mlsimport_Standalone_Query {
 			}
 		}
 
+		// Internal post-id restriction (Saved Search daily alerts, ADR-0018): keep only
+		// the given listings, on top of every other filter. It is NOT a visitor filter —
+		// the request whitelist (Shortcodes::FILTER_ATTS) does not carry it, so it can
+		// only be set by plugin code. Present-but-empty means "no listing qualifies"
+		// and must match nothing; dropping the clause would match everything instead.
+		if ( isset( $params['post_ids'] ) ) {
+			$post_ids = array_values( array_filter( array_map( 'intval', (array) $params['post_ids'] ) ) );
+			if ( empty( $post_ids ) ) {
+				$clauses[] = '1=0';
+			} else {
+				// One %d placeholder per id, bound in the same order.
+				$clauses[] = 'L.post_id IN (' . implode( ', ', array_fill( 0, count( $post_ids ), '%d' ) ) . ')';
+				$args      = array_merge( $args, $post_ids );
+			}
+		}
+
 		// No active filters — emit the always-true placeholder so callers can always
 		// splice "WHERE {where}" without special-casing an empty filter set.
 		if ( empty( $clauses ) ) {
@@ -297,6 +316,11 @@ class Mlsimport_Standalone_Query {
 		// the setting applies to the archive, taxonomy archives, AJAX repaints and
 		// page blocks alike without each one re-reading the option.
 		$orderby = isset( $params['orderby'] ) && ! is_array( $params['orderby'] ) ? (string) $params['orderby'] : '';
+		// Featured listings lead the list ONLY when nobody picked a sort (issue #288).
+		// An explicit sort always wins: a featured $2M house on top of a "price low to
+		// high" list would look broken. Decided here, before the site default below
+		// fills $orderby in, because the site default is not a visitor's choice.
+		$featured_first = '' === $orderby && self::featured_first();
 		if ( '' === $orderby ) {
 			$orderby = self::default_sort();
 		}
@@ -322,7 +346,28 @@ class Mlsimport_Standalone_Query {
 
 		$order = self::validate_order( $order );
 
-		return '' === $order ? self::TIEBREAK : $order . ', ' . self::TIEBREAK;
+		// Final shape: [featured DESC,] <configured sort>, <tiebreaker>. Inside the
+		// featured group (and after it) the normal sort order still applies.
+		$order = '' === $order ? self::TIEBREAK : $order . ', ' . self::TIEBREAK;
+
+		return $featured_first ? 'L.featured DESC, ' . $order : $order;
+	}
+
+	/**
+	 * Whether lists with no chosen sort put featured listings first: the Design
+	 * Settings → General → "Show featured listings first" option (default yes).
+	 *
+	 * @return bool
+	 */
+	public static function featured_first(): bool {
+		$on = ! function_exists( 'mlsimport_standalone_option' ) || 'no' !== mlsimport_standalone_option( 'featured_first', 'yes' );
+
+		if ( function_exists( 'apply_filters' ) ) {
+			/** Filter whether featured listings lead an unsorted list. @since 7.2.2 */
+			$on = (bool) apply_filters( 'mlsimport_featured_first', $on );
+		}
+
+		return $on;
 	}
 
 	/**
@@ -342,7 +387,12 @@ class Mlsimport_Standalone_Query {
 	public static function sort_token( array $params ): string {
 		$orderby = isset( $params['orderby'] ) && ! is_array( $params['orderby'] ) ? (string) $params['orderby'] : '';
 		if ( '' === $orderby ) {
-			return self::default_sort();
+			// Nobody chose a sort. With "featured first" on, the select must show its
+			// empty Default option: whatever it shows is sent back as an EXPLICIT sort
+			// on the next AJAX repaint, and an explicit sort drops featured listings
+			// off the top (page 2, any filter change). The empty value is skipped by
+			// the JS, so the server keeps applying featured + the configured order.
+			return self::featured_first() ? '' : self::default_sort();
 		}
 		if ( isset( self::SORT_TOKENS[ $orderby ] ) ) {
 			return $orderby;

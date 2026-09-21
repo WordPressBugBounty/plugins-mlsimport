@@ -246,6 +246,23 @@
 		var rows = Array.isArray( props.attributes[ f.key ] ) ? props.attributes[ f.key ] : [];
 		var subs = f.fields || [];
 
+		// A sub-field's show-only-when rule ({ other_key: value|values }, the
+		// Elementor format the schema uses), checked against the row. An unset cell
+		// falls back to that sub-field's default, as the control itself does.
+		function conditionMet( cond, row ) {
+			if ( ! cond ) {
+				return true;
+			}
+			return Object.keys( cond ).every( function ( k ) {
+				var val = row && row[ k ] !== undefined ? row[ k ] : undefined;
+				if ( val === undefined ) {
+					subs.forEach( function ( sf ) { if ( sf.key === k ) { val = sf['default']; } } );
+				}
+				var want = Array.isArray( cond[ k ] ) ? cond[ k ] : [ cond[ k ] ];
+				return want.indexOf( val ) !== -1;
+			} );
+		}
+
 		// Persist a new rows array back to the block attribute
 		function commit( next ) {
 			var update = {};
@@ -295,7 +312,9 @@
 		// variable, because a re-render between dragstart and drop would otherwise
 		// leave a stale index behind.
 		var rowEls = rows.map( function ( row, i ) {
-			var cells = subs.map( function ( sf ) {
+			var cells = subs.filter( function ( sf ) {
+				return conditionMet( sf.condition, row );
+			} ).map( function ( sf ) {
 				return inputControl( sf, row ? row[ sf.key ] : sf['default'], function ( v ) {
 					setCell( i, sf.key, v );
 				}, sf.key );

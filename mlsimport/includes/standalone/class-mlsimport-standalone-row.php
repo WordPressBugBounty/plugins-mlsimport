@@ -107,6 +107,10 @@ class Mlsimport_Standalone_Row {
 		$row['listing_key'] = $listing_key;
 		$row['post_id']     = $post_id;
 		$row['mls_id']      = (int) get_post_meta( $post_id, 'mlsimport_mls_id', true );
+		// The "Featured listing" flag is the site owner's choice, not MLS data, so it
+		// is read from the post here — the one point import, reindex and the edit
+		// screen all pass through. A re-import therefore keeps a listing featured.
+		$row['featured']    = '1' === (string) get_post_meta( $post_id, 'mlsimport_featured', true ) ? 1 : 0;
 
 		/** Filter the flat-table row before write. @since 6.3 */
 		$row = (array) apply_filters( 'mlsimport_listings_row', $row, $post_id, $listing_key );

@@ -186,6 +186,11 @@ class Mlsimport_Page_Block_Blocks {
 			if ( isset( $schema['fields'] ) ) {
 				$control['fields'] = self::js_controls( (array) $schema['fields'] );
 			}
+			// A show-only-when rule ({ other_key: value|values }, Elementor's format), so
+			// the editor hides e.g. a row's slider bounds on non-range fields.
+			if ( ! empty( $schema['condition'] ) ) {
+				$control['condition'] = (array) $schema['condition'];
+			}
 			$controls[] = $control;
 		}
 		return $controls;

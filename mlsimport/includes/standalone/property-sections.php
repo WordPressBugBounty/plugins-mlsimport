@@ -1572,15 +1572,20 @@ function mlsimport_property_gallery( int $id = 0, array $args = array() ): strin
 	// Layout defaults to a static grid.
 	$layout = isset( $args['layout'] ) ? (string) $args['layout'] : 'grid';
 
+	// The "Featured listing" checkbox (issue #288), the same flag the list cards
+	// badge; every layout shows it over the first photo.
+	$featured = '1' === (string) get_post_meta( (int) $data['id'], 'mlsimport_featured', true );
+
 	// Slider layouts route to the Splide builder.
 	if ( 'slider' === $layout ) {
-		return mlsimport_property_gallery_slider( $ids, $args );
+		return mlsimport_property_gallery_slider( $ids, array_merge( $args, array( 'featured' => $featured ) ) );
 	}
 
-	// Grid/masonry overlay: status chip + photo count.
+	// Grid/masonry overlay: featured + status chips + photo count.
 	$overlay = array(
-		'status' => '' !== (string) $data['status'] ? (string) $data['status'] : ( '' !== (string) $data['property_sub_type'] ? (string) $data['property_sub_type'] : '' ),
-		'count'  => count( $ids ),
+		'status'   => '' !== (string) $data['status'] ? (string) $data['status'] : ( '' !== (string) $data['property_sub_type'] ? (string) $data['property_sub_type'] : '' ),
+		'count'    => count( $ids ),
+		'featured' => $featured,
 	);
 	return mlsimport_property_gallery_grid( $ids, $layout, $overlay );
 }
@@ -1634,6 +1639,7 @@ function mlsimport_property_gallery_grid( array $ids, string $layout, array $ove
 	$modifier = ( 'masonry_v2' === $layout ) ? ' mlsimport-property-gallery--masonry-v2' : '';
 	$status   = isset( $overlay['status'] ) ? (string) $overlay['status'] : '';
 	$count    = isset( $overlay['count'] ) ? (int) $overlay['count'] : 0;
+	$featured = ! empty( $overlay['featured'] );
 	// Every layout shows the first 5 tiles only (the rest are hidden in CSS, the
 	// WpResidence pattern); put the count chip on the last VISIBLE tile so it
 	// reads as "see all N photos" rather than sitting on a hidden overflow image.
@@ -1653,9 +1659,16 @@ function mlsimport_property_gallery_grid( array $ids, string $layout, array $ove
 			continue;
 		}
 		$over = '';
-		// Status chip rides the first tile.
-		if ( 0 === $i && '' !== $status ) {
-			$over .= '<span class="mlsimport-property-gallery__chip mlsimport-property-gallery__chip--status">' . esc_html( $status ) . '</span>';
+		// Featured + status chips ride the first tile, side by side in one row.
+		if ( 0 === $i && ( $featured || '' !== $status ) ) {
+			$over .= '<span class="mlsimport-property-gallery__chips">';
+			if ( $featured ) {
+				$over .= '<span class="mlsimport-property-gallery__chip mlsimport-property-gallery__chip--featured">' . esc_html__( 'Featured', 'mlsimport' ) . '</span>';
+			}
+			if ( '' !== $status ) {
+				$over .= '<span class="mlsimport-property-gallery__chip mlsimport-property-gallery__chip--status">' . esc_html( $status ) . '</span>';
+			}
+			$over .= '</span>';
 		}
 		// Count chip rides the last visible tile.
 		if ( $i === $count_index && $count > 1 ) {
@@ -1707,7 +1720,13 @@ function mlsimport_property_gallery_slider( array $ids, array $args ): string {
 			$html .= '<li class="splide__slide">' . mlsimport_property_lightbox_link( $aid, $img, $group ) . '</li>';
 		}
 	}
-	$html .= '</ul></div></div>';
+	$html .= '</ul></div>';
+	// Featured chip: pinned over the carousel (not inside a slide), so it stays put
+	// while the photos move.
+	if ( ! empty( $args['featured'] ) ) {
+		$html .= '<span class="mlsimport-property-gallery__chips"><span class="mlsimport-property-gallery__chip mlsimport-property-gallery__chip--featured">' . esc_html__( 'Featured', 'mlsimport' ) . '</span></span>';
+	}
+	$html .= '</div>';
 
 	// Synced thumbnail strip (classic/vertical only): a medium tile per photo.
 	if ( $thumbs ) {

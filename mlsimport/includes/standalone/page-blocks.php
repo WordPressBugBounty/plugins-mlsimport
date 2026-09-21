@@ -223,6 +223,10 @@ function mlsimport_page_block_results( array $args ): string {
 		$qargs['hide_search_form'] = true;
 	}
 
+	// This is the one surface that offers "Save this search" (issue #221): the flag
+	// tells the mlsimport_results_toolbar listener to print its button here.
+	$qargs['saved_search'] = true;
+
 	return Mlsimport_Standalone_Render::render_grid( $qargs );
 }
 
@@ -1327,6 +1331,12 @@ function mlsimport_page_block_width_class( string $width, string $base = 'mlsimp
  * array (rows from Gutenberg/Elementor), or a comma-list string / array of field
  * keys (shortcode/legacy) which becomes default rows.
  *
+ * A comma-list item may carry a width after a colon — "key:width", e.g.
+ * fields="location:half,price:third,mls_number:third" — so a shortcode can lay
+ * its fields out on a grid the way the block/Elementor repeater can. A bare key
+ * (no colon) keeps the default full width; an unknown width is simply ignored by
+ * mlsimport_page_block_width_class(), so the field still renders.
+ *
  * @param mixed  $raw  Repeater rows, comma string, or array of keys.
  * @param string $kind 'search' | 'contact'.
  * @return array<int,array<string,mixed>>
@@ -1346,7 +1356,13 @@ function mlsimport_page_block_normalize_rows( $raw, string $kind ): array {
 		if ( is_array( $item ) ) {
 			$rows[] = mlsimport_page_block_normalize_row( $item, $kind );
 		} elseif ( is_string( $item ) && '' !== trim( $item ) ) {
-			$rows[] = mlsimport_page_block_row_from_key( sanitize_key( trim( $item ) ), $kind );
+			// Split "key:width" BEFORE sanitizing: sanitize_key() strips the colon, so
+			// sanitizing the whole item would glue the two halves into one bogus key.
+			$parts        = explode( ':', trim( $item ), 2 );
+			$row          = mlsimport_page_block_row_from_key( sanitize_key( $parts[0] ), $kind );
+			// The width is sanitized on its own; a bare key leaves the default ''.
+			$row['width'] = isset( $parts[1] ) ? sanitize_key( $parts[1] ) : '';
+			$rows[]       = $row;
 		}
 	}
 	return $rows;

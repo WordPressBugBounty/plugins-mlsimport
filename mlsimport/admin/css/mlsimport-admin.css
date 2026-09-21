@@ -48,7 +48,8 @@
 }
 
 /* Cream page canvas on the plugin's own admin screens only (menu/submenu pages
-   whose body class contains "_page_mlsimport", plus the Import Tasks CPT list).
+   whose body class contains "_page_mlsimport", plus the Import Tasks CPT list;
+   the Saved Searches list adds such a class itself, see Mlsimport_Saved_Search_Admin).
    Other wp-admin screens keep the core grey background. */
 body.wp-admin[class*="_page_mlsimport"],
 body.wp-admin.post-type-mlsimport_item {

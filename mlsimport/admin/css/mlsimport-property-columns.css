@@ -7,11 +7,18 @@
  */
 
 /* Per-column widths for the custom list-table columns (thumb / title / price /
-   status / type / location / IDs), scoped to the mlsimport_property screen. */
+   status / type / location / IDs / featured), scoped to the mlsimport_property
+   screen. The table is fixed-layout, so a column with no width gets only what the
+   others leave — the Featured column was squeezed to one letter per line. Price
+   and status hold short values, so they give up the room it needs. */
 .post-type-mlsimport_property .wp-list-table .column-mlsimport_thumb { width: 70px; }
-.post-type-mlsimport_property .wp-list-table .column-title { width: 22%; }
+.post-type-mlsimport_property .wp-list-table .column-title { width: 20%; }
 .post-type-mlsimport_property .wp-list-table .column-mlsimport_price,
-.post-type-mlsimport_property .wp-list-table .column-mlsimport_status { width: 12%; }
+.post-type-mlsimport_property .wp-list-table .column-mlsimport_status { width: 9%; }
+.post-type-mlsimport_property .wp-list-table .column-mlsimport_featured {
+	width: 96px;
+	white-space: nowrap;
+}
 .post-type-mlsimport_property .wp-list-table .column-mlsimport_type,
 .post-type-mlsimport_property .wp-list-table .column-mlsimport_location { width: 13%; }
 .post-type-mlsimport_property .wp-list-table .column-mlsimport_ids { width: 14%; }

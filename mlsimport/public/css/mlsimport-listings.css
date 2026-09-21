@@ -298,7 +298,12 @@
    which is defined further down this file.
 
    Sized 40px/13px to match the search controls it sits above, not the property
-   page's 48px/14px. Same component, sized for its context. */
+   page's 48px/14px. Same component, sized for its context.
+
+   :hover/:focus repeat the selector because property-sections.css CAN load on the
+   same page (a lead or contact form widget brings it), and its
+   `.mlsimport-interest__trigger:hover` rule ties this one on specificity and comes
+   later — the box jumped to 48px/14px on hover. */
 .mlsimport-results__sort-control {
 	position: relative;
 	display: block;
@@ -308,7 +313,9 @@
 	display: none;
 }
 
-.mlsimport-results__sort-control .mlsimport-interest__trigger {
+.mlsimport-results__sort-control .mlsimport-interest__trigger,
+.mlsimport-results__sort-control .mlsimport-interest__trigger:hover,
+.mlsimport-results__sort-control .mlsimport-interest__trigger:focus {
 	box-sizing: border-box;
 	display: flex;
 	align-items: center;
@@ -350,11 +357,26 @@
    (a warm brown) instead of the listings ink, and rendered at the autocomplete's
    14px against the trigger's 13px. A panel that brings its own background has to
    bring its own foreground — pin both so the open list matches the closed box. */
+/* Padding/margin re-set at 0,2,0: a theme's list rule (Astra: 20px left pad) beat
+   the single-class panel rule and squeezed the options into two lines. The panel
+   also grows past the 150px trigger to its longest label, anchored right so it
+   stays under the box at the right edge of the toolbar. */
 .mlsimport-results__sort-control .mlsimport-interest__list {
+	left: auto;
+	right: 0;
+	width: max-content;
+	min-width: 100%;
+	max-height: 320px;
+	overflow-x: hidden;
+	margin: 0;
+	/* Right pad leaves room for the vertical scrollbar, which max-content ignores. */
+	padding: 4px 16px 4px 4px;
 	color: var(--mli-text);
 }
 
 .mlsimport-results__sort-control .mlsimport-location__option {
+	margin: 0;
+	white-space: nowrap;
 	font-size: 13px;
 	font-weight: 300;
 }
@@ -521,10 +543,20 @@
 	background-repeat: no-repeat;
 }
 
-.mlsimport-listing-card__badge {
+/* The badge row over the photo: status first, then hooked badges (Featured)
+   inline after it. The row is placed; the badges flow inside it. */
+.mlsimport-listing-card__badges {
 	position: absolute;
+	z-index: 2;
 	top: 11px;
 	left: 11px;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	pointer-events: none;
+}
+
+.mlsimport-listing-card__badge {
 	padding: 5px 11px;
 	border-radius: var(--mlsimport-radius-chip, 999px);
 	background: rgba(255, 255, 255, 0.92);
@@ -534,6 +566,29 @@
 	letter-spacing: 0.04em;
 	text-transform: uppercase;
 	line-height: 1;
+}
+
+/* "Featured" flag (issue #288). Printed on mlsimport_card_badges, inside the badge
+   row, so it sits inline after the status badge. Styled in full here (not borrowed
+   from the Featured Property block's sheet, which archives do not load). Dark ink,
+   the single property page's Featured chip colour — not the custom Main Color.
+   Scoped to the row (0,2,0): property-sections.css, loaded later on some pages,
+   paints .mlsimport-featured__flag in the Main Color at 0,1,0. */
+.mlsimport-listing-card {
+	position: relative;
+}
+
+.mlsimport-listing-card__badges .mlsimport-listing-card__featured {
+	padding: 5px 11px;
+	border-radius: var(--mlsimport-radius-chip, 999px);
+	background: var(--mlsimport-ink, #1c1917);
+	color: #fff;
+	font-size: 11px;
+	font-weight: 500;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	line-height: 1;
+	pointer-events: none;
 }
 
 .mlsimport-listing-card__body {

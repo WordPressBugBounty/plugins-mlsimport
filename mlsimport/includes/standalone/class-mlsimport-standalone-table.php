@@ -26,8 +26,19 @@ class Mlsimport_Standalone_Table {
 	 * guarantees ListingKey unique WITHIN one MLS, so with multiple MLS
 	 * connections the old bare unique key would let MLS B silently overwrite
 	 * MLS A's row on a key collision (decision #266).
+	 *
+	 * v3: listing_id column — the public MLS number (RESO ListingId, e.g.
+	 * "TB8541851") a visitor reads off a sign or flyer. It is NOT listing_key
+	 * (the feed's internal record key) and NOT mls_id (which MLS connection the
+	 * row came from). Indexed so the "MLS #" search box is an exact-match lookup.
+	 *
+	 * v4: featured column — 1 when the site owner ticked "Featured listing" on the
+	 * property edit screen (post meta 'mlsimport_featured'), else 0. It is editorial,
+	 * not MLS data, so the RESO map never fills it; Mlsimport_Standalone_Row::upsert()
+	 * copies it from the post meta on every write. Indexed because "featured first"
+	 * sorts on it. UNSIGNED so a future weight (3 > 1 > 0) needs no migration.
 	 */
-	private const DB_VERSION = '2';
+	private const DB_VERSION = '4';
 
 	/**
 	 * Fully-qualified table name (with the site's table prefix).
@@ -95,6 +106,8 @@ class Mlsimport_Standalone_Table {
 			hoa_fee DECIMAL(10,2) DEFAULT NULL,
 			days_on_market INT DEFAULT NULL,
 			subdivision VARCHAR(128) NOT NULL DEFAULT '',
+			listing_id VARCHAR(32) NOT NULL DEFAULT '',
+			featured TINYINT UNSIGNED NOT NULL DEFAULT 0,
 			search_text TEXT,
 			PRIMARY KEY  (id),
 			UNIQUE KEY mls_listing_key (mls_id, listing_key),
@@ -106,6 +119,8 @@ class Mlsimport_Standalone_Table {
 			KEY lat_lng (latitude, longitude),
 			KEY price (price),
 			KEY list_date (list_date),
+			KEY listing_id (listing_id),
+			KEY featured (featured),
 			FULLTEXT KEY search_text (search_text)
 		) {$collate};";
 
@@ -122,6 +137,21 @@ class Mlsimport_Standalone_Table {
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			$wpdb->query( "ALTER TABLE {$table} DROP INDEX listing_key" );
 		}
+
+		// v3 post-step: fill the new listing_id column for listings imported before
+		// it existed. Standalone stores every RESO field as 'mlsimport_<Field>' post
+		// meta, so the MLS number is already on the post. Only blank rows are set,
+		// which makes the step idempotent (a re-run changes nothing) and leaves any
+		// value the importer has since written alone. Listings imported without
+		// ListingId in the field selection have no meta and stay blank.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$wpdb->query( "UPDATE {$table} L INNER JOIN {$wpdb->postmeta} M ON M.post_id = L.post_id AND M.meta_key = 'mlsimport_ListingId' SET L.listing_id = LEFT( M.meta_value, 32 ) WHERE L.listing_id = '' AND M.meta_value <> ''" );
+
+		// v4 post-step: the "Featured listing" checkbox existed (and saved its post
+		// meta) before this column did, so carry any already-ticked listing across.
+		// Only rows still at 0 are touched, so a re-run changes nothing.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$wpdb->query( "UPDATE {$table} L INNER JOIN {$wpdb->postmeta} M ON M.post_id = L.post_id AND M.meta_key = 'mlsimport_featured' SET L.featured = 1 WHERE L.featured = 0 AND M.meta_value = '1'" );
 
 		// Record the schema version so maybe_upgrade() can skip until the next bump.
 		update_option( 'mlsimport_listings_db_version', self::DB_VERSION );

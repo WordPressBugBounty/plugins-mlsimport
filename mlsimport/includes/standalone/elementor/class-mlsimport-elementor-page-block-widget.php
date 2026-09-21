@@ -112,6 +112,9 @@ abstract class Mlsimport_Elementor_Page_Block_Widget extends \Elementor\Widget_B
 			if ( in_array( $key, $styled, true ) ) {
 				continue;
 			}
+			// Elementor control name: the schema key, except `id` (Backbone's reserved
+			// model id — a control by that name makes the widget undeletable).
+			$key = Mlsimport_Page_Block_Elementor::control_key( $key );
 			// Resolve the field type, defaulting to a plain text control.
 			$type = isset( $field['type'] ) ? $field['type'] : 'text';
 			// Repeater fields need Elementor's Repeater control (built separately).
@@ -271,6 +274,25 @@ abstract class Mlsimport_Elementor_Page_Block_Widget extends \Elementor\Widget_B
 		}
 		// Fallback: any unrecognized type becomes a plain TEXT control.
 		return array( 'label' => $label, 'type' => \Elementor\Controls_Manager::TEXT, 'default' => $default );
+	}
+
+	/**
+	 * The element data Elementor hands to the editor.
+	 *
+	 * Moves a legacy `id` setting to `property_id` before the editor builds its
+	 * Backbone settings model, so a widget saved by an older plugin version can be
+	 * deleted again and keeps its chosen property. See
+	 * Mlsimport_Page_Block_Elementor::migrate_settings().
+	 *
+	 * @param bool $with_html_content Whether Elementor wants the rendered HTML too.
+	 * @return array Element raw data.
+	 */
+	public function get_raw_data( $with_html_content = false ) {
+		$data = parent::get_raw_data( $with_html_content );
+		if ( isset( $data['settings'] ) && is_array( $data['settings'] ) ) {
+			$data['settings'] = Mlsimport_Page_Block_Elementor::migrate_settings( $this->get_block_slug(), $data['settings'] );
+		}
+		return $data;
 	}
 
 	/**

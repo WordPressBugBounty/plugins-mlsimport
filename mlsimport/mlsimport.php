@@ -3,7 +3,7 @@
  * Plugin Name:       MlsImport
  * Plugin URI:        https://mlsimport.com/
  * Description:       MLS Import - The MLSImport plugin facilitates the connection to your real estate MLS database, allowing you to download and synchronize real estate property data from the MLS.
- * Version:           7.2.1
+ * Version:           7.2.2
  * Requires at least: 5.2
  * Requires PHP:      7.4
  * License: GPLv3
@@ -40,7 +40,7 @@ if ( ! defined( 'WPINC' ) ) {
 
 
 // Current plugin version (kept in sync with the header above and the readme).
-define( 'MLSIMPORT_VERSION', '7.2.1');
+define( 'MLSIMPORT_VERSION', '7.2.2');
 // Marketing/portal host used to build sign-up and affiliate links.
 define( 'MLSIMPORT_CLUBLINK', 'mlsimport.com' );
 // Scheme for the portal host links.
@@ -98,6 +98,7 @@ function mlsimport_deactivate() {
 	wp_clear_scheduled_hook( 'mlsimport_reconciliation_event' );
 	wp_clear_scheduled_hook( 'mlsimport_reconciliation_retry_event' );
 	wp_clear_scheduled_hook( 'mlsimport_daily_telemetry_event' );
+	wp_clear_scheduled_hook( 'mlsimport_saved_search_daily' ); // Saved Search daily alerts (issue #221).
 	delete_option( 'mlsimport_reconciliation_running' );
 	Mlsimport_Deactivator::deactivate();
 }
@@ -341,7 +342,14 @@ require_once plugin_dir_path( __FILE__ ) . 'includes/standalone/class-mlsimport-
 require_once plugin_dir_path( __FILE__ ) . 'includes/standalone/class-mlsimport-agent-metabox.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/standalone/class-mlsimport-term-meta.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/standalone/class-mlsimport-property-columns.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/standalone/class-mlsimport-property-featured-admin.php'; // "Featured" bulk actions + list column on the Properties screen.
 require_once plugin_dir_path( __FILE__ ) . 'includes/standalone/class-mlsimport-favorites.php';
+// Saved Search + daily email alerts (Standalone mode only, ADR-0018).
+require_once plugin_dir_path( __FILE__ ) . 'includes/standalone/class-mlsimport-saved-search.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/standalone/class-mlsimport-saved-search-mailer.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/standalone/class-mlsimport-saved-search-alerts.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/standalone/class-mlsimport-saved-search-front.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/standalone/class-mlsimport-saved-search-admin.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/standalone/page-block-registry.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/standalone/class-mlsimport-page-block-shortcodes.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/standalone/class-mlsimport-page-block-blocks.php';
@@ -355,10 +363,15 @@ add_action( 'init', array( 'Mlsimport_Property_Metabox', 'register' ) );
 add_action( 'init', array( 'Mlsimport_Agent_Metabox', 'register' ) );
 add_action( 'init', array( 'Mlsimport_Term_Meta', 'register' ) );
 add_action( 'init', array( 'Mlsimport_Property_Columns', 'register' ) );
+add_action( 'init', array( 'Mlsimport_Property_Featured_Admin', 'register' ) );
 add_action( 'init', array( 'Mlsimport_Standalone_Shortcodes', 'register' ) );
 add_action( 'init', array( 'Mlsimport_Standalone_Block', 'register' ) );
 add_action( 'init', array( 'Mlsimport_Standalone_Ajax', 'register' ) );
 add_action( 'init', array( 'Mlsimport_Favorites', 'register' ) );
+add_action( 'init', array( 'Mlsimport_Saved_Search', 'register' ) );
+add_action( 'init', array( 'Mlsimport_Saved_Search_Alerts', 'register' ) );
+add_action( 'init', array( 'Mlsimport_Saved_Search_Front', 'register' ) );
+add_action( 'init', array( 'Mlsimport_Saved_Search_Admin', 'register' ) );
 add_action( 'init', array( 'Mlsimport_Property_Section_Shortcodes', 'register' ) );
 // Property-section Gutenberg blocks (mlsimport/property-*, "MLSImport — Property"
 // category) are intentionally NOT registered — we don't expose them as blocks.
@@ -425,6 +438,10 @@ add_filter(
 	3
 );
 add_action( 'admin_init', array( 'Mlsimport_Standalone_Table', 'maybe_upgrade' ) );
+// Also on the front end: after an auto-update or WP-CLI update nobody may open
+// wp-admin, and the listings query would sort on a column that does not exist yet.
+// One autoloaded option read per request when the schema is already current.
+add_action( 'init', array( 'Mlsimport_Standalone_Table', 'maybe_upgrade' ), 1 );
 // One-time repair of comma-glued taxonomy terms written before 7.1.2 (#290).
 add_action( 'admin_init', array( 'Mlsimport_Standalone_Cpt', 'maybe_split_packed_terms' ) );
 add_action( 'before_delete_post', array( 'StandaloneClass', 'cleanup_on_delete' ) );

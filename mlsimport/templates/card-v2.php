@@ -27,10 +27,15 @@ $mli = mlsimport_card_view( $post, $row );
 		if ( $mli['has_thumb'] ) : ?>
 			<div class="mlsimport-listing-card__media" role="img" aria-label="<?php echo esc_attr( $mli['address'] ); ?>" style="background-image:url('<?php echo esc_url( $mli['thumb'] ); ?>')">
 				<?php
-				// Status badge overlaid on the media, only when set.
-				if ( '' !== $mli['status'] ) : ?>
-					<span class="mlsimport-listing-card__badge"><?php echo esc_html( $mli['status'] ); ?></span>
-				<?php endif; ?>
+				// Badge row over the media: status when set, then any hooked badges
+				// (the plugin's own "Featured" flag) inline after it.
+				?>
+				<span class="mlsimport-listing-card__badges">
+					<?php if ( '' !== $mli['status'] ) : ?>
+						<span class="mlsimport-listing-card__badge"><?php echo esc_html( $mli['status'] ); ?></span>
+					<?php endif; ?>
+					<?php do_action( 'mlsimport_card_badges', $post, $row ); ?>
+				</span>
 			</div>
 		<?php endif; ?>
 		<div class="mlsimport-listing-card__body">

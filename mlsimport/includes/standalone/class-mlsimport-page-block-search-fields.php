@@ -81,6 +81,9 @@ class Mlsimport_Page_Block_Search_Fields {
 		'hoa'         => array( 'label' => 'Max HOA Fee',        'control' => 'number', 'params' => array( 'hoa_max' ) ),
 		'dom'         => array( 'label' => 'Max Days on Market', 'control' => 'number', 'params' => array( 'dom_max' ) ),
 		'subdivision' => array( 'label' => 'Subdivision',        'control' => 'text',   'params' => array( 'subdivision' ) ),
+		// The public MLS number off a sign or flyer (RESO ListingId, e.g. TB8541851):
+		// an exact match on the listing_id column, so it lands on that one listing.
+		'mls_number'  => array( 'label' => 'MLS #',              'control' => 'text',   'params' => array( 'listing_id' ) ),
 	);
 
 	/**

@@ -54,6 +54,9 @@
  *   filter mlsimport_card_template          ( string $name, string $style )                    v1|v2|v3 → template file
  *   filter mlsimport_card_view              ( array  $view, WP_Post $post, object|null $row )
  *   action mlsimport_card_before            ( WP_Post $post, object|null $row )                inside the card
+ *   action mlsimport_card_badges            ( WP_Post $post, object|null $row )                badge row over the photo, after status
+ *   filter mlsimport_card_featured_flag     ( string $html, WP_Post $post, object|null $row )  the card's "Featured" flag
+ *   filter mlsimport_featured_first         ( bool $on )                                       featured listings lead unsorted lists
  *   action mlsimport_card_after_media       ( WP_Post $post, object|null $row )                inside the card
  *   action mlsimport_card_body_start        ( WP_Post $post, object|null $row )                inside the card
  *   action mlsimport_card_body_end          ( WP_Post $post, object|null $row )                inside the card

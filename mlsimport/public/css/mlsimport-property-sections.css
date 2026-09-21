@@ -446,6 +446,28 @@
 	color: #fff;
 }
 
+/* The first tile's chip row (Featured, then Status): the row is placed, the
+   chips inside it flow side by side instead of stacking on one spot. */
+.mlsimport-property-gallery__chips {
+	position: absolute;
+	/* Above the slider track too (Splide's root is position: relative). */
+	z-index: 2;
+	top: 16px;
+	left: 16px;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.mlsimport-property-gallery__chips .mlsimport-property-gallery__chip {
+	position: static;
+}
+
+.mlsimport-property-gallery__chip--featured {
+	background: var(--mlsimport-ink);
+	color: #fff;
+}
+
 .mlsimport-property-gallery__chip--count {
 	right: 12px;
 	bottom: 12px;

@@ -226,8 +226,12 @@ class Mlsimport {
 		$this->loader->add_action( 'update_option_' . $this->plugin_name . '_admin_fields_select', $this->admin, 'update_option_mlsimport_admin_fields_select' );
 		$this->loader->add_action( 'add_option_' . $this->plugin_name . '_admin_fields_select', $this->admin, 'update_option_mlsimport_admin_fields_select' );
 
-		// Add menu item
-		$this->loader->add_action( 'admin_menu', $this->admin, 'add_plugin_admin_menu' );
+		// Add menu item. Priority 8, not the default 10: WordPress adds a post type's
+		// `show_in_menu => <parent slug>` entry at priority 9 (the Saved Searches list
+		// does that), and whichever entry lands first under a parent becomes the target
+		// of the top-level link. Registered at 10, "MLS Import Settings" pointed at the
+		// Saved Searches list and the settings page vanished from the menu.
+		$this->loader->add_action( 'admin_menu', $this->admin, 'add_plugin_admin_menu', 8 );
 
 		// Add Settings link to the plugin list
 		// Build this plugin's basename to target the plugin-row action links filter.

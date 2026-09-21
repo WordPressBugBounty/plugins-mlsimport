@@ -2,9 +2,9 @@
 Contributors: mlsimport
 Tags: idx, idx-plugin, mls, real-estate, wordpress-idx
 Requires at least: 5.2
-Tested up to: 7.0.2
+Tested up to: 7.1.1
 Requires PHP: 7.4
-Stable tag: 7.2.1
+Stable tag: 7.2.2
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -103,6 +103,19 @@ Read the terms and conditions of using MLSimport APIs here : https://mlsimport.c
 
 
 == Changelog ==
+= 7.2.2 =
+* New "MLS #" search field (standalone mode) - visitors can type the MLS number from a yard sign or flyer (for example TB8541851) and land on that exact listing. The field is available in the search form shortcode, the Gutenberg block and the Elementor widget, and in the filter bar above the results. Upper or lower case both work.
+* Listings imported before this update are picked up automatically when they have an MLS number stored. If a listing was imported without the ListingId field selected, select that field and re-import so its number can be found.
+* The search form shortcode can now set a width per field - add it after a colon, for example fields="location:half,property_type:half,price:third,beds_baths:third,mls_number:third". Accepted widths are two_thirds, half, third and quarter; a field without a width stays full width.
+* New featured listings (standalone mode) - tick "Featured listing" on a property, or use the new "Mark featured" / "Remove featured" bulk actions on the Properties list, and those listings show first in every list with a "Featured" badge on the card. A new Featured column shows which listings are marked.
+* New setting "Show featured listings first" (Design Settings - General, on by default). Featured listings lead a list only when the visitor has not picked a sort - if they sort by price, price wins.
+* New Saved Search with daily email alerts (standalone mode) - a "Save this search" button next to the Sort control on the Search Results block lets a visitor save the filters they picked with just a name and an email. No WordPress account is needed, and an agent can save a search on behalf of a client the same way.
+* Double opt-in - the visitor gets a confirmation email first, and nothing is sent until they click the link in it. The link brings them back to the results page they saved from, with their filters applied. Every alert email carries a one-click unsubscribe link, and a search left unconfirmed for 7 days is removed.
+* One email a day, only when there is something to show - each confirmed search receives the matching listings that were added or updated by your imports since the previous day, with a link to see all of them on your site. A day with no matching changes sends no email.
+* New "Saved Searches" list under MLS Import Settings shows who saved what, the status and when the last email went out, with Deactivate and Delete actions. You are notified by email when a visitor confirms a search. Saved searches are included in the WordPress personal data export and erase tools.
+* New Design Settings section "Saved Search" - switch the feature on or off, set the maximum listings per email, and edit the email subject, intro line and disclaimer.
+* Fixed the Featured Property Elementor widget that could not be deleted from a page once its Property ID had been edited or the page had been saved and reopened. Featured Property widgets already on your pages keep their chosen property and can be deleted normally after the update.
+
 = 7.2.1 =
 * The "Data last updated" date on a property page now shows the hour and minute too (for example "March 4, 2026 1:03 am"), converted to your site's timezone. The "Updated" date in the property title bar and overview shows the same time.
 * Fixed the Connections tab still showing your old MLS limit after a plan change - the number of MLS connections your plan allows is now re-checked with your MLSImport account every time you open the tab, so an upgrade on mlsimport.com unlocks "+ Add MLS" right away without signing in again.

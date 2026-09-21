@@ -10,7 +10,10 @@
  * fired inside every card template.
  *
  * Card action slots (each fired with ( WP_Post $post, object|null $row )):
- *   action mlsimport_card_before      — just after <article> opens (ribbons/badges)
+ *   action mlsimport_card_before      — just after <article> opens (ribbons)
+ *   action mlsimport_card_badges      — inside the badge row over the photo, after the
+ *                                       status badge. The plugin's own "Featured" flag
+ *                                       hooks here (mlsimport_card_featured_flag(), 10).
  *   action mlsimport_card_after_media — direct child of <article>, after the media/link
  *                                       (favorite heart, gallery count); positioned over
  *                                       the photo via CSS, so it sits OUTSIDE the card's
@@ -89,3 +92,31 @@ function mlsimport_card_view( $post, $row ): array {
 	/** Filter one card's view model before the template lays it out. @since 6.4 */
 	return (array) apply_filters( 'mlsimport_card_view', $view, $post, $row );
 }
+
+/**
+ * Print the "Featured" flag on a featured listing's card (issue #288).
+ *
+ * Hooked on mlsimport_card_badges, which all three card templates fire in the
+ * badge row over the photo, so the flag sits inline after the status badge. The flag is read from the listings row ($row->featured, copied
+ * from the "Featured listing" checkbox by Mlsimport_Standalone_Row::upsert()),
+ * which costs no extra query. A card with no row (live passthrough mode) or an
+ * unfeatured listing prints nothing.
+ *
+ * @param WP_Post     $post The property post.
+ * @param object|null $row  The mlsimport_listings row, or null.
+ * @return void
+ */
+function mlsimport_card_featured_flag( $post, $row ): void {
+	// Step 1: only a featured listing gets the flag.
+	if ( empty( $row->featured ) ) {
+		return;
+	}
+
+	// Step 2: same look as the Featured Property block's flag, plus a card-specific
+	// class that styles it like the status badge beside it (mlsimport-listings.css).
+	$html = '<span class="mlsimport-featured__flag mlsimport-listing-card__featured">' . esc_html__( 'Featured', 'mlsimport' ) . '</span>';
+
+	/** Filter the card's "Featured" flag markup ('' hides it). @since 7.2.2 */
+	echo wp_kses_post( (string) apply_filters( 'mlsimport_card_featured_flag', $html, $post, $row ) );
+}
+add_action( 'mlsimport_card_badges', 'mlsimport_card_featured_flag', 10, 2 );

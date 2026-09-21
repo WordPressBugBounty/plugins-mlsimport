@@ -132,6 +132,56 @@ class Mlsimport_Page_Block_Elementor {
 	}
 
 	/**
+	 * The Elementor control name for an arg-schema key.
+	 *
+	 * Every key is used as-is except `id`. Elementor keeps a widget's settings in a
+	 * Backbone model, and Backbone treats the attribute `id` as the model's server
+	 * id: once it holds any value (even '') the model is no longer "new", so on
+	 * delete Backbone tries a server DELETE, finds no URL, throws
+	 * 'A "url" property or function must be specified' and the widget stays on the
+	 * page. So a schema `id` (Featured Property's Property ID) is exposed to
+	 * Elementor as `property_id` — the same name the Property Section widget uses.
+	 * The shortcode and Gutenberg surfaces keep `id`; only Elementor has this trap.
+	 *
+	 * @param string $key Arg-schema key.
+	 * @return string Control name safe to register with Elementor.
+	 */
+	public static function control_key( string $key ): string {
+		return 'id' === $key ? 'property_id' : $key;
+	}
+
+	/**
+	 * Move a value saved under a schema key Elementor must not hold (see
+	 * control_key()) to its control name, and drop the old key.
+	 *
+	 * Pages saved before the rename still carry `id` in their stored settings.
+	 * Elementor never strips keys it has no control for, so without this the old
+	 * `id` would load back into the editor model and the widget would still be
+	 * undeletable. Called on the settings the editor receives, so the next save
+	 * persists the new key.
+	 *
+	 * @param string $slug     Block slug.
+	 * @param array  $settings Stored Elementor settings.
+	 * @return array Settings with every renamed key migrated.
+	 */
+	public static function migrate_settings( string $slug, array $settings ): array {
+		// Step 1: walk the schema; only a key whose control name differs needs moving.
+		foreach ( array_keys( self::schema( $slug ) ) as $key ) {
+			$control = self::control_key( $key );
+			if ( $control === $key || ! array_key_exists( $key, $settings ) ) {
+				continue;
+			}
+			// Step 2: carry the old value across unless the new key already has one.
+			if ( ! isset( $settings[ $control ] ) || '' === $settings[ $control ] ) {
+				$settings[ $control ] = $settings[ $key ];
+			}
+			// Step 3: drop the old key so it never reaches the editor's Backbone model.
+			unset( $settings[ $key ] );
+		}
+		return $settings;
+	}
+
+	/**
 	 * Render from a slug + an Elementor settings array (the widget's
 	 * get_settings_for_display()). Pure delegation to the dispatcher — the
 	 * testable core of every page-block widget.
@@ -141,14 +191,19 @@ class Mlsimport_Page_Block_Elementor {
 	 * @return string
 	 */
 	public static function render_settings( string $slug, array $settings ): string {
-		$args = array();
+		// A page saved before the `id` → `property_id` rename still stores the old key;
+		// fold it in first so the front end keeps showing the chosen property.
+		$settings = self::migrate_settings( $slug, $settings );
+		$args     = array();
 		// Pull only the schema's known keys out of the widget's control values, so
 		// stray Elementor settings never reach the dispatcher.
 		foreach ( self::schema( $slug ) as $key => $field ) {
-			if ( ! isset( $settings[ $key ] ) ) {
+			// The control may be registered under a different name than the schema key.
+			$control = self::control_key( $key );
+			if ( ! isset( $settings[ $control ] ) ) {
 				continue;
 			}
-			$value = $settings[ $key ];
+			$value = $settings[ $control ];
 			// A MEDIA control hands back { url, id }; every render fn expects the plain
 			// URL string the Gutenberg media picker stores, so flatten it here — the one
 			// place the two builders' value shapes have to be reconciled.

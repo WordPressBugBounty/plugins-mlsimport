@@ -65,6 +65,10 @@ function mlsimport_standalone_field_registry(): array {
 			'label'   => __( 'Order by', 'mlsimport' ),
 			'section' => 'general',
 		),
+		// Featured listings (the "Featured listing" checkbox on a property) lead every
+		// list whose visitor has not picked a sort. Read by
+		// Mlsimport_Standalone_Query::featured_first().
+		'featured_first'         => array( 'type' => 'select', 'default' => 'yes', 'options' => array( 'yes' => __( 'Yes', 'mlsimport' ), 'no' => __( 'No', 'mlsimport' ) ), 'label' => __( 'Show featured listings first', 'mlsimport' ), 'section' => 'general' ),
 		// Taxonomy archive search filters — a per-filter on/off toggle list for the
 		// search bar on the taxonomy/CPT archive pages. Every searchable filter is
 		// offered; only Status, City and Property Type are on by default. The active
@@ -123,6 +127,14 @@ function mlsimport_standalone_field_registry(): array {
 		'agent_listings_per_page' => array( 'type' => 'number', 'default' => '12', 'label' => __( 'No. of listings per page', 'mlsimport' ), 'section' => 'agent' ), // Listings shown per page on a single agent profile.
 		'agent_listings_per_row'  => array( 'type' => 'select', 'default' => '3', 'options' => array( '2' => __( '2 per row', 'mlsimport' ), '3' => __( '3 per row', 'mlsimport' ), '4' => __( '4 per row', 'mlsimport' ) ), 'label' => __( 'No. of listings per row', 'mlsimport' ), 'section' => 'agent' ), // Cards per row in the agent profile's listings grid.
 		'agent_sections'          => array( 'type' => 'sections', 'catalog' => 'mlsimport_standalone_agent_section_catalog', 'default' => mlsimport_standalone_agent_sections_default(), 'label' => __( 'Arrange Sections', 'mlsimport' ), 'section' => 'agent' ), // Agent-profile content-column section order.
+
+		// Saved Search + daily email alerts (issue #221). Read by Mlsimport_Saved_Search
+		// (enabled), Mlsimport_Saved_Search_Alerts (max) and the mailer (subject, intro).
+		'saved_search_enabled'       => array( 'type' => 'select', 'default' => 'yes', 'options' => array( 'yes' => __( 'Yes', 'mlsimport' ), 'no' => __( 'No', 'mlsimport' ) ), 'label' => __( 'Let visitors save a search', 'mlsimport' ), 'section' => 'saved_search' ),
+		'saved_search_email_max'     => array( 'type' => 'number', 'default' => '12', 'label' => __( 'Max listings per email', 'mlsimport' ), 'section' => 'saved_search' ),
+		'saved_search_email_subject' => array( 'type' => 'text', 'default' => __( 'New listings matching your search on {site_name}', 'mlsimport' ), 'label' => __( 'Email subject', 'mlsimport' ), 'section' => 'saved_search' ),
+		'saved_search_email_intro'   => array( 'type' => 'textarea', 'default' => __( "Hi {name}, here are today's listings for your saved search.", 'mlsimport' ), 'label' => __( 'Email intro line', 'mlsimport' ), 'section' => 'saved_search' ),
+		'saved_search_email_disclaimer' => array( 'type' => 'html', 'default' => '', 'label' => __( 'Email disclaimer', 'mlsimport' ), 'section' => 'saved_search' ),
 
 		// Colors (brand accent).
 		'brand_color'            => array( 'type' => 'color', 'default' => '', 'label' => __( 'Main Color', 'mlsimport' ), 'section' => 'colors' ),
@@ -201,6 +213,7 @@ function mlsimport_standalone_settings_sections(): array {
 		'property_page'    => __( 'Property Page', 'mlsimport' ),
 		'property_card'    => __( 'Property Card', 'mlsimport' ),
 		'agent'            => __( 'Agent', 'mlsimport' ),
+		'saved_search'     => __( 'Saved Search', 'mlsimport' ),
 		'colors'           => __( 'Colors', 'mlsimport' ),
 	);
 }
@@ -240,6 +253,7 @@ function mlsimport_standalone_settings_ui(): array {
 		'property_url_slug'     => array( 'help' => __( 'The URL segment your listings live under — e.g. listing gives yoursite.com/listing/. Change it only if another page or plugin already uses that word; existing listing links will break when you do.', 'mlsimport' ) ),
 		'properties_per_page'   => array( 'help' => __( 'How many listings show per page on the taxonomy and property archive pages. Does not affect page-builder blocks, which set their own per-page.', 'mlsimport' ) ),
 		'cards_per_row'         => array( 'control' => 'buttons', 'help' => __( 'How many property cards sit on one row of the taxonomy and property archive pages. Drops to 2 then 1 automatically on narrow screens.', 'mlsimport' ) ),
+		'featured_first'        => array( 'control' => 'yesno', 'help' => __( 'Listings marked "Featured listing" show at the top of every list, in the order set above. When a visitor picks a sort (e.g. price), that sort wins.', 'mlsimport' ) ),
 		'archive_search_fields' => array( 'control' => 'toggles', 'default_active' => array( 'status', 'city', 'property_type' ), 'help' => __( 'Toggle which filters appear in the search bar on the taxonomy and property archive pages. Status, City and Type are on by default.', 'mlsimport' ) ),
 		'company_name'          => array( 'help' => __( 'Shown as the contact name on listings whose agent comes straight from the MLS feed — MLS rules forbid displaying the feed agent\'s own contact details.', 'mlsimport' ) ),
 		'company_phone'         => array( 'help' => __( 'Used as the contact phone on listings whose agent comes straight from the MLS feed.', 'mlsimport' ) ),
@@ -267,6 +281,11 @@ function mlsimport_standalone_settings_ui(): array {
 		'agent_listings_per_page' => array( 'help' => __( "Listings shown per page on a single agent's profile, with pagination. Default 12.", 'mlsimport' ) ),
 		'agent_listings_per_row' => array( 'control' => 'buttons', 'help' => __( "How many listing cards sit on one row of an agent's profile. Drops to 2 then 1 automatically on narrow screens.", 'mlsimport' ) ),
 		'agent_sections'        => array( 'help' => __( 'Drag sections between Enabled and Disabled to choose which appear on the agent profile, and reorder within a list.', 'mlsimport' ) ),
+		'saved_search_enabled'  => array( 'control' => 'yesno', 'help' => __( 'Adds a "Save this search" button to the Search Results block. Visitors who confirm by email get one email a day with the new and updated listings that match.', 'mlsimport' ) ),
+		'saved_search_email_max' => array( 'help' => __( 'The most listings one daily email shows. When more match, the email links to the full results page. Default 12.', 'mlsimport' ) ),
+		'saved_search_email_subject' => array( 'help' => __( 'Subject of the daily email. {site_name} is replaced with your site name, {name} with the recipient name.', 'mlsimport' ) ),
+		'saved_search_email_intro' => array( 'rows' => 3, 'help' => __( 'First line of the daily email. {name} is replaced with the recipient name, {site_name} with your site name.', 'mlsimport' ) ),
+		'saved_search_email_disclaimer' => array( 'rows' => 6, 'help' => __( 'The MLS disclaimer printed at the bottom of the daily email, above the unsubscribe link. {year} is replaced with the current year, {site_name} with your site name. Each listing in the email already shows its listing office. Leave empty for no disclaimer. Basic HTML (links, bold, paragraphs) is allowed.', 'mlsimport' ) ),
 		'brand_color'           => array( 'help' => __( 'Main accent / brand colour for the front end.', 'mlsimport' ) ),
 	);
 }

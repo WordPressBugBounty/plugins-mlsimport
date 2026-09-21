@@ -33,7 +33,8 @@ class Mlsimport_Standalone_Reso_Map {
 	private const MAP = array(
 		// Identity / sync.
 		'ListingKey'                     => array( 'column:listing_key', 'meta:ListingKey' ),
-		'ListingId'                      => array( 'meta:ListingId' ),
+		// The public MLS number: a column too, so the "MLS #" search box can find it.
+		'ListingId'                      => array( 'column:listing_id', 'meta:ListingId' ),
 		'ModificationTimestamp'          => array( 'column:modification_timestamp', 'meta:ModificationTimestamp' ),
 		'MlsStatus'                      => array( 'meta:MlsStatus' ),
 		'InternetEntireListingDisplayYN' => array( 'meta:idx_display' ),

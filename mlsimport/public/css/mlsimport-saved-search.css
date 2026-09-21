@@ -1,0 +1,293 @@
+/**
+ * Saved Search — the "Save this search" toolbar button and its modal.
+ *
+ * Loaded after mlsimport-listings.css and reuses its tokens (--mli-accent is
+ * re-themed by the "Main Color" setting, so the button follows the brand).
+ * Single-class selectors (0,1,0) like the rest of the plugin CSS, so a theme or
+ * an Elementor style control can still override them.
+ */
+
+/* The button sits at the right end of the results toolbar, after Sort, so it takes
+   the Sort box's 40px height and 6px radius. Weight and family are set here too:
+   left unset, a theme's `button` rule (Astra: 500) filled them in. */
+.mlsimport-save-search__open {
+	box-sizing: border-box;
+	display: inline-flex;
+	align-items: center;
+	height: 40px;
+	padding: 0 14px;
+	border: 1px solid var(--mli-accent, #1a73e8);
+	border-radius: 6px;
+	background: transparent;
+	color: var(--mli-accent, #1a73e8);
+	font-family: inherit;
+	font-size: 13px;
+	font-weight: 400;
+	line-height: 1;
+	cursor: pointer;
+}
+
+/* border-color too, or a theme's button:hover repaints the border. */
+.mlsimport-save-search__open:hover,
+.mlsimport-save-search__open:focus-visible {
+	border-color: var(--mli-accent, #1a73e8);
+	background: var(--mli-accent, #1a73e8);
+	color: #fff;
+}
+
+/* The modal: a native <dialog>, centred by the browser. */
+.mlsimport-save-search {
+	width: min(420px, calc(100vw - 32px));
+	padding: 24px;
+	border: 0;
+	border-radius: var(--mli-radius, 10px);
+	color: var(--mli-text, #1f2733);
+	box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+}
+
+.mlsimport-save-search::backdrop {
+	background: rgba(15, 23, 42, 0.5);
+}
+
+.mlsimport-save-search__form {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+/* Right padding keeps a long title clear of the close "x". */
+.mlsimport-save-search__title {
+	margin: 0;
+	padding-right: 32px;
+	font-size: 20px;
+}
+
+/* The "x" in the dialog's top-right corner (a <dialog> is positioned, so absolute
+   anchors to it). Reset in full, hover included: a theme's `button` rule would
+   otherwise paint it. */
+.mlsimport-save-search .mlsimport-save-search__close,
+.mlsimport-save-search .mlsimport-save-search__close:hover {
+	position: absolute;
+	top: 12px;
+	right: 12px;
+	box-sizing: border-box;
+	width: 32px;
+	height: 32px;
+	margin: 0;
+	padding: 0;
+	border: 0;
+	border-radius: 6px;
+	background: transparent;
+	color: var(--mli-muted, #6b7785);
+	font-family: inherit;
+	font-size: 24px;
+	font-weight: 400;
+	line-height: 1;
+	cursor: pointer;
+}
+
+.mlsimport-save-search .mlsimport-save-search__close:hover,
+.mlsimport-save-search .mlsimport-save-search__close:focus-visible {
+	color: var(--mli-text, #1f2733);
+}
+
+/* Scoped to the dialog: a theme's `.entry-content p` margin (Astra: 22px, 0,1,1)
+   beats a single class and doubled the gap above the fields. */
+.mlsimport-save-search .mlsimport-save-search__lead {
+	margin: 0;
+	font-size: 14px;
+	color: var(--mli-muted, #6b7785);
+}
+
+.mlsimport-save-search__form input[type="text"],
+.mlsimport-save-search__form input[type="email"] {
+	box-sizing: border-box;
+	width: 100%;
+	height: 40px;
+	margin: 0;
+	padding: 0 12px;
+	border: 1px solid var(--mli-border, #e3e6ea);
+	border-radius: 6px;
+	font-family: inherit;
+	font-size: 14px;
+	color: var(--mli-text, #1f2733);
+}
+
+/* The shared consent row (mlsimport_property_lead_consent_field). Set in full here:
+   property-sections.css may not be loaded, and a theme's `label` rule (Astra: bold)
+   would fill the gaps. The box is nudged down to sit on the first line's centre. */
+.mlsimport-save-search .mlsimport-property-lead-form__consent {
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+	margin: 0;
+	font-size: 13px;
+	font-weight: 400;
+	line-height: 1.5;
+	color: var(--mli-muted, #6b7785);
+	cursor: pointer;
+}
+
+/* A plain white box with a dark tick — no filled background when checked. */
+.mlsimport-save-search .mlsimport-property-lead-form__consent input[type="checkbox"] {
+	flex: 0 0 auto;
+	box-sizing: border-box;
+	width: 16px;
+	height: 16px;
+	margin: 2px 0 0;
+	padding: 0;
+	border: 1px solid var(--mli-border-strong, #b8bec6);
+	border-radius: 3px;
+	background: #fff no-repeat center / 10px 8px;
+	appearance: none;
+	-webkit-appearance: none;
+	cursor: pointer;
+}
+
+.mlsimport-save-search .mlsimport-property-lead-form__consent input[type="checkbox"]:checked {
+	border-color: var(--mli-text, #1f2733);
+	background-image: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 8'%3E%3Cpath d='M1 4l3 3 5-6' fill='none' stroke='%231f2733' stroke-width='1.6'/%3E%3C/svg%3E" );
+}
+
+.mlsimport-save-search .mlsimport-property-lead-form__consent input[type="checkbox"]:focus-visible {
+	outline: 2px solid var(--mli-accent, #1a73e8);
+	outline-offset: 2px;
+}
+
+.mlsimport-save-search .mlsimport-property-lead-form__consent a {
+	color: var(--mli-accent, #1a73e8);
+	text-decoration: underline;
+}
+
+/* Server answer: green on success, red on a rejected save. Empty until the save
+   answers, so it takes no room — it left a blank band above the buttons. */
+.mlsimport-save-search .mlsimport-save-search__message {
+	margin: 0;
+	font-size: 14px;
+}
+
+.mlsimport-save-search__message:empty {
+	display: none;
+}
+
+.mlsimport-save-search__message.is-success {
+	color: #15803d;
+}
+
+.mlsimport-save-search__message.is-error {
+	color: #b91c1c;
+}
+
+.mlsimport-save-search__actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
+	margin-top: 8px;
+}
+
+/* 40px / 6px like the fields and the toolbar button; weight and family set so a
+   theme's `button` rule does not bold them. */
+.mlsimport-save-search__cancel,
+.mlsimport-save-search__submit {
+	box-sizing: border-box;
+	display: inline-flex;
+	align-items: center;
+	height: 40px;
+	padding: 0 16px;
+	border-radius: 6px;
+	font-family: inherit;
+	font-size: 14px;
+	font-weight: 500;
+	line-height: 1;
+	cursor: pointer;
+}
+
+/* Hover repeats the resting colours so a theme's button:hover cannot repaint them. */
+.mlsimport-save-search__cancel:hover {
+	border-color: var(--mli-text, #1f2733);
+	background: #fff;
+	color: var(--mli-text, #1f2733);
+}
+
+.mlsimport-save-search__submit:hover {
+	border-color: var(--mli-accent, #1a73e8);
+	background: var(--mli-accent, #1a73e8);
+	color: #fff;
+	filter: brightness(0.95);
+}
+
+.mlsimport-save-search__cancel {
+	border: 1px solid var(--mli-border, #e3e6ea);
+	background: #fff;
+	color: var(--mli-text, #1f2733);
+}
+
+.mlsimport-save-search__submit {
+	border: 1px solid var(--mli-accent, #1a73e8);
+	background: var(--mli-accent, #1a73e8);
+	color: #fff;
+}
+
+.mlsimport-save-search__submit:disabled {
+	opacity: 0.6;
+	cursor: default;
+}
+
+/* The answer to an emailed confirm/unsubscribe link, shown over whatever page the
+   visitor lands on. Fixed from wp_footer so it needs no theme hook. */
+.mlsimport-ss-notice {
+	position: fixed;
+	z-index: 100000;
+	top: 24px;
+	left: 50%;
+	display: flex;
+	align-items: flex-start;
+	gap: 12px;
+	box-sizing: border-box;
+	width: min(520px, calc(100vw - 32px));
+	padding: 14px 16px;
+	border: 1px solid #bbf7d0;
+	border-left: 4px solid #15803d;
+	border-radius: 6px;
+	background: #fff;
+	color: var(--mli-text, #1f2733);
+	box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
+	font-size: 14px;
+	line-height: 1.5;
+	transform: translateX(-50%);
+	transition: opacity 0.3s ease;
+}
+
+/* Set by the footer script ~6s after load, just before the box is removed. */
+.mlsimport-ss-notice.is-hiding {
+	opacity: 0;
+}
+
+.mlsimport-ss-notice.is-error {
+	border-color: #fecaca;
+	border-left-color: #b91c1c;
+}
+
+.mlsimport-ss-notice .mlsimport-ss-notice__text {
+	flex: 1 1 auto;
+	margin: 0;
+}
+
+/* Reset in full: a theme's `button` rule would otherwise paint it. */
+.mlsimport-ss-notice .mlsimport-ss-notice__close,
+.mlsimport-ss-notice .mlsimport-ss-notice__close:hover {
+	flex: 0 0 auto;
+	margin: 0;
+	padding: 0 4px;
+	border: 0;
+	background: transparent;
+	color: var(--mli-muted, #6b7785);
+	font-size: 20px;
+	font-weight: 400;
+	line-height: 1;
+	cursor: pointer;
+}
+
+.admin-bar .mlsimport-ss-notice {
+	top: 56px;
+}

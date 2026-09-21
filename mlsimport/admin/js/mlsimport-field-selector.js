@@ -160,9 +160,18 @@
                 rightValue = String(rightValue).toLowerCase();
                 return leftValue.localeCompare(rightValue) * (sort.slice(-5) === '_desc' ? -1 : 1);
             });
-            $.each(sorted, function (_, row) {
-                $body.append(row);
+            // Only touch the DOM when the display order really changed.
+            // Re-appending every row detaches the control that has focus (the
+            // checkbox just clicked), and the browser then jumps the page to
+            // the top — at the end of a long list that loses the user's place.
+            var orderChanged = sorted.some(function (row, index) {
+                return row !== $rows[index];
             });
+            if (orderChanged) {
+                $.each(sorted, function (_, row) {
+                    $body.append(row);
+                });
+            }
 
             // Reordering (buttons and drag-and-drop) stays available in every
             // view: moves are relative commands anchored to the nearest visible
@@ -374,10 +383,10 @@
             });
             // The authoritative order stamps data-field-order directly, so the
             // stored order survives even while a sorted view owns the display.
+            // Rows are not moved here: applyView() below sorts by these stamps
+            // and only moves rows when the displayed order actually changes.
             $.each(result.order || [], function (index, fieldKey) {
-                var $ordered = rowFor(fieldKey);
-                $ordered.attr('data-field-order', index).find('.field-position').text((index + 1) + '. ');
-                $body.append($ordered);
+                rowFor(fieldKey).attr('data-field-order', index).find('.field-position').text((index + 1) + '. ');
             });
             updateStats();
             applyView();

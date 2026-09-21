@@ -60,10 +60,15 @@ class TresleResoClass extends ResoBase {
 		return array( 'pretty_enums' => true );
 	}
 
-	/** Build Trestle's client-credentials token request. */
+	/**
+	 * Build Trestle's client-credentials token request.
+	 *
+	 * Uses the Cotality host. Trestle deprecated api-trestle.corelogic.com and
+	 * api-prod.corelogic.com; only the host changed, the flow is identical.
+	 */
 	protected function direct_token_request( array $saved_options, array $config ) {
 		return array(
-			'url'  => 'https://api-trestle.corelogic.com/trestle/oidc/connect/token',
+			'url'  => 'https://api.cotality.com/trestle/oidc/connect/token',
 			'body' => array(
 				'client_id'     => trim( (string) $saved_options['mlsimport_tresle_client_id'] ),
 				'client_secret' => trim( (string) $saved_options['mlsimport_tresle_client_secret'] ),

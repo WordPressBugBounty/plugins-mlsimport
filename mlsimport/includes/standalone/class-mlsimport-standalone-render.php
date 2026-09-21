@@ -236,6 +236,8 @@ class Mlsimport_Standalone_Render {
 			echo '</span>';
 			echo '</div>';
 		}
+		/** Fires inside the results toolbar, after the Sort control (e.g. the "Save this search" button). @since 7.3 */
+		do_action( 'mlsimport_results_toolbar', $args, $total );
 		echo '</div>';
 		do_action( 'mlsimport_before_results', $args, $total );
 		echo '<div class="mlsimport-results__grid" style="--mli-cols:' . esc_attr( (string) $cols ) . ';">';

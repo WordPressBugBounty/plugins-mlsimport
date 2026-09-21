@@ -136,6 +136,11 @@ function mlsimport_live_build_query_bridge( array $params, array $config ): stri
 		$pairs[] = $alias( 'SubdivisionName' ) . '=' . rawurlencode( (string) $params['subdivision'] );
 	}
 
+	// The "MLS #" search box: the public MLS number as an equality match.
+	if ( ! empty( $params['listing_id'] ) && ! is_array( $params['listing_id'] ) ) {
+		$pairs[] = $alias( 'ListingId' ) . '=' . rawurlencode( trim( (string) $params['listing_id'] ) );
+	}
+
 	// Minimum list date, only when it's a valid YYYY-MM-DD.
 	if ( ! empty( $params['list_date_min'] ) && preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) $params['list_date_min'] ) ) {
 		$pairs[] = $alias( 'ListingContractDate' ) . '.gte=' . $params['list_date_min'];
@@ -230,6 +235,12 @@ function mlsimport_live_build_query_odata( array $params, array $config, array $
 
 	if ( ! empty( $params['subdivision'] ) && ! is_array( $params['subdivision'] ) ) {
 		$filter .= mlsimport_live_filter_list_segment( $alias( 'SubdivisionName' ), array( (string) $params['subdivision'] ) );
+	}
+
+	// The "MLS #" search box: `ListingId eq '<number>'` (the helper trims the
+	// value and doubles single quotes, so the visitor's text cannot break out).
+	if ( ! empty( $params['listing_id'] ) && ! is_array( $params['listing_id'] ) ) {
+		$filter .= mlsimport_live_filter_list_segment( $alias( 'ListingId' ), array( (string) $params['listing_id'] ) );
 	}
 
 	if ( ! empty( $params['list_date_min'] ) && preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) $params['list_date_min'] ) ) {
