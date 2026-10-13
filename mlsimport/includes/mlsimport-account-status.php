@@ -80,6 +80,100 @@ function mlsimport_account_status() {
 }
 
 /**
+ * Save an MLSImport Account login and test it against the SaaS.
+ *
+ * The single login path of the plugin: the onboarding wizard, the Connections
+ * screen (both through mlsimport_save_account_callback()) and the
+ * account-connect AI tool all call this function. It reads nothing from the
+ * request; the caller passes clean values (the password already unslashed and
+ * trimmed, never text-sanitized, because that strips valid %xx sequences, #204).
+ *
+ * Note that the new login is SAVED BEFORE it is tested: a wrong password
+ * replaces a working one. Callers that must not break a working account check
+ * for one first.
+ *
+ * @param string $username MLSImport.com username or email.
+ * @param string $password MLSImport.com password, verbatim.
+ * @return array {
+ *     @type bool   $connected      True when the SaaS issued a token for this login.
+ *     @type string $error          'missing_fields' when a value was blank (nothing saved), else ''.
+ *     @type string $message        Plain sentence for the outcome.
+ *     @type string $account_status 'no_subscription' | 'invalid_credentials' | ''.
+ * }
+ */
+function mlsimport_account_login( string $username, string $password ): array {
+	// Step 1: both values are required. Stop before touching the saved account,
+	// so a blank form can never answer "connected" from a warm token (#306).
+	$missing_fields = array();
+	if ( '' === $username ) {
+		$missing_fields[] = __( 'MLSImport.com Username or email', 'mlsimport' );
+	}
+	if ( '' === $password ) {
+		$missing_fields[] = __( 'MLSImport.com Password', 'mlsimport' );
+	}
+	if ( ! empty( $missing_fields ) ) {
+		$message = 1 === count( $missing_fields )
+			? sprintf(
+				/* translators: %s: one missing MLSImport account field label. */
+				__( '%s is required.', 'mlsimport' ),
+				$missing_fields[0]
+			)
+			: sprintf(
+				/* translators: 1: username label, 2: password label. */
+				__( '%1$s and %2$s are required.', 'mlsimport' ),
+				$missing_fields[0],
+				$missing_fields[1]
+			);
+		return array(
+			'connected'      => false,
+			'error'          => 'missing_fields',
+			'message'        => $message,
+			'account_status' => '',
+		);
+	}
+
+	// Step 2: store the new login in the plugin options.
+	$options                       = get_option( 'mlsimport_admin_options', array() );
+	$options['mlsimport_username'] = $username;
+	$options['mlsimport_password'] = $password;
+	update_option( 'mlsimport_admin_options', $options );
+
+	// Step 3: force the check below to exercise the login just saved rather
+	// than a token minted from the previous password (#205).
+	delete_transient( 'mlsimport_saas_token' );
+	delete_option( 'mlsimport_token_expiry' );
+	// This is a new login attempt. Only its response may confirm no subscription;
+	// short passwords (HTTP 400) and timeouts do not overwrite an old verdict.
+	delete_option( MLSIMPORT_ACCOUNT_STATUS_OPTION );
+
+	// Step 4: ask the SaaS for a token with the new login.
+	global $mlsimport;
+	$token = $mlsimport->admin->mlsimport_saas_get_mls_api_token_from_transient();
+
+	// Step 5: an empty token means the login failed; the message names the
+	// reason the server gave (no subscription vs wrong password).
+	if ( '' === trim( (string) $token ) ) {
+		return array(
+			'connected'      => false,
+			'error'          => '',
+			'message'        => mlsimport_account_not_connected_message(),
+			'account_status' => mlsimport_account_status(),
+		);
+	}
+
+	// Step 6: signed in. Re-read the account's entitlements (connection cap +
+	// registered MLS blocks) so a plan change shows up on reconnect.
+	mlsimport_refresh_entitlements();
+
+	return array(
+		'connected'      => true,
+		'error'          => '',
+		'message'        => __( 'Connected successfully!', 'mlsimport' ),
+		'account_status' => '',
+	);
+}
+
+/**
  * The "not connected" sentence for the current account status, plain text.
  *
  * Used where only text can be shown (the Connections screen sign-in error

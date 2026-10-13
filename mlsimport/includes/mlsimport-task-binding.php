@@ -168,6 +168,42 @@ function mlsimport_cron_task_gate( int $task_id ): array {
 }
 
 /**
+ * Decide whether the Import Task screen may show its form (issue #361).
+ *
+ * The screen judges the connection the TASK is bound to, with the same rule
+ * the hourly cron uses — never the global flag of a current MLS the task does
+ * not import from. Without this, an orphan current MLS (saved, never
+ * registered, its test failing) blocked every task on the site, even tasks
+ * bound to a healthy connection.
+ *
+ * Step by step:
+ * 1. Apply the cron gate to the task's connection.
+ * 2. The task is on the CURRENT connection and the gate says not connected:
+ *    run the connection test once (it rewrites the global flag) and re-gate,
+ *    exactly what the screen did before for every task.
+ * 3. Connected when the gate lets the task import.
+ *
+ * @param int $task_id Import Task post id (an unstamped/new task resolves to
+ *                     the current connection).
+ * @return bool True when the task's connection is usable.
+ */
+function mlsimport_task_screen_connected( int $task_id ): bool {
+	// Step 1: the task's own connection, the cron's rule.
+	$gate = mlsimport_cron_task_gate( $task_id );
+
+	// Step 2: only the current connection is re-tested — the global test
+	// checks the current MLS and nothing else.
+	if ( 'import' !== $gate['action'] && $gate['mls_id'] === mlsimport_current_mls_id() ) {
+		global $mlsimport;
+		$mlsimport->admin->mlsimport_saas_check_mls_connection();
+		$gate = mlsimport_cron_task_gate( $task_id );
+	}
+
+	// Step 3.
+	return 'import' === $gate['action'];
+}
+
+/**
  * Record one connection's sync failure — scoped by mls_id (decision #265).
  *
  * Step by step:

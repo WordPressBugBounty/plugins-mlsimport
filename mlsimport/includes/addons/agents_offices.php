@@ -231,7 +231,8 @@ add_action('template_redirect', 'mlsimport_fetch_and_save_mls_data');
 function mlsimport_update_custom_fields() {
     // Read the active theme and current connection from mirrored plugin options.
     $options = get_option('mlsimport_admin_options');
-    $theme_id = isset($options['mlsimport_theme_used']) ? intval($options['mlsimport_theme_used']) : 0;
+    // Saved choice, else the detected theme, else standalone (990).
+    $theme_id = mlsimport_resolve_theme_id();
     $mls_id = isset($options['mlsimport_mls_name']) ? sanitize_text_field(trim($options['mlsimport_mls_name'])) : '';
     // Credential values are trim-only so valid token bytes are never altered.
     $mls_token = isset($options['mlsimport_mls_token']) ? trim((string) $options['mlsimport_mls_token']) : '';

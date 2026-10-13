@@ -149,6 +149,11 @@ function mlsimport_live_build_query_bridge( array $params, array $config ): stri
 	// Numeric ranges -> Field.gte/.lte, one pair per set numeric param.
 	foreach ( $vocab['numeric'] as $param => $rule ) {
 		if ( isset( $params[ $param ] ) && '' !== $params[ $param ] && is_numeric( $params[ $param ] ) ) {
+			// beds=0 is the Studio tile: exactly 0 bedrooms (plain Field=value), not a bound.
+			if ( 'beds' === $param && 0 === (int) $params[ $param ] ) {
+				$pairs[] = $alias( $rule[0] ) . '=0';
+				continue;
+			}
 			// rule[1] is the comparator direction (ge->gte, le->lte).
 			$suffix  = 'ge' === $rule[1] ? 'gte' : 'lte';
 			$pairs[] = $alias( $rule[0] ) . '.' . $suffix . '=' . ( 0 + $params[ $param ] );
@@ -260,7 +265,9 @@ function mlsimport_live_build_query_odata( array $params, array $config, array $
 	);
 	foreach ( $numeric as $param => $rule ) {
 		if ( isset( $params[ $param ] ) && '' !== $params[ $param ] && is_numeric( $params[ $param ] ) ) {
-			$filter .= '(' . $alias( $rule[0] ) . ' ' . $rule[1] . ' ' . ( 0 + $params[ $param ] ) . ') and ';
+			// beds=0 is the Studio tile: exactly 0 bedrooms (eq), not a bound (ge).
+			$op      = ( 'beds' === $param && 0 === (int) $params[ $param ] ) ? 'eq' : $rule[1];
+			$filter .= '(' . $alias( $rule[0] ) . ' ' . $op . ' ' . ( 0 + $params[ $param ] ) . ') and ';
 		}
 	}
 

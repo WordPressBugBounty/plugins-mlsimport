@@ -138,13 +138,6 @@ class Mlsimport_Activity_List_Table extends WP_List_Table {
 	 * @return void
 	 */
 	public function prepare_items(): void {
-		global $wpdb;
-
-		$table = mlsimport_activity_table_name();
-
-		// 30-day cutoff (WP local time).
-		$cutoff = gmdate( 'Y-m-d H:i:s', current_time( 'timestamp' ) - 30 * DAY_IN_SECONDS );
-
 		// --- Sanitize filter inputs ---
 		// Filter GET key: 'mlsimport_action' (consistent with history partial form).
 		$filter_action = isset( $_GET['mlsimport_action'] ) // phpcs:ignore WordPress.Security.NonceVerification.Recommended
@@ -161,67 +154,35 @@ class Mlsimport_Activity_List_Table extends WP_List_Table {
 			? trim( sanitize_text_field( wp_unslash( $_GET['mlsimport_s'] ) ) ) // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 			: '';
 
-		// --- Whitelist orderby and order ---
-		$allowed_orderby = array( 'created_at' );
-		$orderby_raw = isset( $_GET['orderby'] ) ? sanitize_text_field( wp_unslash( $_GET['orderby'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		$orderby = in_array( $orderby_raw, $allowed_orderby, true ) ? $orderby_raw : 'created_at';
-
+		// --- Whitelist the order (the only sortable column is created_at) ---
 		$order_raw = isset( $_GET['order'] ) ? strtoupper( sanitize_text_field( wp_unslash( $_GET['order'] ) ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$order = in_array( $order_raw, array( 'ASC', 'DESC' ), true ) ? $order_raw : 'DESC';
 
-		// --- Build WHERE clause ---
-		// Table name from mlsimport_activity_table_name() — interpolated directly, never a placeholder.
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$where = $wpdb->prepare( 'WHERE created_at >= %s', $cutoff );
-
-		if ( ! empty( $filter_action ) && in_array( $filter_action, array( 'added', 'edited', 'deleted' ), true ) ) {
-			$where         .= $wpdb->prepare( ' AND action = %s', $filter_action );
-		}
-
-		if ( $filter_item > 0 ) {
-			$where .= $wpdb->prepare( ' AND import_item_id = %d', $filter_item );
-		}
-
-		// Match the search term against the MLS #, the ListingKey, or the numeric Listing ID.
-		if ( '' !== $filter_search ) {
-			$like   = '%' . $wpdb->esc_like( $filter_search ) . '%';
-			$where .= $wpdb->prepare( ' AND ( listing_mls_id LIKE %s OR listing_key LIKE %s OR CAST(listing_id AS CHAR) LIKE %s )', $like, $like, $like );
-		}
-
-		// --- Count total items for pagination ---
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$total_items = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table} {$where}" );
-
-		// --- Pagination ---
+		// --- The one Import History query (includes/mlsimport-activity-query.php),
+		// shared with the import-history AI tool. ---
 		$per_page = 50;
-		$current_page = $this->get_pagenum();
+		$result   = mlsimport_activity_query(
+			array(
+				'action'   => $filter_action,
+				'task_id'  => $filter_item,
+				'search'   => $filter_search,
+				'order'    => $order,
+				'page'     => $this->get_pagenum(),
+				'per_page' => $per_page,
+			)
+		);
 
 		// Register pagination metadata so WP_List_Table renders the pager.
 		$this->set_pagination_args(
 			array(
-				'total_items' => $total_items,
+				'total_items' => $result['total'],
 				'per_page'    => $per_page,
-				'total_pages' => ceil( $total_items / $per_page ),
+				'total_pages' => ceil( $result['total'] / $per_page ),
 			)
 		);
 
-		// Row offset for the current page's LIMIT clause.
-		$offset = ( $current_page - 1 ) * $per_page;
-
-		// --- Fetch items ---
-		// Table name interpolated directly — safe.
-		// orderby/order whitelisted above — safe to interpolate.
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$sql   = $wpdb->prepare(
-			"SELECT * FROM {$table} {$where} ORDER BY {$orderby} {$order} LIMIT %d OFFSET %d",
-			$per_page,
-			$offset
-		);
-		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
-		$items = $wpdb->get_results( $sql, ARRAY_A );
-
 		// Feed rows to WP_List_Table (empty array when no results).
-		$this->items = $items ? $items : array();
+		$this->items = $result['rows'];
 
 		// Set column headers.
 		$columns               = $this->get_columns();

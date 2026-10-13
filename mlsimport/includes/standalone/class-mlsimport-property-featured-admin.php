@@ -103,6 +103,36 @@ class Mlsimport_Property_Featured_Admin {
 	}
 
 	/**
+	 * Mark one listing featured, or remove the flag.
+	 *
+	 * The one featured-flag write outside the edit screen, shared by the bulk
+	 * actions (handle_bulk() below) and the set-featured AI tool
+	 * (includes/mcp/mlsimport-mcp-standalone-listing-edit.php). The caller has
+	 * already checked the post type and the user's rights.
+	 *
+	 * Step by step:
+	 * 1. Write the same meta the edit-screen checkbox writes.
+	 * 2. Re-index, which is what moves the flag into the fast listings table
+	 *    the front end sorts and badges from.
+	 * 3. Fire the "featured changed" action.
+	 *
+	 * @param int  $post_id  Property post ID.
+	 * @param bool $featured True to mark featured, false to remove the flag.
+	 * @return void
+	 */
+	public static function set_featured( int $post_id, bool $featured ): void {
+		// Step 1: the meta.
+		update_post_meta( $post_id, self::META, $featured ? '1' : '' );
+		// Step 2: the fast listings table.
+		if ( class_exists( 'Mlsimport_Standalone_Reindex' ) ) {
+			Mlsimport_Standalone_Reindex::rebuild_post( $post_id );
+		}
+
+		/** Fires after a listing's featured flag changed from the list screen. @since 7.2.2 */
+		do_action( 'mlsimport_property_featured_changed', $post_id, $featured );
+	}
+
+	/**
 	 * Apply "Mark featured" / "Remove featured" to the ticked listings.
 	 *
 	 * WordPress has already verified the bulk nonce and that the user may edit
@@ -133,17 +163,10 @@ class Mlsimport_Property_Featured_Admin {
 				continue;
 			}
 
-			// Step 3: write the same meta the edit-screen checkbox writes...
-			update_post_meta( $post_id, self::META, $value );
-			// Step 4: ...then re-index, which is what moves the flag into the fast
-			// listings table the front end sorts and badges from.
-			if ( class_exists( 'Mlsimport_Standalone_Reindex' ) ) {
-				Mlsimport_Standalone_Reindex::rebuild_post( $post_id );
-			}
+			// Step 3 + 4: write the flag and re-index (shared with the
+			// set-featured AI tool).
+			self::set_featured( $post_id, '1' === $value );
 			++$changed;
-
-			/** Fires after a listing's featured flag changed from the list screen. @since 7.2.2 */
-			do_action( 'mlsimport_property_featured_changed', $post_id, '1' === $value );
 		}
 
 		// Step 5: hand the count to notice() through the redirect URL.

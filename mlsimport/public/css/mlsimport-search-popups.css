@@ -83,8 +83,10 @@
 	   narrower than that — on a 375px phone the bar's cells are ~150px, so the
 	   panel ran off the right edge and its Apply button could not be reached.
 	   The floor itself has to come down: max-width cannot rein in min-width,
-	   because min-width wins. */
-	min-width: min( 240px, calc( 100vw - 24px ) );
+	   because min-width wins.
+	   385px: the beds row holds seven tiles (Studio + 1+..6+) at 44px minimum
+	   each plus gaps, so a narrower panel wraps the row onto two lines. */
+	min-width: min( 385px, calc( 100vw - 24px ) );
 	padding: 14px;
 	background: #fff;
 	border: 1px solid var(--mli-border, #e2e2e2);

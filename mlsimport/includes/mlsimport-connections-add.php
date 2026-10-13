@@ -111,6 +111,27 @@ function mlsimport_connections_add_record( int $mls_id, string $mls_name, string
 }
 
 /**
+ * Decide whether a just-added connection becomes the CURRENT one. Pure.
+ *
+ * The current MLS (flat mlsimport_admin_options['mlsimport_mls_name']) is what
+ * every legacy read path imports from. It is usable only when it names a
+ * registered connection. Two cases are not usable:
+ *   - nothing saved yet (0) — the first MLS added through the drawer;
+ *   - an orphan: a saved id that is not in the registry, e.g. left over from
+ *     an earlier setup-wizard pick that was never tested (issue #361). Keeping
+ *     it would leave the install pointing at an MLS it has no connection to.
+ * In both cases the new connection is promoted. A registered current MLS is
+ * never replaced: adding MLS #2 must not change which one is current.
+ *
+ * @param int   $current_id     The saved current mls_id (0 = none).
+ * @param array $registered_ids mls_ids in the registry, including the new one.
+ * @return bool True when the new connection must become current.
+ */
+function mlsimport_connections_add_should_promote( int $current_id, array $registered_ids ): bool {
+	return ! in_array( $current_id, array_map( 'intval', $registered_ids ), true );
+}
+
+/**
  * Run the full add flow: refuse / test / register / seed. Never terminates.
  *
  * Step by step:
@@ -212,13 +233,14 @@ function mlsimport_connections_add_execute( int $mls_id, string $mls_name, array
 	}
 	mlsimport_connection_record_test_result( $mls_id, true );
 
-	// Step 6b: an install with no current connection yet (first MLS added
-	// through the drawer — since the tab consolidation the drawer is the
-	// settings page's only add path) promotes this connection to current by
-	// mirroring its identity + credentials into the flat options, which every
-	// legacy read path (imports, cron, token refresh) resolves current from.
-	// The just-passed test also confirms the global connection flag.
-	if ( 0 === mlsimport_current_mls_id() ) {
+	// Step 6b: an install with no usable current connection — none yet (first
+	// MLS added through the drawer, the settings page's only add path) or an
+	// orphan current MLS that is not registered (#361) — promotes this
+	// connection to current by mirroring its identity + credentials into the
+	// flat options, which every legacy read path (imports, cron, token
+	// refresh) resolves current from. The just-passed test also confirms the
+	// global connection flag.
+	if ( mlsimport_connections_add_should_promote( mlsimport_current_mls_id(), array_keys( Mlsimport_Connections::all() ) ) ) {
 		$options = get_option( 'mlsimport_admin_options', array() );
 		update_option(
 			'mlsimport_admin_options',

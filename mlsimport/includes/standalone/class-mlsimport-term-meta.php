@@ -196,17 +196,45 @@ class Mlsimport_Term_Meta {
 			return;
 		}
 
-		// Coerce the posted image to an attachment id; store it, or clear on 0/none.
-		$image_id = isset( $_POST[ self::IMAGE_KEY ] ) ? self::image_id( wp_unslash( $_POST[ self::IMAGE_KEY ] ) ) : 0; // phpcs:ignore WordPress.Security.ValidatedSanitized.InputNotSanitized -- coerced to int by image_id().
+		// The two values as posted; the write itself is shared with the
+		// update-term-settings AI tool.
+		self::save_values(
+			(int) $term_id,
+			isset( $_POST[ self::IMAGE_KEY ] ) ? self::image_id( wp_unslash( $_POST[ self::IMAGE_KEY ] ) ) : 0, // phpcs:ignore WordPress.Security.ValidatedSanitized.InputNotSanitized -- coerced to int by image_id().
+			isset( $_POST[ self::HTML_KEY ] ) ? (string) wp_unslash( $_POST[ self::HTML_KEY ] ) : null // phpcs:ignore WordPress.Security.ValidatedSanitized.InputNotSanitized -- wp_kses_post sanitizes in save_values().
+		);
+	}
+
+	/**
+	 * Store one term's settings: the featured image and the HTML description.
+	 *
+	 * The one term-settings write, shared by the term screens (save() above)
+	 * and the update-term-settings AI tool
+	 * (includes/mcp/mlsimport-mcp-standalone-site.php). The caller has already
+	 * authorized the request.
+	 *
+	 * Step by step:
+	 * 1. Image: store the attachment id, or remove the meta on 0 (= no image)
+	 *    rather than storing 0.
+	 * 2. HTML: kses-filter it; store when non-empty, else remove the meta. A
+	 *    null $html leaves the stored HTML as it is.
+	 *
+	 * @param int         $term_id  Term id.
+	 * @param int         $image_id Attachment id, 0 for none.
+	 * @param string|null $html     HTML description, or null to leave it.
+	 * @return void
+	 */
+	public static function save_values( int $term_id, int $image_id, ?string $html ): void {
+		// Step 1: the image.
 		if ( $image_id > 0 ) {
 			update_term_meta( $term_id, self::IMAGE_KEY, $image_id );
 		} else {
 			delete_term_meta( $term_id, self::IMAGE_KEY );
 		}
 
-		// HTML description: kses-filter it, store when non-empty, else remove the meta.
-		if ( isset( $_POST[ self::HTML_KEY ] ) ) {
-			$html = wp_kses_post( wp_unslash( $_POST[ self::HTML_KEY ] ) ); // phpcs:ignore WordPress.Security.ValidatedSanitized.InputNotSanitized -- wp_kses_post sanitizes.
+		// Step 2: the HTML description.
+		if ( null !== $html ) {
+			$html = wp_kses_post( $html );
 			if ( '' !== $html ) {
 				update_term_meta( $term_id, self::HTML_KEY, $html );
 			} else {

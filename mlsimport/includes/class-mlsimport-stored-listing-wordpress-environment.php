@@ -438,6 +438,73 @@ final class Mlsimport_Stored_Listing_WordPress_Environment {
 	}
 
 	/**
+	 * Read a listing's stored price and status before the write overwrites them.
+	 *
+	 * Issue #222: the price sits under the adapter-named theme meta key; the
+	 * status comes from the shared reader (taxonomy term, or Real Homes meta),
+	 * already normalized for comparison.
+	 *
+	 * 'facts' is the listing-details snapshot the previous write saved
+	 * (store_facts()); empty for a listing written before that existed.
+	 *
+	 * @param int    $listing_id Managed Listing post ID.
+	 * @param string $price_key  Adapter's price meta key.
+	 * @param array  $tax_map    The task connection's mls-fields-map-taxonomy.
+	 * @return array<string, mixed> 'price', 'status' and 'facts'.
+	 */
+	public function read_signals( int $listing_id, string $price_key, array $tax_map ): array {
+		$price = get_post_meta( $listing_id, $price_key, true );
+		$facts = get_post_meta( $listing_id, Mlsimport_Listing_Event_Facts::META_KEY, true );
+		return array(
+			'price'  => is_scalar( $price ) ? (string) $price : '',
+			'status' => (string) mlsimport_read_property_status( $listing_id, $tax_map ),
+			'facts'  => is_array( $facts ) ? $facts : array(),
+		);
+	}
+
+	/**
+	 * Save the listing-details snapshot on the post (inside the write transaction).
+	 *
+	 * @param int                   $listing_id Managed Listing post ID.
+	 * @param array<string, string> $facts      Mlsimport_Listing_Event_Facts snapshot.
+	 * @return void
+	 */
+	public function store_facts( int $listing_id, array $facts ): void {
+		update_post_meta( $listing_id, Mlsimport_Listing_Event_Facts::META_KEY, $facts );
+	}
+
+	/**
+	 * Store the Listing Change Events of one committed write (issue #222).
+	 *
+	 * Builds the identity context from the task settings (mls_id, task_id) and
+	 * the property (ListingKey, the RESO change timestamps kept in extra_meta),
+	 * then hands the events to the store, which inserts and fires the actions.
+	 *
+	 * @param int                  $listing_id Managed Listing post ID.
+	 * @param array<string, mixed> $property   Incoming raw property.
+	 * @param array<string, mixed> $settings   Normalized task settings.
+	 * @param array<int, array>    $events     Events as { type, old, new }.
+	 * @param array<string, string> $facts     Listing details stored on every row.
+	 * @return void
+	 */
+	public function record_events( int $listing_id, array $property, array $settings, array $events, array $facts = array() ): void {
+		Mlsimport_Listing_Events::record(
+			array(
+				'mls_id'            => (int) ( $settings['mls_id'] ?? 0 ),
+				'listing_key'       => (string) ( $property['ListingKey'] ?? '' ),
+				'listing_id'        => (string) ( $property['adr_listingid'] ?? ( $property['ListingId'] ?? '' ) ),
+				'post_id'           => $listing_id,
+				'task_id'           => (int) ( $settings['task_id'] ?? 0 ),
+				'price_changed_at'  => (string) ( $property['extra_meta']['PriceChangeTimestamp'] ?? '' ),
+				'status_changed_at' => (string) ( $property['extra_meta']['StatusChangeTimestamp'] ?? '' ),
+				'closed_at'         => (string) ( $property['extra_meta']['CloseDate'] ?? '' ),
+				'facts'             => $facts,
+			),
+			$events
+		);
+	}
+
+	/**
 	 * Publish the terminal success, warning, or failure extension hook.
 	 *
 	 * @param string               $kind     Terminal event kind.

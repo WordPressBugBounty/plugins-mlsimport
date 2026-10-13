@@ -22,16 +22,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Whether the site runs in standalone (theme-agnostic) mode — theme_id 990.
  *
- * Drives the standalone write path / front-end gating. Reads the configured
- * theme from mlsimport_admin_options['mlsimport_theme_used'].
+ * Drives the standalone write path / front-end gating. The theme comes from
+ * mlsimport_resolve_theme_id(): the saved choice wins; a blank setting means
+ * the detected theme, and a site without a real-estate theme is standalone.
  *
  * @return bool
  */
 function mlsimport_is_standalone_mode() {
-	$options = get_option( 'mlsimport_admin_options' );
-	return is_array( $options )
-		&& isset( $options['mlsimport_theme_used'] )
-		&& 990 === intval( $options['mlsimport_theme_used'] );
+	return 990 === mlsimport_resolve_theme_id();
 }
 
 
@@ -3223,26 +3221,11 @@ if ( ! function_exists( 'mlsimport_populate_columns' ) ) :
 			mlsimport_populate_columns_params_display( $post->ID );
 		} elseif ( 'mlsimport_task_health' === $column ) {
 			// Status column (GitHub issue #200): surface stuck, failed, and
-			// sync-overdue tasks directly in the list. All inputs are already
-			// recorded — the run status meta (state, progress, heartbeat, error),
-			// the sync watermark, and the auto-sync flag. The badge decision
-			// itself lives in the pure, unit-tested mlsimport_task_health().
-			$health_status = get_post_meta( $post->ID, 'mlsimport_import_run_status', true );
-			$health        = mlsimport_task_health(
-				is_array( $health_status ) ? $health_status : array(),
-				(string) get_post_meta( $post->ID, 'mlsimport_last_date', true ),
-				1 === (int) get_post_meta( $post->ID, 'mlsimport_item_stat_cron', true ),
-				time(),
-				// Watermarks are stored with wp_date() in site-local time, so
-				// the overdue cutoff must be built the same way to compare.
-				wp_date( 'Y-m-d\TH:i', time() - MLSIMPORT_TASK_HEALTH_OVERDUE_AFTER ),
-				// The hourly runner's own eligibility rule (GitHub issue #330):
-				// a task it will never pick up must not read as merely overdue.
-				mlsimport_cron_task_is_eligible(
-					(int) get_post_meta( $post->ID, 'mlsimport_initial_import_completed', true ),
-					(string) get_post_meta( $post->ID, 'mlsimport_spawn_status', true )
-				)
-			);
+			// sync-overdue tasks directly in the list. The badge's inputs are
+			// gathered by mlsimport_task_health_for_task() (shared with the AI
+			// tools); the decision itself lives in the pure, unit-tested
+			// mlsimport_task_health().
+			$health = mlsimport_task_health_for_task( (int) $post->ID );
 			?>
 			<span class="mlsimport-task-health mlsimport-task-health--<?php echo esc_attr( $health['level'] ); ?>">
 				<?php echo esc_html( $health['label'] ); ?>

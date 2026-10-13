@@ -355,6 +355,24 @@ table.media .column-title .media-icon img {
 	border-radius: var(--border-radius);
 }
 
+/* "Go to the option" link inside a warning (unsupported Internet display
+   field): same colour as the banner text, underlined so it reads as a link. */
+.mlsimport_warning .mlsimport-warning-jump {
+	color: inherit;
+	font-weight: 600;
+	text-decoration: underline;
+}
+
+/* The link's hash jump lands on the dropdown; keep it clear of the fixed
+   WordPress admin bar and show which control the link pointed at. The jump
+   also focuses the select, and the `select.mlsimport-2025-select:focus` rule
+   further down clears the outline at (0,2,1), so this one is (0,3,1). */
+select.mlsimport-select.mlsimport-2025-select:target {
+	scroll-margin-top: 80px;
+	outline: 2px solid var(--error-color);
+	outline-offset: 2px;
+}
+
 
 /* Account login failures share one full-width notice and typography.
    The two-class selector wins over each screen's ordinary warning styles. */
@@ -1337,6 +1355,237 @@ input[type=checkbox].mlsimport_select_import_all {
 .mlsimport-activity-action--deleted {
         background-color: var(--error-soft);
         color: var(--error-color);
+}
+
+/* Listing Changes (#222) — event badges reuse the activity badge base. */
+.mlsimport-listing-event--price_change {
+        background-color: var(--warning-soft);
+        color: var(--warning-deep);
+}
+
+.mlsimport-listing-event--status_change {
+        background-color: var(--accent-soft);
+        color: var(--accent-color);
+}
+
+.mlsimport-listing-event--removed {
+        background-color: var(--error-soft);
+        color: var(--error-color);
+}
+
+.mlsimport-listing-event--back_on_market {
+        background-color: var(--success-soft);
+        color: var(--success-deep);
+}
+
+/* Newer event kinds: the badge class is the notification kind. */
+.mlsimport-listing-event--price_drop,
+.mlsimport-listing-event--price_increase,
+.mlsimport-listing-event--agent_change,
+.mlsimport-listing-event--content_change {
+        background-color: var(--warning-soft);
+        color: var(--warning-deep);
+}
+
+.mlsimport-listing-event--under_contract {
+        background-color: var(--accent-soft);
+        color: var(--accent-color);
+}
+
+.mlsimport-listing-event--off_market {
+        background-color: var(--error-soft);
+        color: var(--error-color);
+}
+
+.mlsimport-listing-event--new_listing,
+.mlsimport-listing-event--sold {
+        background-color: var(--success-soft);
+        color: var(--success-deep);
+}
+
+/* Table rows: highlight on hover; a row whose listing still exists is clickable. */
+.mlsimport-listing-changes .wp-list-table tbody tr:hover > * {
+        background-color: var(--background-soft);
+}
+
+.mlsimport-listing-changes .wp-list-table tbody tr.mlsimport-listing-row--link {
+        cursor: pointer;
+}
+
+/* -------------------------------------------------------
+   Listing Changes — "Notifications" section (daily email setup).
+   A collapsible card above the table: kinds, addresses, one row
+   per MLS, and the filter form of the MLS being edited.
+   ------------------------------------------------------- */
+.mlsimport-notify {
+        margin: 16px 0;
+        padding: 0 18px;
+        background: var(--background-white);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-card);
+}
+
+.mlsimport-notify__summary {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 4px 14px;
+        padding: 14px 0;
+        cursor: pointer;
+}
+
+.mlsimport-notify__title {
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--text-primary);
+}
+
+.mlsimport-notify__help {
+        font-size: 13px;
+        color: #78716c;
+}
+
+.mlsimport-notify__heading {
+        margin: 18px 0 8px;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-primary);
+}
+
+/* Heading of a whole block of the section ("Notification Emails"). */
+.mlsimport-notify__heading--section {
+        margin: 26px 0 12px;
+        font-size: 15px;
+}
+
+.mlsimport-notify__help {
+        margin: 6px 0 0;
+}
+
+.mlsimport-notify__notice {
+        margin: 0 0 4px;
+}
+
+/* Kind checkboxes wrap into as many columns as fit. */
+.mlsimport-notify__kinds {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+        gap: 8px 16px;
+}
+
+.mlsimport-notify__kind {
+        font-size: 13px;
+        color: var(--text-primary);
+}
+
+input[type=text].mlsimport-notify__emails {
+        width: 100%;
+        max-width: 560px;
+}
+
+/* One accordion row per MLS: name, On switch, filter summary; the body is that
+   MLS's filter form. */
+.mlsimport-notify__mls {
+        margin: 0 0 8px;
+        border: 1px solid var(--border-color);
+        border-radius: var(--border-radius);
+}
+
+.mlsimport-notify__mls-summary {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px 18px;
+        padding: 10px 14px;
+        font-size: 13px;
+        cursor: pointer;
+}
+
+.mlsimport-notify__mls-summary:hover {
+        background: var(--background-soft);
+}
+
+.mlsimport-notify__mls-summary .mlsimport-notify__help {
+        margin: 0;
+}
+
+.mlsimport-notify__mls-name {
+        flex: 0 1 300px;
+        color: var(--text-primary);
+}
+
+.mlsimport-notify__mls-filter {
+        flex: 1 1 260px;
+        min-width: 0;
+        color: var(--text-primary);
+}
+
+.mlsimport-notify__actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+        margin: 16px 0;
+}
+
+/* Filter form of one MLS. */
+.mlsimport-notify__filter {
+        padding: 2px 16px 12px;
+        background: var(--background-soft);
+        border-top: 1px solid var(--border-color);
+}
+
+.mlsimport-notify__grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 16px 24px;
+        margin-top: 12px;
+}
+
+.mlsimport-notify__field {
+        min-width: 0;
+        margin: 0;
+        padding: 0;
+        border: 0;
+}
+
+.mlsimport-notify__field .mlsimport-label {
+        margin-top: 10px;
+}
+
+.mlsimport-notify__field .mlsimport-label:first-child {
+        margin-top: 0;
+}
+
+.mlsimport-notify__field .mlsimport-exp {
+        margin: 2px 0 6px;
+        font-size: 12px;
+        color: #78716c;
+}
+
+.mlsimport-notify__field input[type=text].mlsimport-2025-input {
+        width: 100%;
+}
+
+.mlsimport-notify__prices {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+}
+
+/* The shared 2025 input sets order:1 / flex:none; here the two price boxes
+   must keep their source order around the "and" and share the row. */
+.mlsimport-notify__prices input[type=text].mlsimport-2025-input {
+        order: 0;
+        flex: 1 1 0;
+        min-width: 0;
+}
+
+.mlsimport-notify__reset {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 4px 10px;
 }
 
 /* Searchable City/County multi-select — filter input above the native list. */

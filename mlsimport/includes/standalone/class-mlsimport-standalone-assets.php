@@ -164,6 +164,9 @@ class Mlsimport_Standalone_Assets {
 		// itself doesn't run in the editor, so the map pane previews empty).
 		wp_enqueue_style( 'mlsimport-half-map-editor', $url . 'public/css/mlsimport-half-map.css', array(), $ver );
 
+		// Blog Posts block: the post cards, by explicit URL for the same reason.
+		wp_enqueue_style( 'mlsimport-blog-posts-editor', $url . 'public/css/mlsimport-blog-posts.css', array(), $ver );
+
 		// Content Slider block: load Splide + the slider init by EXPLICIT URL (under
 		// editor-only handles) so they reach the block-editor iframe. Handle-only
 		// enqueues of pre-registered scripts do NOT reach the iframe here; the

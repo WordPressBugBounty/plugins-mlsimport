@@ -113,6 +113,37 @@
  *   action mlsimport_reindex_property       ( int    $post_id )
  *   action mlsimport_after_reindex          ( int    $count )
  *
+ * ─── WRITE — listing change events (class-mlsimport-listing-events.php) ───────
+ *   Fired after one Listing Change Event row is stored (issue #222): a new
+ *   listing (first arrival), a price change, a status change, a Removal (status
+ *   left the task selection, or the listing vanished from the MLS snapshot), a
+ *   sale (a Closed record), Back on Market (re-imported after it had left), a
+ *   changed listing agent / office, or changed photos / description.
+ *   Every mode (990–994), not only standalone. $old / $new are the raw price
+ *   strings for price_change and normalized statuses otherwise ('' = unknown /
+ *   no incoming status). $ctx carries mls_id, task_id and the MLS timestamps.
+ *   action mlsimport_listing_event          ( string $type, int $post_id, string $listing_key, string $old, string $new, array $ctx )
+ *   action mlsimport_listing_price_change   ( same arguments )
+ *   action mlsimport_listing_status_change  ( same arguments )
+ *   action mlsimport_listing_removed        ( same arguments )
+ *   action mlsimport_listing_back_on_market ( same arguments )
+ *   action mlsimport_listing_new_listing    ( same arguments )
+ *   action mlsimport_listing_sold           ( same arguments; $new = closing price or '' )
+ *   action mlsimport_listing_agent_change   ( same arguments; "Agent name, Office name" )
+ *   action mlsimport_listing_content_change ( same arguments; $new = "photos", "description" or both )
+ *   filter mlsimport_listing_events_retention_months ( int $months )               default 24, pruned daily
+ *
+ * ─── EMAIL — listing change notifications (class-mlsimport-listing-notification-digest.php) ─
+ *   One daily email per MLS connection, set up on the Listing Changes page.
+ *   Stored event types: price_change, status_change, removed, back_on_market,
+ *   new_listing, sold, agent_change, content_change. Each stored row carries
+ *   `facts` (JSON listing details) used by the filter.
+ *   filter mlsimport_listing_notification_recipients ( string[] $emails, int $mls_id )
+ *   filter mlsimport_listing_notification_matches    ( bool $matches, array $event, array $rules )
+ *   filter mlsimport_listing_notification_subject    ( string $subject, int $mls_id, array $events )
+ *   filter mlsimport_listing_notification_template   ( string $path )                email template file
+ *   action mlsimport_listing_notification_sent       ( int $mls_id, array $events, string[] $emails )
+ *
  * ─── LEAD (class-mlsimport-property-lead.php, property-sections.php) ──────────
  *   filter mlsimport_property_lead_fields     ( string $fields, string $variant, int $id )
  *   filter mlsimport_property_lead_validation ( array  $errors, array $input, int $property_id )

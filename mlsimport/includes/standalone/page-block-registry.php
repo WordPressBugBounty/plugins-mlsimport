@@ -26,6 +26,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 require_once __DIR__ . '/page-blocks.php';
 require_once __DIR__ . '/page-blocks-categories.php';
 require_once __DIR__ . '/page-blocks-agents.php';
+require_once __DIR__ . '/page-blocks-blog.php';
 require_once __DIR__ . '/class-mlsimport-property-section-assets.php';
 
 /**
@@ -510,7 +511,7 @@ function mlsimport_register_builtin_page_blocks(): void {
 				// A heading above the fields. Empty means no heading at all, so one
 				// control does the work of a show/hide switcher plus a text box.
 				'title'        => array( 'type' => 'text', 'label' => __( 'Title (leave empty for none)', 'mlsimport' ), 'default' => '' ),
-				'results_url'  => array( 'type' => 'text', 'label' => __( 'Results page URL', 'mlsimport' ), 'default' => '' ),
+				'results_url'  => array( 'type' => 'text', 'label' => __( 'Results page URL (empty: the Search results page from the settings)', 'mlsimport' ), 'default' => '' ),
 				'hide_labels'  => array( 'type' => 'toggle', 'label' => __( 'Hide labels (use placeholders)', 'mlsimport' ), 'default' => '' ),
 				'fields'       => $search_rows,
 				'button_text'  => array( 'type' => 'text', 'label' => __( 'Button text', 'mlsimport' ), 'default' => '' ),
@@ -581,6 +582,13 @@ function mlsimport_register_builtin_page_blocks(): void {
 			'render' => 'mlsimport_page_block_half_map',
 			'args'   => $half_map_args,
 			'assets' => array( 'mlsimport-half-map' ),
+		),
+		// Blog posts as cards (page-blocks-blog.php): the blog row a home page needs.
+		'blog_posts' => array(
+			'label'  => __( 'Blog Posts', 'mlsimport' ),
+			'render' => 'mlsimport_page_block_blog_posts',
+			'args'   => mlsimport_page_block_blog_args(),
+			'assets' => array( 'mlsimport-blog-posts' ),
 		),
 	);
 

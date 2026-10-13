@@ -192,3 +192,41 @@ function mlsimport_task_health( array $status, string $watermark, bool $cron_ena
 		'message' => sprintf( 'Last successful sync: %s.', $watermark ),
 	);
 }
+
+/**
+ * The Status badge of one Import Task, from the task's own recorded data.
+ *
+ * The one place that gathers the badge's inputs, shared by the Import Tasks
+ * list column (mlsimport_populate_columns() in includes/help_functions.php)
+ * and the AI tools list-tasks / get-task (includes/mcp/mlsimport-mcp-task-read.php).
+ * The decision itself stays in the pure mlsimport_task_health().
+ *
+ * Step by step:
+ * 1. Read what is already recorded on the task: the run status meta (state,
+ *    progress, heartbeat, error), the sync watermark and the auto-sync flag.
+ * 2. Build the overdue cutoff the same way watermarks are stored (wp_date(),
+ *    site-local time) so the two compare.
+ * 3. Apply the hourly runner's own eligibility rule (GitHub issue #330): a
+ *    task it will never pick up must not read as merely overdue.
+ *
+ * @param int $task_id Import Task post id.
+ * @return array<string, string> Badge as level, label, message.
+ */
+function mlsimport_task_health_for_task( int $task_id ): array {
+	// Step 1: the recorded run status.
+	$health_status = get_post_meta( $task_id, 'mlsimport_import_run_status', true );
+
+	return mlsimport_task_health(
+		is_array( $health_status ) ? $health_status : array(),
+		(string) get_post_meta( $task_id, 'mlsimport_last_date', true ),
+		1 === (int) get_post_meta( $task_id, 'mlsimport_item_stat_cron', true ),
+		time(),
+		// Step 2: the overdue cutoff, in the watermark's own format.
+		wp_date( 'Y-m-d\TH:i', time() - MLSIMPORT_TASK_HEALTH_OVERDUE_AFTER ),
+		// Step 3: the hourly runner's eligibility rule.
+		mlsimport_cron_task_is_eligible(
+			(int) get_post_meta( $task_id, 'mlsimport_initial_import_completed', true ),
+			(string) get_post_meta( $task_id, 'mlsimport_spawn_status', true )
+		)
+	);
+}

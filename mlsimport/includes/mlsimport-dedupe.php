@@ -239,17 +239,15 @@ function mlsimport_dedupe_on_status_change( $new_status, $old_status, $post ): v
 }
 
 /**
- * Re-evaluate every currently flagged group after a priority reorder.
+ * The posts currently hidden as a duplicate (they carry mlsimport_duplicate_of).
  *
- * Every multi-connection group carries at least one flagged loser (the
- * import-time evaluation guarantees it), so the flagged posts enumerate
- * exactly the groups a priority change can re-decide. Deterministic: the
- * same order always produces the same winners (#282 acceptance).
+ * Shared by the re-evaluation below and the list-duplicates AI tool
+ * (includes/mcp/mlsimport-mcp-duplicates.php).
  *
- * @return void
+ * @return int[] Post ids.
  */
-function mlsimport_dedupe_reevaluate_flagged(): void {
-	$flagged = get_posts(
+function mlsimport_dedupe_flagged_ids(): array {
+	return get_posts(
 		array(
 			'post_type'      => 'any',
 			'post_status'    => 'any',
@@ -262,6 +260,20 @@ function mlsimport_dedupe_reevaluate_flagged(): void {
 			'mlsimport_include_hidden' => true,
 		)
 	);
+}
+
+/**
+ * Re-evaluate every currently flagged group after a priority reorder.
+ *
+ * Every multi-connection group carries at least one flagged loser (the
+ * import-time evaluation guarantees it), so the flagged posts enumerate
+ * exactly the groups a priority change can re-decide. Deterministic: the
+ * same order always produces the same winners (#282 acceptance).
+ *
+ * @return void
+ */
+function mlsimport_dedupe_reevaluate_flagged(): void {
+	$flagged = mlsimport_dedupe_flagged_ids();
 	$groups = array();
 	foreach ( $flagged as $post_id ) {
 		$key  = (string) get_post_meta( (int) $post_id, 'mlsimport_address_key', true );

@@ -114,6 +114,37 @@ class Mlsimport_Standalone_Render {
 	}
 
 	/**
+	 * Whether the search form renders at least one visible field for $args.
+	 *
+	 * Step by step:
+	 * 1. No field selection (null) means every field shows, so the form has fields.
+	 * 2. Otherwise walk the selected keys. Sort is skipped: it lives in the results
+	 *    toolbar, not in the form.
+	 * 3. Keywords, or any key the search-field catalog can render, counts as a field.
+	 * 4. Nothing matched (e.g. only the "none" marker the block stores when every
+	 *    field is off) means the form would be an empty box with a Search button.
+	 *
+	 * @param array $args Render args.
+	 * @return bool True when the form shows at least one field.
+	 */
+	private static function form_has_fields( array $args ): bool {
+		$visible = self::visible_fields( $args );
+		if ( null === $visible ) {
+			return true;
+		}
+		foreach ( $visible as $key ) {
+			if ( 'sort' === $key ) {
+				continue;
+			}
+			if ( 'keywords' === $key
+				|| ( class_exists( 'Mlsimport_Page_Block_Search_Fields' ) && null !== Mlsimport_Page_Block_Search_Fields::definition( $key ) ) ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
 	 * Resolve filter args into the data a card grid renders.
 	 *
 	 * @param array $args Consumer filter params (see Mlsimport_Standalone_Query).
@@ -194,7 +225,10 @@ class Mlsimport_Standalone_Render {
 		// The form is always rendered (it carries the filters for the AJAX repaint);
 		// hide_search_form only adds a modifier the CSS uses to visually hide it, so a
 		// "results only" surface still paginates the same search without a reload.
-		$wrap_class = 'mlsimport-listings' . ( ! empty( $args['hide_search_form'] ) ? ' mlsimport-listings--no-form' : '' );
+		// A form whose every field is switched off would show only an empty box and a
+		// lone Search button, so it is hidden the same way.
+		$hide_form  = ! empty( $args['hide_search_form'] ) || ! self::form_has_fields( $args );
+		$wrap_class = 'mlsimport-listings' . ( $hide_form ? ' mlsimport-listings--no-form' : '' );
 
 		ob_start();
 		echo '<div class="' . esc_attr( $wrap_class ) . '">';

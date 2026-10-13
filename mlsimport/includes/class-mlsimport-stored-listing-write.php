@@ -7,6 +7,21 @@
  * terminal outcome; WordPress persistence and genuine theme projection stay
  * behind injected boundaries so the orchestration can be tested independently.
  *
+ * Listing Change Events (issue #222): this is the only place where the stored
+ * and the incoming price/status coexist, so decide_write() reads the stored
+ * signals once, diffs them (Mlsimport_Listing_Events_Diff) and carries the
+ * resulting events in the internal result under '_events' — the same way
+ * '_activity' travels. write() pops them and hands them to the environment
+ * only after a committed outcome; a failed write records nothing. Two markers
+ * are resolved by the events store: a create carries 'arrived' (back_on_market
+ * or new_listing) and a Closed record for a listing that is not stored carries
+ * 'closed_seen' (sold, only right after a Removal).
+ *
+ * Email notifications: the listing details the notification filter needs
+ * (Mlsimport_Listing_Event_Facts) are built once per write from the incoming
+ * record, travel beside the events under '_facts', and are saved on the post so
+ * the next write can detect a changed agent / office / photos / description.
+ *
  * @package MLSImport
  */
 
@@ -16,6 +31,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 require_once __DIR__ . '/mlsimport-status-normalize.php';
 require_once __DIR__ . '/class-mlsimport-stored-listing-fields.php';
+require_once __DIR__ . '/class-mlsimport-listing-events-diff.php';
+require_once __DIR__ . '/class-mlsimport-listing-event-facts.php';
+require_once __DIR__ . '/class-mlsimport-listing-notification-matcher.php';
 
 /**
  * Apply one incoming MLS property to local Stored mode data.
@@ -82,6 +100,21 @@ final class Mlsimport_Stored_Listing_Write {
 			);
 		}
 
+		// Listing Change Events (issue #222) travel like '_activity': only a
+		// committed create / update / delete carries them; a failure never does.
+		$events = is_array( $result['_events'] ?? null ) ? $result['_events'] : array();
+		$facts  = is_array( $result['_facts'] ?? null ) ? $result['_facts'] : array();
+		unset( $result['_events'], $result['_facts'] );
+		if ( ! empty( $events ) ) {
+			$this->environment->record_events(
+				(int) ( $result['listing_id'] ?? 0 ),
+				$property,
+				$settings,
+				$events,
+				$facts
+			);
+		}
+
 		$event = 'failed' === $result['outcome']
 			? 'failure'
 			: ( 'saved-with-warnings' === $result['outcome'] ? 'warning' : 'success' );
@@ -130,27 +163,87 @@ final class Mlsimport_Stored_Listing_Write {
 			'mlsimport_normalize_status_enum',
 			is_array( $settings['statuses'] ?? null ) ? $settings['statuses'] : array()
 		);
+
+		// Issue #222: read the stored price and status ONCE, before anything is
+		// overwritten or deleted, so both the delete branch and the update branch
+		// below can say what the listing looked like before this write.
+		$price_key = $this->adapter->price_meta_key();
+		$signals   = array( 'price' => '', 'status' => '', 'facts' => array() );
+		// The listing details of THIS record, for the notification filter. A
+		// theme site gets ListPrice / PostalCode only under the theme's meta
+		// keys, so the adapter names them for the fallback.
+		$facts     = Mlsimport_Listing_Event_Facts::from_property(
+			$property,
+			$status,
+			array( 'price' => $price_key, 'zip' => $this->adapter->zip_meta_key() )
+		);
+		if ( null !== $existing ) {
+			$signals = $this->environment->read_signals(
+				(int) ( $existing['id'] ?? 0 ),
+				$price_key,
+				(array) ( $settings['field_configuration']['mls-fields-map-taxonomy'] ?? array() )
+			);
+		}
+
 		if ( ! in_array( $status, $statuses, true ) ) {
 			// Excluded data never creates a local post. When a Managed Listing
 			// already exists, deletion is the complete write: returning here keeps
 			// meta, taxonomy, media, title, and agent stages unreachable.
+			$is_closed = in_array( $status, Mlsimport_Listing_Notification_Matcher::CLOSED, true );
+			$sale      = (string) ( $property['extra_meta']['ClosePrice'] ?? '' );
 			if ( null === $existing ) {
-				return array(
+				$skipped = array(
 					'outcome'    => 'skipped',
 					'listing_id' => 0,
 					'warnings'   => array(),
 					'error'      => '',
 				);
+				// A Closed record for a listing that is not stored: the events
+				// store turns the marker into "sold" only when this listing's
+				// latest event is a Removal, and drops it otherwise.
+				if ( $is_closed ) {
+					$skipped['_facts']  = $facts;
+					$skipped['_events'] = array(
+						array(
+							'type' => 'closed_seen',
+							'old'  => '',
+							'new'  => $sale,
+						),
+					);
+				}
+				return $skipped;
 			}
 
 			$listing_id = (int) ( $existing['id'] ?? 0 );
 			if ( $this->environment->delete_listing( $existing ) ) {
+				// A Removal (CONTEXT.md): the MLS still lists the property under
+				// the incoming status; only this Import Task stopped importing it.
+				// A Closed status is the one case that is reported as a sale. The
+				// notification filter matches a departure against the LAST KNOWN
+				// status, so the details carry the stored status, not the new one.
+				if ( '' !== $signals['status'] ) {
+					$facts['status'] = $signals['status'];
+				}
 				return array(
 					'outcome'    => 'deleted',
 					'listing_id' => $listing_id,
 					'warnings'   => array(),
 					'error'      => '',
 					'_activity'  => 'deleted',
+					'_facts'     => $facts,
+					'_events'    => array(
+						$is_closed
+							? array(
+								'type' => 'sold',
+								'old'  => '',
+								'new'  => $sale,
+							)
+							: array(
+								'type' => 'removed',
+								'old'  => $signals['status'],
+								'new'  => $status,
+							),
+					),
 				);
 			}
 
@@ -197,7 +290,29 @@ final class Mlsimport_Stored_Listing_Write {
 			}
 		}
 
-		return $this->persist_required_write( $property, $settings, $existing, $listing_key );
+		// Issue #222: an update diffs stored vs incoming signals; a create hands
+		// over the 'arrived' marker (never stored as-is — the events store turns
+		// it into back_on_market after a Removal, or drops it).
+		if ( null === $existing ) {
+			$events = array(
+				array(
+					'type' => 'arrived',
+					'old'  => '',
+					'new'  => $status,
+				),
+			);
+		} else {
+			$events = Mlsimport_Listing_Events_Diff::diff(
+				$signals,
+				array(
+					'price'  => (string) ( $property['extra_meta']['ListPrice'] ?? ( $property['meta'][ $price_key ] ?? '' ) ),
+					'status' => $status,
+					'facts'  => $facts,
+				)
+			);
+		}
+
+		return $this->persist_required_write( $property, $settings, $existing, $listing_key, $events, $facts );
 	}
 
 	/**
@@ -211,9 +326,11 @@ final class Mlsimport_Stored_Listing_Write {
 	 * @param array<string, mixed>      $settings    Normalized Import Task choices.
 	 * @param array<string, mixed>|null $existing    Previous listing, or null for create.
 	 * @param string                    $listing_key Stable MLS identity.
+	 * @param array<int, array>         $events      Listing Change Events to carry on success.
+	 * @param array<string, string>     $facts       Listing details saved on the post and carried with the events.
 	 * @return array<string, mixed> Created, updated, or failed result.
 	 */
-	private function persist_required_write( array $property, array $settings, ?array $existing, string $listing_key ): array {
+	private function persist_required_write( array $property, array $settings, ?array $existing, string $listing_key, array $events = array(), array $facts = array() ): array {
 		$is_new           = null === $existing;
 		$listing_id       = $is_new ? 0 : (int) ( $existing['id'] ?? 0 );
 		$warnings         = array();
@@ -263,6 +380,9 @@ final class Mlsimport_Stored_Listing_Write {
 			if ( ! $this->environment->write_required_data( $listing_id, $property, $field_projection, $settings ) ) {
 				throw new RuntimeException( 'Required listing data could not be saved.' );
 			}
+			// Keep the listing details on the post: the next write diffs against
+			// them and reconciliation reads them before a deletion.
+			$this->environment->store_facts( $listing_id, $facts );
 
 			$context = array(
 				'is_new'            => $is_new,
@@ -324,6 +444,8 @@ final class Mlsimport_Stored_Listing_Write {
 				'warnings'   => $warnings,
 				'error'      => '',
 				'_activity'  => $is_new ? 'created' : 'updated',
+				'_events'    => $events,
+				'_facts'     => $facts,
 			);
 		} catch ( Throwable $exception ) {
 			// Restore required database state before removing staged resources.

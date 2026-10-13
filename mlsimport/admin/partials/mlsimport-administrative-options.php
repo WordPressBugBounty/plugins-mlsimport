@@ -22,25 +22,21 @@ $settings_import_value = '';
 if (isset($_POST['mlsimport_tool_actions']) &&
 	wp_verify_nonce(  sanitize_text_field( wp_unslash( $_POST['mlsimport_tool_actions'] ) ), 'mlsimport_tool_actions')) {
 
-	// Persist the "disable system logs" choice.
+	// Persist the three switches that were posted: "disable system logs",
+	// "disable property history" and the WordPress-theme choice. The saving
+	// itself is mlsimport_tools_save_switches() (includes/mlsimport-admin-tools.php),
+	// shared with the set-tool-switches AI tool.
+	$mlsimport_posted_switches = array();
 	if ( isset( $_POST['mlsimport-disable-logs'] ) ) {
-		$disable_logs = intval( $_POST['mlsimport-disable-logs'] );
-		update_option( 'mlsimport_disable_logs', $disable_logs );
+		$mlsimport_posted_switches['logs'] = intval( $_POST['mlsimport-disable-logs'] );
 	}
-	// Persist the "disable property history" choice.
 	if ( isset( $_POST['mlsimport-disable-history'] ) ) {
-		$disable_history = intval( $_POST['mlsimport-disable-history'] );
-		update_option( 'mlsimport-disable-history', $disable_history );
+		$mlsimport_posted_switches['history'] = intval( $_POST['mlsimport-disable-history'] );
 	}
-	// Persist the WordPress-theme choice (moved here from the retired "MLS
-	// Connection" tab): merge the single key into mlsimport_admin_options so
-	// every other stored value survives untouched.
 	if ( isset( $_POST['mlsimport_admin_options']['mlsimport_theme_used'] ) ) {
-		$mlsimport_admin_options = get_option( 'mlsimport_admin_options', array() );
-		$mlsimport_admin_options = is_array( $mlsimport_admin_options ) ? $mlsimport_admin_options : array();
-		$mlsimport_admin_options['mlsimport_theme_used'] = intval( $_POST['mlsimport_admin_options']['mlsimport_theme_used'] );
-		update_option( 'mlsimport_admin_options', $mlsimport_admin_options );
+		$mlsimport_posted_switches['theme'] = intval( $_POST['mlsimport_admin_options']['mlsimport_theme_used'] );
 	}
+	mlsimport_tools_save_switches( $mlsimport_posted_switches );
 
 	if ( isset( $_POST['mlsimport-import-settings'] ) ) {
 		if ( ! current_user_can( 'manage_options' ) ) {
@@ -81,7 +77,8 @@ if (isset($_POST['mlsimport_tool_actions']) &&
 
 
 // Current "disable logs" value; pre-select the matching <option> below.
-$disable_logs = intval( get_option( 'mlsimport_disable_logs' ) );
+$mlsimport_tools_switches = mlsimport_tools_switches();
+$disable_logs = $mlsimport_tools_switches['logs'];
 $selected_no  = $selected_yes = '';
 
 // 0 = logs disabled (default) -> select the "disabled" option; otherwise "enabled".
@@ -93,7 +90,7 @@ if ( 0 ===  intval($disable_logs)  ) {
 
 
 // Current "disable history" value (defaults to 1); pre-select the matching option.
-$disable_history     = intval( get_option( 'mlsimport-disable-history', 1 ) );
+$disable_history     = $mlsimport_tools_switches['history'];
 $selected_history_no = $selected_history_yes = '';
 
 // 0 = history disabled -> select the "disabled" option; otherwise "enabled".
@@ -193,6 +190,12 @@ $cron_log_size = is_readable( $cron_log_path ) ? (int) filesize( $cron_log_path 
 		<?php endif; ?>
 	<?php endif; ?>
 </div>
+
+<?php
+// AI assistant access (MCP): switch, address, Connected AI apps, AI Activity.
+// The card lives in includes/mcp/mlsimport-mcp-admin.php.
+mlsimport_mcp_render_tools_card();
+?>
 
 <div id="mlsimport-settings-transfer" class="mlsimport_tool_block mlsimport_tool_card">
 	<h3><?php esc_html_e( 'Export or import settings', 'mlsimport' ); ?></h3>

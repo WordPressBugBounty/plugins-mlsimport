@@ -61,6 +61,18 @@ final class Mlsimport_Import_Task_Execution {
 	 */
 	private const MAX_STALLED_REVIVALS = 3;
 
+	/**
+	 * Whether a progress state is an end state: the import completed, was
+	 * stopped or failed. The one rule for the wp-admin progress poll and the
+	 * import-status AI tool.
+	 *
+	 * @param string $state The 'state' of a progress record.
+	 * @return bool
+	 */
+	public static function is_finished_state( string $state ): bool {
+		return in_array( $state, array( 'completed', 'stopped', 'failed' ), true );
+	}
+
 	/** @var Mlsimport_Import_Task_Execution_Environment External operations. */
 	private $environment;
 

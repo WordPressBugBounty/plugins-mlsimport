@@ -20,6 +20,24 @@ if ( ! defined( 'ABSPATH' ) ) {
 const MLSIMPORT_STANDALONE_OPTION = 'mlsimport_standalone_options';
 
 /**
+ * The site's pages as select options for a "which page" setting: 0 = none, then
+ * every published page by id. The unit tests load the registry without
+ * WordPress, so without get_pages() the list is only "none".
+ *
+ * @return array<int|string, string> Page id => title.
+ */
+function mlsimport_standalone_page_options(): array {
+	$options = array( '0' => __( 'None (the form posts to its own page)', 'mlsimport' ) );
+	if ( ! function_exists( 'get_pages' ) ) {
+		return $options;
+	}
+	foreach ( (array) get_pages( array( 'post_status' => 'publish' ) ) as $page ) {
+		$options[ (int) $page->ID ] = (string) $page->post_title;
+	}
+	return $options;
+}
+
+/**
  * The field registry — the single source of truth for every standalone setting.
  *
  * One entry per key: type (text|email|number|textarea|select|color|int|sections),
@@ -69,6 +87,9 @@ function mlsimport_standalone_field_registry(): array {
 		// list whose visitor has not picked a sort. Read by
 		// Mlsimport_Standalone_Query::featured_first().
 		'featured_first'         => array( 'type' => 'select', 'default' => 'yes', 'options' => array( 'yes' => __( 'Yes', 'mlsimport' ), 'no' => __( 'No', 'mlsimport' ) ), 'label' => __( 'Show featured listings first', 'mlsimport' ), 'section' => 'general' ),
+		// The page a Search Form block sends visitors to when the block has no
+		// Results page URL of its own. Read by mlsimport_page_block_search_form().
+		'results_page'           => array( 'type' => 'select', 'default' => '0', 'options' => mlsimport_standalone_page_options(), 'label' => __( 'Search results page', 'mlsimport' ), 'section' => 'general' ),
 		// Taxonomy archive search filters — a per-filter on/off toggle list for the
 		// search bar on the taxonomy/CPT archive pages. Every searchable filter is
 		// offered; only Status, City and Property Type are on by default. The active
@@ -254,6 +275,7 @@ function mlsimport_standalone_settings_ui(): array {
 		'properties_per_page'   => array( 'help' => __( 'How many listings show per page on the taxonomy and property archive pages. Does not affect page-builder blocks, which set their own per-page.', 'mlsimport' ) ),
 		'cards_per_row'         => array( 'control' => 'buttons', 'help' => __( 'How many property cards sit on one row of the taxonomy and property archive pages. Drops to 2 then 1 automatically on narrow screens.', 'mlsimport' ) ),
 		'featured_first'        => array( 'control' => 'yesno', 'help' => __( 'Listings marked "Featured listing" show at the top of every list, in the order set above. When a visitor picks a sort (e.g. price), that sort wins.', 'mlsimport' ) ),
+		'results_page'          => array( 'help' => __( 'The page a Search Form block sends visitors to: usually the page that holds your listings grid or half map. A block with its own Results page URL ignores this.', 'mlsimport' ) ),
 		'archive_search_fields' => array( 'control' => 'toggles', 'default_active' => array( 'status', 'city', 'property_type' ), 'help' => __( 'Toggle which filters appear in the search bar on the taxonomy and property archive pages. Status, City and Type are on by default.', 'mlsimport' ) ),
 		'company_name'          => array( 'help' => __( 'Shown as the contact name on listings whose agent comes straight from the MLS feed — MLS rules forbid displaying the feed agent\'s own contact details.', 'mlsimport' ) ),
 		'company_phone'         => array( 'help' => __( 'Used as the contact phone on listings whose agent comes straight from the MLS feed.', 'mlsimport' ) ),

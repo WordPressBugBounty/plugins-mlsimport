@@ -8,7 +8,8 @@
  *                      'number' | 'year') and data-unit drive how values render.
  *   .mlsimport-bedsbaths — one popup with a Beds row and a Baths row of "N+"
  *                          minimum tiles, each feeding its own hidden field
- *                          (beds / baths).
+ *                          (beds / baths). The Beds row also has a Studio tile
+ *                          (value 0 = exactly 0 bedrooms).
  *
  * The hidden inputs are the source of truth and carry the real query params, so the
  * surrounding form submits the usual payload and nothing JS-side is needed to submit.
@@ -459,7 +460,8 @@
 			// Build the toggle label from whichever of beds/baths are set.
 			var parts = [];
 			if ( values.beds && values.beds.value ) {
-				parts.push( values.beds.value + '+ bd' );
+				// '0' is the Studio tile: exactly 0 bedrooms, never "0+".
+				parts.push( values.beds.value === '0' ? 'Studio' : values.beds.value + '+ bd' );
 			}
 			if ( values.baths && values.baths.value ) {
 				parts.push( values.baths.value + '+ ba' );

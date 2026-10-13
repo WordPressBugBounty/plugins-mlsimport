@@ -345,6 +345,26 @@ class Mlsimport_Agent_Metabox {
 			? wp_unslash( $_POST['mlsimport_agent'] ) // phpcs:ignore WordPress.Security.ValidatedSanitized.InputNotSanitized -- sanitized per-field below.
 			: array();
 
+		// The catalog fields: one write, shared with the update-agent AI tool.
+		self::save_fields( (int) $post_id, $input );
+	}
+
+	/**
+	 * Write the catalog fields of one agent: whitelist + coerce (extract()),
+	 * sanitize each text value by its field type, store as mlsimport_<key> meta.
+	 *
+	 * The one catalog write, shared by the edit screen (save() above) and the
+	 * update-agent AI tool (includes/mcp/mlsimport-mcp-standalone-people.php).
+	 * The caller has already authorized the request.
+	 *
+	 * $input must hold EVERY catalog field, as the edit form posts them: a
+	 * field that is missing is stored as empty (a checkbox as 0).
+	 *
+	 * @param int   $post_id Agent post ID.
+	 * @param array $input   Raw values keyed by catalog field key.
+	 * @return void
+	 */
+	public static function save_fields( int $post_id, array $input ): void {
 		// Build a key => type lookup to drive per-field sanitization.
 		$types = array();
 		foreach ( self::fields() as $field ) {

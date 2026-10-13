@@ -108,8 +108,26 @@ abstract class Mlsimport_Elementor_Page_Block_Widget extends \Elementor\Widget_B
 		$styled = $this->styled_schema_keys();
 
 		// Walk the block's arg schema, mapping each field to an Elementor control.
-		foreach ( Mlsimport_Page_Block_Elementor::schema( $this->get_block_slug() ) as $key => $field ) {
+		$schema = Mlsimport_Page_Block_Elementor::schema( $this->get_block_slug() );
+		foreach ( $schema as $key => $field ) {
 			if ( in_array( $key, $styled, true ) ) {
+				continue;
+			}
+			// A responsive option (the blog's columns) is ONE Elementor control with a
+			// desktop / tablet / mobile value, stored under the schema's own
+			// <key>_tablet / <key>_mobile names; so the schema's device rows are skipped
+			// here and their defaults become the control's per-device defaults.
+			if ( preg_match( '/^(.+)_(tablet|mobile)$/', $key, $device ) && ! empty( $schema[ $device[1] ]['responsive'] ) ) {
+				continue;
+			}
+			if ( ! empty( $field['responsive'] ) ) {
+				$args = $this->control_args( $field );
+				foreach ( array( 'tablet', 'mobile' ) as $name ) {
+					if ( isset( $schema[ $key . '_' . $name ]['default'] ) ) {
+						$args[ $name . '_default' ] = $schema[ $key . '_' . $name ]['default'];
+					}
+				}
+				$this->add_responsive_control( $key, $args );
 				continue;
 			}
 			// Elementor control name: the schema key, except `id` (Backbone's reserved
@@ -136,6 +154,18 @@ abstract class Mlsimport_Elementor_Page_Block_Widget extends \Elementor\Widget_B
 			// Every other type maps through control_args() to a single control.
 			$this->add_control( $key, $this->control_args( $field ) );
 		}
+
+		// The style options that have no Style tab control of their own, set by
+		// the AI tools (update-page-block) as option => value. Hidden: a registered
+		// control is kept by the editor on save, an unknown setting may not be.
+		// render_settings() hands it to the dispatcher as the `styles` arg.
+		$this->add_control(
+			'mlsimport_styles',
+			array(
+				'type'    => \Elementor\Controls_Manager::HIDDEN,
+				'default' => array(),
+			)
+		);
 
 		// Close the controls section.
 		$this->end_controls_section();
@@ -3448,5 +3478,6 @@ function mlsimport_elementor_page_block_widgets(): array {
 		new Mlsimport_Elementor_Category_Slider_Widget(),
 		new Mlsimport_Elementor_Category_List_Widget(),
 		new Mlsimport_Elementor_Saved_Widget(),
+		new Mlsimport_Elementor_Blog_Posts_Widget(),
 	);
 }

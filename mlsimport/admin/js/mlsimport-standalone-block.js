@@ -365,12 +365,15 @@
 		var isItemList = !! ( block && block.kind === 'item-list' );
 		var isMap     = !! ( block && block.kind === 'map' );
 		var enabled   = enabledKeys( props.attributes.search_fields );
+		// The shared "Look" panel (mlsimport-page-block-styles.js): the block's colors,
+		// sizes and columns, stored in the `styles` attribute. Always the last panel.
+		var lookPanel = window.MLSImportBlockStyles ? window.MLSImportBlockStyles.panel( props, block.name ) : null;
 
 		// Content Slider: its own Slider panel + the shared Initial filter panel (the
 		// same taxonomy dropdowns / price / beds / order the Half Map exposes). No search
 		// bar, so no per-field toggle panel.
 		if ( isSlider ) {
-			return el( InspectorControls, { key: 'inspector' }, [ sliderPanel( props ), initialFilterPanel( props ) ] );
+			return el( InspectorControls, { key: 'inspector' }, [ sliderPanel( props ), initialFilterPanel( props ), lookPanel ] );
 		}
 
 		// Map with Listings: ONLY the shared Initial filter panel — the filter that
@@ -379,7 +382,7 @@
 		// strips limit/page), no order (pins have no sequence) and no explicit-ID surface.
 		// The panel opens on load since it is the sole panel. Matches the Elementor widget.
 		if ( isMap ) {
-			return el( InspectorControls, { key: 'inspector' }, [ initialFilterPanel( props, 'Initial filters', { noSort: true, open: true } ) ] );
+			return el( InspectorControls, { key: 'inspector' }, [ initialFilterPanel( props, 'Initial filters', { noSort: true, open: true } ), lookPanel ] );
 		}
 
 		var fieldsPanel = el(
@@ -399,12 +402,12 @@
 		// Initial filter presets + the per-field toggles. The same rich inspector the
 		// Half Map uses, minus the map Layout panel.
 		if ( isItemList ) {
-			return el( InspectorControls, { key: 'inspector' }, [ resultsPanel( props, 'Settings' ), initialFilterPanel( props, 'Initial filters', { full: true } ), fieldsPanel ] );
+			return el( InspectorControls, { key: 'inspector' }, [ resultsPanel( props, 'Settings' ), initialFilterPanel( props, 'Initial filters', { full: true } ), fieldsPanel, lookPanel ] );
 		}
 
 		// Results block: just the trimmed panel + the per-field toggles.
 		if ( isResults ) {
-			return el( InspectorControls, { key: 'inspector' }, [ resultsPanel( props ), fieldsPanel ] );
+			return el( InspectorControls, { key: 'inspector' }, [ resultsPanel( props ), fieldsPanel, lookPanel ] );
 		}
 
 		var listingsPanel = el(
@@ -438,8 +441,14 @@
 		if ( hasLayout ) {
 			panels.push( layoutPanel( props ) );
 		}
+		panels.push( lookPanel );
 		return el( InspectorControls, { key: 'inspector' }, panels );
 	}
+
+	// The block's look: option => value (see includes/standalone/page-block-styles.php),
+	// written by the shared "Look" panel and by the AI tools. Every block declares it so
+	// the editor serializes it and ServerSideRender forwards it to the render_callback.
+	var STYLES_ATTRIBUTE = { type: 'object', 'default': {} };
 
 	// Every attribute the inspector writes must be declared here so the editor
 	// serializes it and ServerSideRender forwards it to the PHP render_callback. The
@@ -451,6 +460,7 @@
 		// presets (the filters come from the request). Mirrors results_attributes() in PHP.
 		if ( block && block.kind === 'results' ) {
 			return {
+				styles:         STYLES_ATTRIBUTE,
 				count:          { type: 'string', 'default': '12' },
 				show_filter_bar: { type: 'string', 'default': '1' },
 				fields_per_row: { type: 'string', 'default': '4' },
@@ -463,6 +473,7 @@
 		// per taxonomy) — no search-bar config. Mirrors slider_attributes() in PHP.
 		if ( block && block.kind === 'slider' ) {
 			var sliderAttrs = {
+				styles:    STYLES_ATTRIBUTE,
 				limit:     { type: 'string', 'default': '6' },
 				ids:       { type: 'string', 'default': '' },
 				price_min: { type: 'string', 'default': '' },
@@ -483,6 +494,7 @@
 		// per-field toggles) AND the initial-filter presets. Mirrors item_list_attributes() in PHP.
 		if ( block && block.kind === 'item-list' ) {
 			var itemAttrs = {
+				styles:          STYLES_ATTRIBUTE,
 				count:           { type: 'string', 'default': '12' },
 				show_filter_bar: { type: 'string', 'default': '1' },
 				fields_per_row:  { type: 'string', 'default': '4' },
@@ -501,6 +513,7 @@
 		// the initial-filter presets. Mirrors map_attributes() in PHP.
 		if ( block && block.kind === 'map' ) {
 			var mapAttrs = {
+				styles:    STYLES_ATTRIBUTE,
 				count:     { type: 'string', 'default': '6' },
 				ids:       { type: 'string', 'default': '' },
 				price_min: { type: 'string', 'default': '' },
@@ -516,6 +529,7 @@
 		}
 
 		var attributes = {
+			styles:         STYLES_ATTRIBUTE,
 			limit:          { type: 'string', 'default': '12' },
 			search_fields:  { type: 'string', 'default': '' },
 			// Search-bar columns: 4-up for the full-width listings bar, 3-up for the

@@ -185,7 +185,7 @@ $prev_url = admin_url('admin.php?page=mlsimport-onboarding&step=' . $prev_step);
             </p>
         </div>
         <div class="mlsimport-wizard-restart">
-            <a href="<?php echo esc_url(admin_url('admin.php?page=mlsimport-onboarding&restart_wizard=1')); ?>" class=" button mlsimport_button secondary">
+            <a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin.php?page=mlsimport-onboarding&restart_wizard=1' ), 'mlsimport_restart_wizard' ) ); ?>" class=" button mlsimport_button secondary">
                 <?php _e('Restart Setup', 'mlsimport'); ?>
             </a>
         </div>

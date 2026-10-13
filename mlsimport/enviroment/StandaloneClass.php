@@ -50,6 +50,30 @@ class StandaloneClass {
 	}
 
 	/**
+	 * Return the post meta key holding a listing's current price (issue #222).
+	 *
+	 * The Stored Listing Write module reads the stored price under this key
+	 * before it overwrites it, so a price change becomes a Listing Change Event.
+	 *
+	 * @return string Standalone price meta key.
+	 */
+	public function price_meta_key(): string {
+		return 'mlsimport_ListPrice';
+	}
+
+	/**
+	 * Return the post meta key holding a listing's zip code.
+	 *
+	 * Standalone keeps PostalCode in extra_meta, where the listing facts
+	 * read it, so there is no meta key to fall back to.
+	 *
+	 * @return string Always '' (no fallback key).
+	 */
+	public function zip_meta_key(): string {
+		return '';
+	}
+
+	/**
 	 * Agent CPT slug.
 	 *
 	 * @return string

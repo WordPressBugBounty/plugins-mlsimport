@@ -73,6 +73,9 @@ class Mlsimport_Property_Section_Assets {
 		// Half Map page block: split listings/map surface. The coordinator depends on
 		// the page-block map script (which exposes node.mlsimportMap on query maps).
 		wp_register_style( 'mlsimport-half-map', $url . 'public/css/mlsimport-half-map.css', array(), $ver );
+
+		// Blog Posts page block: the post cards (page-blocks-blog.php).
+		wp_register_style( 'mlsimport-blog-posts', $url . 'public/css/mlsimport-blog-posts.css', array(), $ver );
 		wp_register_script( 'mlsimport-half-map', $url . 'public/js/mlsimport-half-map.js', array( 'mlsimport-page-block-map' ), $ver, true );
 
 		// The "I'm interested in" dropdown widget. Declared as a dependency of the lead

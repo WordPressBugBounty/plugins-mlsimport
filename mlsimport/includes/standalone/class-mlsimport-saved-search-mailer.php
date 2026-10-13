@@ -159,6 +159,11 @@ class Mlsimport_Saved_Search_Mailer {
 				$lines[] = $label;
 				continue;
 			}
+			// beds=0 is the search form's Studio tile (exactly 0 bedrooms), not "min 0".
+			if ( 'beds' === $key && 0 === (int) $value ) {
+				$lines[] = __( 'Beds', 'mlsimport' ) . ': ' . __( 'Studio', 'mlsimport' );
+				continue;
+			}
 			$lines[] = $label . ': ' . implode( ', ', array_map( 'strval', (array) $value ) );
 		}
 		return $lines;

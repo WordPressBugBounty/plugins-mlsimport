@@ -445,7 +445,11 @@ class Mlsimport_Admin {
 		// Searchable City/County multi-select — only on the Import Task edit screen.
 		$screen    = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
 		$post_type = $screen ? (string) $screen->post_type : '';
-		if ( $this->mlsimport_is_import_task_edit_screen( (string) $hook_suffix, $post_type ) ) {
+		// Also on the Listing Changes page: its notification filter reuses the
+		// same City picker.
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$is_listing_changes = isset( $_GET['page'] ) && 'mlsimport_listing_changes' === sanitize_key( wp_unslash( $_GET['page'] ) );
+		if ( $is_listing_changes || $this->mlsimport_is_import_task_edit_screen( (string) $hook_suffix, $post_type ) ) {
 			wp_enqueue_script( 'mlsimport-searchable-select', plugin_dir_url( __FILE__ ) . 'js/mlsimport-searchable-select.js', array(), MLSIMPORT_VERSION, true );
 		}
 
@@ -507,6 +511,18 @@ class Mlsimport_Admin {
 			'administrator',
 			'mlsimport_history',
 			array( $this, 'display_history_page' )
+		);
+
+		// Listing Changes submenu (#222): price / status changes, removals and
+		// back-on-market events reported by the MLS. Its own page and list table;
+		// Import History is untouched.
+		add_submenu_page(
+			'mlsimport_plugin_options',
+			esc_html__( 'Alerts', 'mlsimport' ),
+			esc_html__( 'Alerts', 'mlsimport' ),
+			'administrator',
+			'mlsimport_listing_changes',
+			array( $this, 'display_listing_changes_page' )
 		);
 
 		// Standalone (theme_id 990) front-end design. Its own top-level menu,
@@ -688,6 +704,16 @@ class Mlsimport_Admin {
 	public function display_history_page() {
 		// Delegates the whole page to the history partial template.
 		include_once plugin_dir_path( __FILE__ ) . 'partials/mlsimport-history.php';
+	}
+
+	/**
+	 * Renders the Listing Changes admin page (#222).
+	 *
+	 * @return void
+	 */
+	public function display_listing_changes_page() {
+		// Delegates the whole page to the listing-changes partial template.
+		include_once plugin_dir_path( __FILE__ ) . 'partials/mlsimport-listing-changes.php';
 	}
 
 
@@ -894,6 +920,15 @@ class Mlsimport_Admin {
 		foreach ( $settings_list as $key => $setting ) {
 			if ( ! isset( $input[ $key ] ) || empty( $input[ $key ] ) ) {
 				$valid[ $key ] = '';
+				// The theme select lives on the Tools tab, so a form that posts
+				// this option group without it (the account form) must not blank
+				// the saved theme. A blank theme was sent as theme_id 0 to the
+				// SaaS, which then mapped nothing onto the theme keys while the
+				// adapter still detected WpResidence (#358). The saved choice
+				// survives a save that does not carry the field.
+				if ( 'mlsimport_theme_used' === $key && isset( $previous_options[ $key ] ) ) {
+					$valid[ $key ] = $previous_options[ $key ];
+				}
 			} elseif ( mlsimport_is_credential_key( $key ) ) {
 				$valid[ $key ] = trim( (string) $input[ $key ] );
 			} else {
@@ -1087,44 +1122,49 @@ class Mlsimport_Admin {
 	/**
 	 * AJAX (Tools page): clear all MLSImport caches/transients and the
 	 * metadata-populated flag, forcing the next request to re-fetch everything.
+	 *
+	 * Nonce + administrator capability here; the clearing itself is
+	 * mlsimport_tools_clear_cache() (includes/mlsimport-admin-tools.php),
+	 * shared with the clear-cache AI tool.
 	 */
-        function mlsimport_delete_cache() {
+	function mlsimport_delete_cache() {
 
 		// CSRF: Tools-page nonce.
 		check_ajax_referer( 'mlsimport_tool_actions', 'security' );
 
-		// Drop every cached token/metadata/schema transient.
-		delete_transient( 'mlsimport_token_request' );
-		delete_transient( 'mlsimport_metadata_api_call_data_service_property' );
-		delete_transient( 'mls_import_meta_enums' );
-		delete_transient( 'mls_import_meta' );
-		delete_transient( 'mlsimport_plugin_data_schema' );
-		delete_transient( 'mlsimport_ready_to_go_mlsimport_data' );
-		delete_transient( 'mlsimport_saas_token' );
+		// A nonce proves where the request came from, not who sent it.
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( 'Unauthorized', '', array( 'response' => 403 ) );
+		}
 
-                // Force a fresh metadata pull next load (current connection only, #275).
-                mlsimport_delete_connection_option( 'mlsimport_mls_metadata_populated' );
+		mlsimport_tools_clear_cache();
 
-                die( 'deleted' );
-        }
+		die( 'deleted' );
+	}
 
-        /**
-         * AJAX (Tools page): reset the field-mapping configuration so the field
-         * selector starts fresh (also clears the metadata-populated flag).
-         */
-        function mlsimport_clear_fields_data() {
+	/**
+	 * AJAX (Tools page): reset the field-mapping configuration so the field
+	 * selector starts fresh (also clears the metadata-populated flag).
+	 *
+	 * Nonce + administrator capability here; the clearing itself is
+	 * mlsimport_tools_clear_fields_data() (includes/mlsimport-admin-tools.php),
+	 * shared with the clear-field-data AI tool. This button clears the
+	 * CURRENT connection only (#275).
+	 */
+	function mlsimport_clear_fields_data() {
 
-                // CSRF: Tools-page nonce.
-                check_ajax_referer( 'mlsimport_tool_actions', 'security' );
+		// CSRF: Tools-page nonce.
+		check_ajax_referer( 'mlsimport_tool_actions', 'security' );
 
-                // Wipe the metadata flag and the saved field-select configuration
-                // for the CURRENT connection only (#275) — other connections'
-                // mappings stay isolated.
-                mlsimport_delete_connection_option( 'mlsimport_mls_metadata_populated' );
-                mlsimport_delete_connection_option( 'mlsimport_admin_fields_select' );
+		// A nonce proves where the request came from, not who sent it.
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( 'Unauthorized', '', array( 'response' => 403 ) );
+		}
 
-                die( 'deleted' );
-        }
+		mlsimport_tools_clear_fields_data();
+
+		die( 'deleted' );
+	}
 
 	/**
 	 * AJAX (Tools page): return the terms of a taxonomy for the "delete
@@ -1145,31 +1185,22 @@ class Mlsimport_Admin {
 			wp_send_json_error( 'Invalid taxonomy' );
 		}
 
-		// Fetch all terms (including empties) and flatten to slug/name/count.
-		$terms = get_terms( array( 'taxonomy' => $taxonomy, 'hide_empty' => false, 'orderby' => 'name' ) );
-		$result = array();
-		if ( ! is_wp_error( $terms ) ) {
-			foreach ( $terms as $term ) {
-				$result[] = array(
-					'slug'  => $term->slug,
-					'name'  => $term->name,
-					'count' => $term->count,
-				);
-			}
-		}
-		wp_send_json_success( $result );
+		// The term list is shared with the list-delete-terms AI tool.
+		wp_send_json_success( mlsimport_tools_taxonomy_terms( $taxonomy ) );
 	}
 
 	/**
 	 * AJAX (Tools page): delete imported properties matching selected taxonomy
-	 * terms, in batches of 20. Admin-only. Reports progress so the client can
+	 * terms, in batches of 5. Admin-only. Reports progress so the client can
 	 * loop until done; refreshes term counts once the last batch completes.
+	 *
+	 * The batch itself is mlsimport_tools_delete_properties_batch()
+	 * (includes/mlsimport-admin-tools.php), shared with the
+	 * delete-properties-by-term AI tool.
 	 *
 	 * @return void Emits a JSON success payload {deleted,remaining,total,done}.
 	 */
 	function mlsimport_delete_properties() {
-		global $mlsimport;
-
 		// CSRF + capability.
 		check_ajax_referer( 'mlsimport_tool_actions', 'security' );
 
@@ -1198,57 +1229,9 @@ class Mlsimport_Admin {
 			wp_send_json_error( esc_html__( 'Please select at least one term', 'mlsimport' ) );
 		}
 
-		// Query one page of property IDs matching the term selection.
-		$post_type = $mlsimport->admin->env_data->get_property_post_type();
-
-		$args = array(
-			'post_type'      => $post_type,
-			'post_status'    => 'any',
-			'posts_per_page' => 20,
-			'tax_query'      => array(
-				array(
-					'taxonomy' => $taxonomy,
-					'field'    => 'slug',
-					'terms'    => $terms,
-				),
-			),
-			'fields'         => 'ids',
-		);
-
-		$prop_selection = new WP_Query( $args );
-		$deleted        = 0;
-
-		// Delete each property in this batch via the theme importer's SQL delete.
-		foreach ( $prop_selection->posts as $delete_id ) {
-			$mlsimport->admin->theme_importer->mlsimportSaasDeletePropertyViaMysql( $delete_id, ' delete from tools ' );
-			++$deleted;
-		}
-
-		// Compute how many still match after this batch; done when none remain.
-		$remaining = $prop_selection->found_posts - $deleted;
-		$done      = ( $remaining <= 0 );
-
-		// Update term counts only when all deletions are complete
-		if ( $done ) {
-			// Recount every taxonomy on the property post type in one pass.
-			$all_taxonomies = get_object_taxonomies( $post_type );
-			foreach ( $all_taxonomies as $tax_name ) {
-				$all_terms = get_terms( array( 'taxonomy' => $tax_name, 'hide_empty' => false, 'fields' => 'ids' ) );
-				if ( ! is_wp_error( $all_terms ) && ! empty( $all_terms ) ) {
-					wp_update_term_count_now( $all_terms, $tax_name );
-				}
-			}
-		}
-
-		// Report progress back to the client loop.
-		wp_send_json_success( array(
-			'deleted'   => $deleted,
-			'remaining' => max( 0, $remaining ),
-			'total'     => $prop_selection->found_posts,
-			'done'      => $done,
-		) );
+		// Delete one batch and report progress back to the client loop.
+		wp_send_json_success( mlsimport_tools_delete_properties_batch( $taxonomy, $terms ) );
 	}
-
 
 
 
@@ -1736,10 +1719,10 @@ class Mlsimport_Admin {
 	/**
 	 * Save the Import Task metabox fields to post meta (save_post callback).
 	 *
-	 * Only acts on mlsimport_item posts. Sanitizes and stores each posted
-	 * whitelisted key; separately, any "blank_keys" absent from the POST (e.g.
-	 * unchecked multi-selects) are explicitly reset to '' so cleared selections
-	 * actually clear.
+	 * Only acts on mlsimport_item posts. Checks the request (autosave, nonce,
+	 * edit rights) and hands the posted form to mlsimport_task_save_settings()
+	 * (includes/mlsimport-task-settings.php), the one function that stores an
+	 * Import Task's settings.
 	 *
 	 * @param int     $post_id Post being saved.
 	 * @param WP_Post $post    Post object.
@@ -1773,100 +1756,9 @@ class Mlsimport_Admin {
 			return;
 		}
 
-		// Connection binding (#277): stamp once at creation. The helper is
-		// immutable for a bound task, so the posted value can never re-bind;
-		// deliberately NOT in the generic allowed-keys loop below.
-		mlsimport_bind_task_connection(
-			(int) $post_id,
-			isset( $_POST['mlsimport_item_mls_id'] ) ? (int) $_POST['mlsimport_item_mls_id'] : 0
-		);
-
-		// Every import-parameter meta key this metabox may write.
-		$allowed_keys = array(
-			'mlsimport_item_how_many',
-			'mlsimport_item_title_format',
-			'mlsimport_item_agent',
-			'mlsimport_item_use_mls_agent',
-			'mlsimport_item_property_status',
-			'mlsimport_item_property_user',
-			'mlsimport_item_min_price',
-			'mlsimport_item_max_price',
-			'mlsimport_item_city_check',
-			'mlsimport_item_city',
-			'mlsimport_item_city[]',
-			'mlsimport_item_countyorparish_check',
-			'mlsimport_item_countyorparish',
-			'mlsimport_item_mlsstatus_check',
-			'mlsimport_item_mlsstatus',
-			'mlsimport_item_propertysubtype_check',
-			'mlsimport_item_propertysubtype',
-			'mlsimport_item_propertytype_check',
-			'mlsimport_item_propertytype',
-			'mlsimport_item_standardstatus_check',
-			'mlsimport_item_standardstatus',
-			'mlsimport_item_standardstatusprotect_check',
-			'mlsimport_item_standardstatusprotect',
-
-			'mlsimport_item_internetentirelistingdisplayyn',
-			'mlsimport_item_internetaddressdisplayyn',
-			'mlsimport_item_stat_cron',
-                       'mlsimport_item_listagentkey',
-                       'mlsimport_item_listagentmlsid',
-                       'mlsimport_item_buyeragentmlsid',
-                       'mlsimport_item_listofficekey',
-                       'mlsimport_item_postalcode',
-                       'mlsimport_item_listofficemlsid',
-                       'mlsimport_item_listingid',
-                       'mlsimport_item_listingkey',
-                       'mlsimport_item_extracity',
-                       'mlsimport_item_extracounty',
-                       'mlsimport_item_exclude_listofficemlsid',
-                       'mlsimport_item_exclude_listofficekey',
-                       'mlsimport_item_exclude_listagentmlsid',
-                       'mlsimport_item_exclude_listagentkey',
-                       'mlsimport_item_customparameters',
-                       'mlsimport_item_mlsareamajor',
-                       'mlsimport_item_subdivisionname',
-               );
-	
-
-
-
-		// Store each posted key (recursively sanitized; key sanitized too).
-		foreach ( $allowed_keys as $key => $key_value ) {
-				if( isset($_POST[$key_value]) ){
-					$postmeta = mlsimport_sanitize_multi_dimensional_array ( $_POST[$key_value] ) ;
-					update_post_meta( $post_id, sanitize_key( $key_value ), $postmeta );
-				}
-
-		}
-
-		// Keys that must be reset to '' when omitted from the POST (cleared).
-		$blank_keys = array(
-			'mlsimport_item_use_mls_agent',
-			'mlsimport_item_standardstatus',
-			'mlsimport_item_standardstatusprotect',
-			'mlsimport_item_city',
-			'mlsimport_item_countyorparish',
-			'mlsimport_item_propertysubtype',
-                        'mlsimport_item_propertytype',
-                        'mlsimport_item_standardstatus',
-                        'mlsimport_item_listingid',
-                        'mlsimport_item_listingkey',
-                        'mlsimport_item_customparameters',
-                        'mlsimport_item_mlsareamajor',
-                        'mlsimport_item_subdivisionname',
-
-		);
-
-		// Reset any whitelisted-blank key that was not submitted this save.
-		foreach ( $blank_keys as $key ) {
-			if ( ! isset( $_POST[ $key ] ) ) {
-				update_post_meta( $post_id, $key, '' );
-			}
-		}
-
-	
+		// The one save of an Import Task's settings, shared with the AI tool
+		// update-task (includes/mlsimport-task-settings.php).
+		mlsimport_task_save_settings( (int) $post_id, $_POST ); // phpcs:ignore WordPress.Security.NonceVerification.Missing -- verified above.
 	}
 
 
@@ -1890,16 +1782,14 @@ class Mlsimport_Admin {
                 wp_nonce_field(plugin_basename(__FILE__), 'estate_agent_noncename');
                 global $mlsimport;
 
-                // Ensure a token, read the cached connection flag, print env warnings.
+                // Ensure a token, print env warnings.
                 $token = $mlsimport->admin->mlsimport_saas_get_mls_api_token_from_transient();
-                $is_mls_connected = get_option('mlsimport_connection_test', '');
                 $mlsimport->admin->mlsimport_saas_setting_up();
 
-                // If not marked connected, run the connection test once and re-read the flag.
-                if ('yes' !== $is_mls_connected) {
-                        $mlsimport->admin->mlsimport_saas_check_mls_connection();
-                        $is_mls_connected = get_option('mlsimport_connection_test', '');
-                }
+                // Judge the connection THIS task is bound to (#361), not the
+                // global flag of the current MLS; the current MLS is still
+                // re-tested once when it is not marked connected.
+                $is_mls_connected = mlsimport_task_screen_connected((int) $post->ID) ? 'yes' : '';
 
                 // No token -> account not authenticated; stop with a notice
                 // that names the reason (no subscription vs wrong password).
@@ -1920,7 +1810,7 @@ class Mlsimport_Admin {
                 $mlsimportItemStatCron  = esc_html(get_post_meta($postId, 'mlsimport_item_stat_cron', true));
                 $lastDate                               = get_post_meta($postId, 'mlsimport_last_date', true);
                 $status                                 = get_option('mlsimport_force_stop_' . $postId);
-                $fieldImport                    = $this->mlsimport_saas_return_mls_fields( mlsimport_task_mls_id( (int) $postId ) );
+                $fieldImport                    = $this->mlsimport_task_fields( mlsimport_task_mls_id( (int) $postId ) );
                 // The TASK's own connection (#277): a bound task displays and
                 // requests against its binding; a new/unstamped task resolves
                 // to the current connection inside the helper.
@@ -1940,7 +1830,10 @@ class Mlsimport_Admin {
                $hasError = isset($mlsRequest['success']) && !$mlsRequest['success'];
                if ($hasError) {
                        $errorMessage = $mlsRequest['message'] ?? $mlsRequest['error']['message'] ?? esc_html__('The MLS request failed.', 'mlsimport');
-                       echo '<div class="mlsimport_warning">' . esc_html($errorMessage) . '</div>';
+                       // An unsupported Internet display field gets a "Go to
+                       // the option" link that scrolls to its dropdown below;
+                       // the helper returns '' for every other message.
+                       echo '<div class="mlsimport_warning">' . esc_html($errorMessage) . mlsimport_friendly_mls_error_anchor( (string) $errorMessage ) . '</div>';
                }
 
                // The count is readable only when the response carries 'results'.
@@ -1985,6 +1878,7 @@ class Mlsimport_Admin {
                 $metadata_api_call_city          = array();
                 $metadata_api_call_county        = array();
                 $metadata_api_call_property_type = array();
+                $metadata_api_call_country       = array();
 		// Enums come from the TASK's connection (#277) so a task bound to a
 		// non-current MLS still offers ITS cities/counties/types.
 		$mlsimport_mls_metadata_mls_enums = mlsimport_get_connection_option( 'mlsimport_mls_metadata_mls_enums', '', mlsimport_task_mls_id( (int) $postId ) );
@@ -2002,6 +1896,11 @@ class Mlsimport_Admin {
 
                                 if (isset($property_enums['PropertyType']) && is_array($property_enums['PropertyType'])) {
                                         $metadata_api_call_property_type = $property_enums['PropertyType'];
+                                }
+
+                                // Country (#362): code => name, e.g. CR => Costa Rica.
+                                if (isset($property_enums['Country']) && is_array($property_enums['Country'])) {
+                                        $metadata_api_call_country = $property_enums['Country'];
                                 }
                         }
                 }
@@ -2183,11 +2082,15 @@ class Mlsimport_Admin {
 			</fieldset>
 
 			<?php
-			$mlsimportItemMinPrice = floatval(get_post_meta($postId, 'mlsimport_item_min_price', true));
-			$mlsimportItemMaxPrice = floatval(get_post_meta($postId, 'mlsimport_item_max_price', true));
-			if (0 === intval($mlsimportItemMaxPrice)) {
-				$mlsimportItemMaxPrice = 10000000;
-			}
+			// The price range is not part of the field catalog, so the task's
+			// provider is asked directly; an MLS that cannot filter ListPrice
+			// (MLS Grid) gets no price inputs and its adapter drops the range.
+			if ( $this->mlsimport_task_provider( (int) $mlsimportMlsId )->price_filter_supported() ) :
+				$mlsimportItemMinPrice = floatval(get_post_meta($postId, 'mlsimport_item_min_price', true));
+				$mlsimportItemMaxPrice = floatval(get_post_meta($postId, 'mlsimport_item_max_price', true));
+				if (0 === intval($mlsimportItemMaxPrice)) {
+					$mlsimportItemMaxPrice = 10000000;
+				}
 			?>
 			<fieldset class="mlsimport-fieldset">
 				<label class="mlsimport-label">
@@ -2196,21 +2099,11 @@ class Mlsimport_Admin {
 				<input type="text" class="mlsimport-select mlsimport-input mlsimport-2025-input  " id="mlsimport_item_min_price" name="mlsimport_item_min_price" value="<?php echo esc_attr($mlsimportItemMinPrice); ?>"> and
 				<input type="text" class="mlsimport-select mlsimport-input mlsimport-2025-input " id="mlsimport_item_max_price" name="mlsimport_item_max_price" value="<?php echo esc_attr($mlsimportItemMaxPrice); ?>">
 			</fieldset>
+			<?php endif; ?>
 
 			<?php
-			// Let the TASK's provider adjust only the Import Task fields it
-			// owns (#277): same resolution rule as the request builder — the
-			// connection record's provider type wins, the single-slot saved
-			// type / numeric map covers legacy configurations only.
-			$mlsimport_task_record = Mlsimport_Connections::get( $mlsimportMlsId );
-			$provider    = Mlsimport_Provider_Family::adapter(
-				null !== $mlsimport_task_record && '' !== $mlsimport_task_record['provider_type']
-					? $mlsimport_task_record['provider_type']
-					: Mlsimport_Provider_Family::saved_type( $mlsimportMlsId ),
-				$mlsimportMlsId,
-				$this->theme_importer
-			);
-			$fieldImport = $provider->prepare_import_task_fields( $fieldImport );
+			// $fieldImport is already adjusted by the TASK's provider
+			// (mlsimport_task_fields(), called by the caller).
 
 			// Render one fieldset per import parameter.
 			foreach ($fieldImport as $key => $field):
@@ -2344,6 +2237,8 @@ class Mlsimport_Admin {
                                                                                 } elseif ('PropertyType' === $key && isset($metadata_api_call_property_type[$selectKey])) {
                                                                                         $option_label = mlsimport_enum_option_label($selectKey, $metadata_api_call_property_type);
                                                                                         $comparison_values[] = $metadata_api_call_property_type[$selectKey];
+                                                                                } elseif ('Country' === $key && isset($metadata_api_call_country[$selectKey])) {
+                                                                                        $option_label = mlsimport_enum_option_label($selectKey, $metadata_api_call_country);
                                                                                 }
 
                                                                                 $comparison_values = array_values(array_unique(array_filter($comparison_values, static function ($compare_value) {
@@ -2444,7 +2339,7 @@ class Mlsimport_Admin {
 
 		// Current site time minus 2 hours, formatted as an ISO-ish local stamp.
 		$unix_time         = current_time( 'timestamp', 0 ) - ( 2 * 60 * 60 );
-		print $last_date_to_save = date( 'Y-m-d\TH:i', $unix_time );
+		$last_date_to_save = date( 'Y-m-d\TH:i', $unix_time );
 		update_post_meta( $item_id, 'mlsimport_last_date', $last_date_to_save );
 
 		return $last_date_to_save;
@@ -2656,6 +2551,14 @@ public function mlsimport_saas_start_doing_reconciliation() {
 			);
 		}
 
+		// An MLS that does not define InternetEntireListingDisplayYN or
+		// InternetAddressDisplayYN rejects the whole query with raw OData text.
+		// Replace it with the sentence naming the task option to set to "no";
+		// every caller (task screen count, hourly count) reads this 'message'.
+		if ( isset( $answer['message'] ) && is_string( $answer['message'] ) ) {
+			$answer['message'] = mlsimport_friendly_mls_error( $answer['message'] );
+		}
+
 		// The server rejected this mls_id against the account's entitlements
 		// (#276): mark this one connection so its later imports skip. The error
 		// response itself still flows back to the caller — never a silent fallback.
@@ -2717,12 +2620,12 @@ public function mlsimport_saas_start_doing_reconciliation() {
 		}
 
 		// Theme id is mandatory (selects the server-side field schema; the
-		// theme schema is GLOBAL per decision #263, so this stays flat).
-		if ( isset( $options['mlsimport_theme_used'] ) ) {
-			$theme_id = intval( $options['mlsimport_theme_used'] );
-		} else {
-			return '';
-		}
+		// theme schema is GLOBAL per decision #263, so this stays flat). A site
+		// that never saved the setting (set up by chat, or without the wizard)
+		// uses the theme the plugin detects - standalone (990) when the active
+		// theme is not one of the real-estate themes. Returning nothing here
+		// sent an empty request, answered with "Invalid JSON in request body".
+		$theme_id = mlsimport_resolve_theme_id();
 
 		// Base parameters every request carries.
 		$values             = array();
@@ -2753,6 +2656,9 @@ public function mlsimport_saas_start_doing_reconciliation() {
 
 		// add county
 		$values = $this->mls_import_return_multiple_param_value( 'countyorparish', $item_id, 'county_or_parish', $values );
+
+		// add country (#362) - multi-country feeds such as Omni MLS South America
+		$values = $this->mls_import_return_multiple_param_value( 'country', $item_id, 'country', $values );
 
 		// add MLSAreaMajor
 		$values = $this->mls_import_saas_add_to_parms_input( 'MLSAreaMajor', $item_id, 'mls_area_major', $values );
@@ -2937,6 +2843,53 @@ public function mlsimport_saas_start_doing_reconciliation() {
 	}
 
 
+
+	/**
+	 * The Import Task filters one MLS Connection offers, ready to use.
+	 *
+	 * The one place that builds the task form's field list, shared by the
+	 * Import Task editor and the AI tools (list-filter-values, get-task,
+	 * update-task).
+	 *
+	 * Step by step:
+	 * 1. Build the shared field list with that connection's enum values.
+	 * 2. Let the connection's provider adjust the fields it owns (#277): same
+	 *    resolution rule as the request builder - the connection record's
+	 *    provider type wins, the single-slot saved type / numeric map covers
+	 *    legacy configurations only. (Example: CREA DDF has no PropertyType
+	 *    filter; Rapattoni takes one PropertyType only.)
+	 *
+	 * @param int $mls_id The MLS Connection (a task's own connection).
+	 * @return array Field key => definition (label, description, type, multiple, values).
+	 */
+	public function mlsimport_task_fields( int $mls_id ) {
+		// Step 1: the shared list.
+		$fields = $this->mlsimport_saas_return_mls_fields( $mls_id );
+
+		// Step 2: the provider's own adjustments.
+		return $this->mlsimport_task_provider( $mls_id )->prepare_import_task_fields( $fields );
+	}
+
+	/**
+	 * The provider adapter of one MLS Connection, for Import Task screens.
+	 *
+	 * Same resolution rule as the request builder (#277): the connection
+	 * record's provider type wins, the single-slot saved type / numeric map
+	 * covers legacy configurations only.
+	 *
+	 * @param int $mls_id The MLS Connection (a task's own connection).
+	 * @return ResoBase
+	 */
+	public function mlsimport_task_provider( int $mls_id ) {
+		$record = Mlsimport_Connections::get( $mls_id );
+		return Mlsimport_Provider_Family::adapter(
+			null !== $record && '' !== $record['provider_type']
+				? $record['provider_type']
+				: Mlsimport_Provider_Family::saved_type( $mls_id ),
+			$mls_id,
+			$this->theme_importer
+		);
+	}
 
 	/**
 	 * Build the Import Task field definition list (labels, types, enum values).
@@ -3197,6 +3150,30 @@ public function mlsimport_saas_start_doing_reconciliation() {
 
 
 		);
+
+		// Country (#362): only multi-country feeds get the control - today Omni
+		// MLS South America (1614). The enum alone is not enough: Trestle
+		// metadata gives single-country feeds (e.g. 1611 Honolulu) a full
+		// 246-code Country list too. The values come from the MLS's Country
+		// enum. Placed right after the county inputs so the location filters
+		// stay together.
+		$multi_country_mls_ids = array( 1614 );
+		$country_mls_id        = $mls_id > 0 ? $mls_id : mlsimport_current_mls_id();
+		if ( in_array( $country_mls_id, $multi_country_mls_ids, true )
+			&& ! empty( $metadata_api_call['PropertyEnums']['Country'] ) && is_array( $metadata_api_call['PropertyEnums']['Country'] ) ) {
+			$country_field = array(
+				'Country' => array(
+					'label'       => esc_html__( 'Select Countries', 'mlsimport' ),
+					'description' => esc_html__( 'Select the countries from where we will import data.', 'mlsimport' ),
+					'type'        => 'select',
+					'multiple'    => 'yes',
+					'values'      => array_keys( $metadata_api_call['PropertyEnums']['Country'] ),
+				),
+			);
+			$position     = array_search( 'extraCounty', array_keys( $field_import ), true ) + 1;
+			$field_import = array_slice( $field_import, 0, $position, true ) + $country_field + array_slice( $field_import, $position, null, true );
+		}
+
 		return $field_import;
 	}
 
@@ -3209,10 +3186,10 @@ public function mlsimport_saas_start_doing_reconciliation() {
 	/**
 	 * AJAX: kick off a manual import for one Import Task.
 	 *
-	 * Resets the force-stop flag, builds the paginated batch of request-argument
-	 * sets, stores them (and zeroed progress meta), marks the task 'started', and
-	 * enqueues the Action Scheduler background job that does the actual import.
-	 * Returns any build error immediately, otherwise {success:true}.
+	 * Authorizes the request, then starts the run through
+	 * mlsimport_start_manual_import() (includes/mlsimport-manual-import-start.php)
+	 * with the count the page already showed. Answers {success:false, reason}
+	 * when another import is running, otherwise {success:true, run_id}.
 	 *
 	 * @return void Emits JSON.
 	 */
@@ -3231,29 +3208,18 @@ public function mlsimport_saas_start_doing_reconciliation() {
 
 		// The page already counted the matching listings. Keep that exact count
 		// and selected limit so the background worker does not count them again.
-		$start = $this->mlsimport_import_task_execution()->start(
-			array(
-				'task_id'   => $post_id,
-				'source'    => 'manual',
-				'found'     => $max_number,
-				'limit'     => $how_many,
-				'is_onboard' => $is_onboard,
-			)
-		);
-		if ( true !== ( $start['accepted'] ?? false ) ) {
+		// The start itself (run slot, log lines, worker queue) is the plugin's
+		// single manual-start function, shared with the wizard and the AI tool.
+		$start = mlsimport_start_manual_import( $post_id, $how_many, $max_number, $is_onboard );
+		if ( true !== $start['started'] ) {
 			wp_send_json(
 				array(
 					'success' => false,
-					'reason'  => (string) ( $start['reason'] ?? 'already_running' ),
-					'message' => esc_html__( 'Another import is already running. Please wait for it to finish.', 'mlsimport' ),
+					'reason'  => $start['reason'],
+					'message' => esc_html( $start['message'] ),
 				)
 			);
 		}
-
-		mlsimport_saas_single_write_import_custom_logs( 'Manual import queued for task ' . $post_id . '.' . PHP_EOL, 'manual' );
-		mlsimport_debuglogs_per_plugin( 'Manual import queued for task ' . $post_id . '.' . PHP_EOL );
-
-		$this->mlsimport_enqueue_import_worker( (string) $start['run_id'] );
 
 		wp_send_json(
 			array(
@@ -3441,23 +3407,14 @@ public function mlsimport_saas_start_doing_reconciliation() {
 			$post_id = intval( $_POST['post_id'] );
 		}
 
-		// Watchdog (issue #199): chunked manual imports depend on each worker
-		// queueing its follow-up; a host-killed worker breaks that chain. This
-		// poll fires every few seconds while an administrator watches the
-		// progress screen, making it the natural revival trigger. The call is
-		// a cheap no-op unless the run has been silent long enough. Both real
-		// outcomes — a revival and the stalled-run failure — are logged, since
-		// each one means a worker died.
-		$revive = $this->mlsimport_import_task_execution()->revive( $post_id );
-		if ( true === ( $revive['revived'] ?? false ) ) {
-			mlsimport_saas_single_write_import_custom_logs( 'Watchdog revived the import worker chain for task ' . $post_id . '.' . PHP_EOL, 'manual' );
-		} elseif ( 'stalled' === ( $revive['reason'] ?? '' ) ) {
-			mlsimport_saas_single_write_import_custom_logs( 'Watchdog declared the import run for task ' . $post_id . ' stalled and failed it.' . PHP_EOL, 'manual' );
-		}
+		// Watchdog (issue #199): this poll fires every few seconds while an
+		// administrator watches the progress screen, making it the natural
+		// revival trigger.
+		$this->mlsimport_revive_import_for_task( $post_id );
 
 		$progress = $this->mlsimport_import_task_execution()->status( $post_id );
 		$status   = (string) ( $progress['state'] ?? '' );
-		$done     = '' === $status || in_array( $status, array( 'completed', 'stopped', 'failed' ), true );
+		$done     = '' === $status || Mlsimport_Import_Task_Execution::is_finished_state( $status );
 		$path     = WP_PLUGIN_DIR . '/mlsimport/logs/status_logs.log';
 		$logs     = is_readable( $path ) ? (string) file_get_contents( $path ) : '';
 
@@ -3507,13 +3464,58 @@ public function mlsimport_saas_start_doing_reconciliation() {
 		if ( 'mlsimport_item' !== get_post_type( $post_id ) || ! current_user_can( 'edit_post', $post_id ) ) {
 			wp_send_json_error( array( 'message' => esc_html__( 'You are not allowed to manage this import task.', 'mlsimport' ) ), 403 );
 		}
-		$stop = $this->mlsimport_import_task_execution()->stop( $post_id );
-		// Preserve the old option for third-party callers that inspect it. The
-		// shared runner itself uses the run-scoped Stop request above.
-		update_option( 'mlsimport_force_stop_' . $post_id, 'yes', false );
-		mlsimport_saas_single_write_import_custom_logs( 'Stopped  for ' . $post_id . PHP_EOL );
-		mlsimport_debuglogs_per_plugin( 'Stopped  for ' . $post_id . PHP_EOL );
-		wp_send_json_success( array( 'accepted' => (bool) $stop['accepted'] ) );
+		wp_send_json_success( array( 'accepted' => $this->mlsimport_stop_import_for_task( $post_id ) ) );
+	}
+
+	/**
+	 * Ask the running import of one Import Task to stop.
+	 *
+	 * The one stop sequence, shared by the Import Task screen's Stop button
+	 * (mlsimport_stop_import_per_item()) and the AI tool stop-import. The
+	 * caller has already authorized the request.
+	 *
+	 * Step by step:
+	 * 1. Record the Stop request on the active run of the task.
+	 * 2. Keep the old per-task option for third-party callers that inspect it;
+	 *    the shared runner itself uses the run-scoped request of step 1.
+	 * 3. Write the stop to the import log and the plugin debug log.
+	 *
+	 * @param int $task_id Import Task post id.
+	 * @return bool True when an active run of that task was found and asked to stop.
+	 */
+	public function mlsimport_stop_import_for_task( int $task_id ): bool {
+		// Step 1: the run-scoped Stop request.
+		$stop = $this->mlsimport_import_task_execution()->stop( $task_id );
+		// Step 2: the legacy option.
+		update_option( 'mlsimport_force_stop_' . $task_id, 'yes', false );
+		// Step 3: the logs.
+		mlsimport_saas_single_write_import_custom_logs( 'Stopped  for ' . $task_id . PHP_EOL );
+		mlsimport_debuglogs_per_plugin( 'Stopped  for ' . $task_id . PHP_EOL );
+
+		return (bool) $stop['accepted'];
+	}
+
+	/**
+	 * Restart the worker of a manual import that went silent (issue #199).
+	 *
+	 * Chunked manual imports depend on each worker queueing its follow-up; a
+	 * host-killed worker breaks that chain. The one revival sequence, shared
+	 * by the progress poll (mlsimport_logger_per_item()) and the AI tool
+	 * revive-import. The call is a cheap no-op unless the run has been silent
+	 * long enough. Both real outcomes - a revival and the stalled-run
+	 * failure - are logged, since each one means a worker died.
+	 *
+	 * @param int $task_id Import Task post id.
+	 * @return array<string, bool|string> Whether a worker was queued ('revived'), with 'reason'.
+	 */
+	public function mlsimport_revive_import_for_task( int $task_id ): array {
+		$revive = $this->mlsimport_import_task_execution()->revive( $task_id );
+		if ( true === ( $revive['revived'] ?? false ) ) {
+			mlsimport_saas_single_write_import_custom_logs( 'Watchdog revived the import worker chain for task ' . $task_id . '.' . PHP_EOL, 'manual' );
+		} elseif ( 'stalled' === ( $revive['reason'] ?? '' ) ) {
+			mlsimport_saas_single_write_import_custom_logs( 'Watchdog declared the import run for task ' . $task_id . ' stalled and failed it.' . PHP_EOL, 'manual' );
+		}
+		return $revive;
 	}
 
 

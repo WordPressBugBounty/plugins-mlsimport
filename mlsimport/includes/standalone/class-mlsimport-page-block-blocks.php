@@ -108,7 +108,8 @@ class Mlsimport_Page_Block_Blocks {
 			wp_register_script(
 				$handle,
 				$url,
-				array( 'wp-blocks', 'wp-element', 'wp-components', 'wp-block-editor', 'wp-server-side-render' ),
+				// mlsimport-page-block-styles: the shared "Look" panel (page-block-styles.php).
+				array( 'wp-blocks', 'wp-element', 'wp-components', 'wp-block-editor', 'wp-server-side-render', 'mlsimport-page-block-styles' ),
 				$ver,
 				true
 			);

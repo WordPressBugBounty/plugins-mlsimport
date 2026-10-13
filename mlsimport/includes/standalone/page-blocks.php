@@ -673,8 +673,14 @@ function mlsimport_search_form_hidden_args( array $args, ?array $visible ): arra
  * @return string
  */
 function mlsimport_page_block_search_form( array $args ): string {
+	// The block's own results URL, else the Search results page from the
+	// settings ('' when none is set: the form posts to its own page).
 	$action = isset( $args['results_url'] ) ? (string) $args['results_url'] : '';
-	$rows   = mlsimport_page_block_normalize_rows( isset( $args['fields'] ) ? $args['fields'] : array(), 'search' );
+	if ( '' === $action ) {
+		$results_page = (int) mlsimport_standalone_option( 'results_page' );
+		$action       = $results_page > 0 ? (string) get_permalink( $results_page ) : '';
+	}
+	$rows = mlsimport_page_block_normalize_rows( isset( $args['fields'] ) ? $args['fields'] : array(), 'search' );
 
 	$valid = array();
 	foreach ( $rows as $row ) {
@@ -1078,10 +1084,16 @@ function mlsimport_render_range_slider_field( array $def, array $values, string 
  * baths carry the chosen minimums; an unselected row submits empty. JS enhances;
  * without JS the hidden values still submit.
  *
+ * The Beds row starts with a "Studio" tile (value 0). It is the one tile that is
+ * not a minimum: a studio has 0 bedrooms, and "0 or more" would match everything,
+ * so the query reads beds=0 as "exactly 0" (Mlsimport_Standalone_Query::build_where).
+ * Baths has no such tile: nobody searches by "0 baths".
+ *
  * @param array  $def         Field definition (key is 'beds_baths').
  * @param array  $values      Current values keyed by query param.
  * @param string $label       Resolved field label.
  * @param string $field_class Wrapper class (the form's field namespace).
+ * @param array  $opts        Presentation options (hide_label, placeholder).
  * @return string
  */
 function mlsimport_render_beds_baths_field( array $def, array $values, string $label, string $field_class, array $opts = array() ): string {
@@ -1094,7 +1106,10 @@ function mlsimport_render_beds_baths_field( array $def, array $values, string $l
 	$baths = isset( $values['baths'] ) && '' !== (string) $values['baths'] ? (string) (int) $values['baths'] : '';
 
 	$parts = array();
-	if ( '' !== $beds ) {
+	if ( '0' === $beds ) {
+		// Studio is "exactly 0 bedrooms", never "0+".
+		$parts[] = __( 'Studio', 'mlsimport' );
+	} elseif ( '' !== $beds ) {
 		/* translators: %s: minimum bedrooms, e.g. "2+". */
 		$parts[] = sprintf( __( '%s bd', 'mlsimport' ), $beds . '+' );
 	}
@@ -1107,8 +1122,12 @@ function mlsimport_render_beds_baths_field( array $def, array $values, string $l
 	$toggle  = empty( $parts ) ? $empty : implode( ' · ', $parts );
 
 	// One row of 1+..6+ tiles for a group ('beds' or 'baths'), the matching one marked.
+	// The beds row leads with the Studio tile (value 0, see the header comment).
 	$grid = static function ( string $group, string $cur ) {
 		$out = '<div class="mlsimport-bedsbaths__grid" data-group="' . esc_attr( $group ) . '">';
+		if ( 'beds' === $group ) {
+			$out .= '<button type="button" class="mlsimport-bedsbaths__item' . ( '0' === $cur ? ' is-selected' : '' ) . '" data-value="0">' . esc_html__( 'Studio', 'mlsimport' ) . '</button>';
+		}
 		for ( $i = 1; $i <= 6; $i++ ) {
 			$val      = (string) $i;
 			$selected = $val === $cur ? ' is-selected' : '';

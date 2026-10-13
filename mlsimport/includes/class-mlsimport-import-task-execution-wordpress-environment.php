@@ -138,9 +138,11 @@ final class Mlsimport_Import_Task_Execution_WordPress_Environment implements Mls
 	 * zero pending workers, while a growing number means enqueued work is not
 	 * being dispatched on this host.
 	 *
+	 * Public so the site-environment AI tool reports the same number.
+	 *
 	 * @return int Pending 'mlsimport_background_process_per_item' actions.
 	 */
-	private function pending_worker_actions(): int {
+	public function pending_worker_actions(): int {
 		if ( ! function_exists( 'as_get_scheduled_actions' ) ) {
 			return 0;
 		}
@@ -258,7 +260,10 @@ final class Mlsimport_Import_Task_Execution_WordPress_Environment implements Mls
 			if ( is_string( $response ) && '' !== $response ) {
 				$error = $response;
 			} elseif ( is_array( $response ) && '' !== (string) ( $response['message'] ?? '' ) ) {
-				$error = (string) $response['message'];
+				// Same rewrite as mlsimport_make_listing_requests(): an MLS that
+				// lacks an Internet display field answers with raw OData text,
+				// and the Import Run must tell the user which option to set to "no".
+				$error = mlsimport_friendly_mls_error( (string) $response['message'] );
 			}
 			mlsimport_saas_single_write_import_custom_logs(
 				'Listings fetch FAILED after 3 attempts at offset ' . $skip . ': ' . $error . PHP_EOL,

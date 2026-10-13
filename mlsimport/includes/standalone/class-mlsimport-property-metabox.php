@@ -277,26 +277,43 @@ class Mlsimport_Property_Metabox {
 			wp_send_json_error( array( 'message' => __( 'Not allowed.', 'mlsimport' ) ), 403 );
 		}
 
-		// Only ever touch an attachment that belongs to THIS property's gallery —
-		// otherwise a forged id could delete any attachment on the site.
+		// The one delete, shared with the delete-listing-image AI tool.
+		$result = self::delete_gallery_image( $post_id, $attach_id );
+		if ( is_wp_error( $result ) ) {
+			wp_send_json_error( array( 'message' => $result->get_error_message() ), 400 );
+		}
+		wp_send_json_success( $result );
+	}
+
+	/**
+	 * Delete one gallery image of a property. The caller has already decided
+	 * the delete is allowed.
+	 *
+	 * Step by step:
+	 * 1. Only ever touch an attachment that belongs to THIS property's gallery;
+	 *    otherwise a forged id could delete any attachment on the site.
+	 * 2. Note whether it was the featured image BEFORE deleting:
+	 *    wp_delete_attachment() clears every _thumbnail_id pointing at it.
+	 * 3. Drop it from the gallery, delete the attachment, and hand the featured
+	 *    role to the first remaining photo so the listing keeps a thumbnail.
+	 *
+	 * @param int $post_id   Property post ID.
+	 * @param int $attach_id Attachment ID.
+	 * @return array|WP_Error { remaining: int, featured: int }, or the refusal.
+	 */
+	public static function delete_gallery_image( int $post_id, int $attach_id ) {
 		$ids = get_post_meta( $post_id, 'mlsimport_gallery', true );
 		$ids = is_array( $ids ) ? array_values( array_filter( array_map( 'intval', $ids ) ) ) : array();
 		if ( ! in_array( $attach_id, $ids, true ) ) {
-			wp_send_json_error( array( 'message' => __( 'That image is not in this gallery.', 'mlsimport' ) ), 400 );
+			return new WP_Error( 'mlsimport_image_not_in_gallery', __( 'That image is not in this gallery.', 'mlsimport' ) );
 		}
 
-		// Note this BEFORE deleting: wp_delete_attachment() clears every _thumbnail_id
-		// row pointing at the attachment, so afterwards there is no way to tell that
-		// this image was the featured one.
 		$was_featured = (int) get_post_thumbnail_id( $post_id ) === $attach_id;
 
-		// Drop it from the gallery, then delete the attachment itself.
 		$remaining = array_values( array_diff( $ids, array( $attach_id ) ) );
 		update_post_meta( $post_id, 'mlsimport_gallery', $remaining );
 		wp_delete_attachment( $attach_id, true );
 
-		// Losing the featured image would leave the listing thumbnail-less, so hand
-		// the role to the first remaining photo.
 		if ( $was_featured && $remaining ) {
 			set_post_thumbnail( $post_id, $remaining[0] );
 		}
@@ -304,11 +321,9 @@ class Mlsimport_Property_Metabox {
 		/** Fires after a gallery image is deleted from the metabox. @since 6.3 */
 		do_action( 'mlsimport_property_gallery_image_deleted', $attach_id, $post_id, $remaining );
 
-		wp_send_json_success(
-			array(
-				'remaining' => count( $remaining ),
-				'featured'  => (int) get_post_thumbnail_id( $post_id ),
-			)
+		return array(
+			'remaining' => count( $remaining ),
+			'featured'  => (int) get_post_thumbnail_id( $post_id ),
 		);
 	}
 
@@ -844,6 +859,36 @@ class Mlsimport_Property_Metabox {
 	}
 
 	/**
+	 * Write the catalog fields of one property: whitelist + coerce (extract()),
+	 * sanitize each text value by its field type, store as mlsimport_<key> meta.
+	 *
+	 * The one catalog write, shared by the edit screen (save() below) and the
+	 * update-listing AI tool (includes/mcp/mlsimport-mcp-standalone-listing-edit.php).
+	 * The caller has already authorized the request, and re-indexes afterwards.
+	 *
+	 * $input must hold EVERY catalog field, as the edit form posts them: a
+	 * field that is missing is stored as empty (a checkbox as 0).
+	 *
+	 * @param int   $post_id Property post ID.
+	 * @param array $input   Raw values keyed by catalog field key.
+	 * @return void
+	 */
+	public static function save_fields( int $post_id, array $input ): void {
+		// A key => type lookup drives the per-field sanitization.
+		$types = array();
+		foreach ( self::fields() as $field ) {
+			$types[ $field['key'] ] = $field['type'];
+		}
+
+		foreach ( self::extract( $input ) as $key => $value ) {
+			if ( is_string( $value ) ) {
+				$value = 'textarea' === $types[ $key ] ? sanitize_textarea_field( $value ) : sanitize_text_field( $value );
+			}
+			update_post_meta( $post_id, self::meta_key( $key ), $value );
+		}
+	}
+
+	/**
 	 * Persist the metabox: guard, extract (whitelist + coerce), write meta, then
 	 * resync the flat search row so edits show in listings/search immediately.
 	 *
@@ -866,58 +911,90 @@ class Mlsimport_Property_Metabox {
 			? wp_unslash( $_POST['mlsimport_meta'] ) // phpcs:ignore WordPress.Security.ValidatedSanitized.InputNotSanitized -- sanitized per-field below.
 			: array();
 
-		$types = array();
-		foreach ( self::fields() as $field ) {
-			$types[ $field['key'] ] = $field['type'];
-		}
+		// The catalog fields: one write, shared with the update-listing AI tool.
+		self::save_fields( (int) $post_id, $input );
 
-		foreach ( self::extract( $input ) as $key => $value ) {
-			if ( is_string( $value ) ) {
-				$value = 'textarea' === $types[ $key ] ? sanitize_textarea_field( $value ) : sanitize_text_field( $value );
-			}
-			update_post_meta( $post_id, self::meta_key( $key ), $value );
-		}
-
-		// Lead Agent picker (Agent & Office tab): writes the same two meta keys the
-		// Import Task sets. A real agent post id assigns that local agent; the
-		// "feed" sentinel (or an id that is not a published mlsimport_agent) means
-		// "use the MLS feed's listing agent", which routes leads to the recipient.
+		// Lead Agent picker (Agent & Office tab): one write, shared with the
+		// update-listing AI tool.
 		if ( isset( $_POST[ self::LEAD_AGENT_FIELD ] ) ) {
-			$choice   = sanitize_text_field( wp_unslash( $_POST[ self::LEAD_AGENT_FIELD ] ) );
-			$agent_id = ctype_digit( $choice ) ? (int) $choice : 0;
-			// Only trust an id that is an existing published agent post.
-			$is_agent = $agent_id > 0 && 'mlsimport_agent' === get_post_type( $agent_id ) && 'publish' === get_post_status( $agent_id );
-			if ( $is_agent ) {
-				update_post_meta( $post_id, 'mlsimport_list_agent_id', $agent_id );
-				update_post_meta( $post_id, 'mlsimport_use_mls_agent', 0 );
-			} else {
-				// Feed / no local agent: clear the link and flag feed mode explicitly.
-				update_post_meta( $post_id, 'mlsimport_list_agent_id', 0 );
-				update_post_meta( $post_id, 'mlsimport_use_mls_agent', 1 );
-			}
+			self::save_lead_agent( (int) $post_id, sanitize_text_field( wp_unslash( $_POST[ self::LEAD_AGENT_FIELD ] ) ) );
 		}
 
-		// Dynamic imported fields (distributed across the section tabs). The
-		// whitelist is dynamic_field_keys() (ticked-for-import AND not a catalog
-		// key), so a forged key — or a catalog field slipped in here — can never
-		// be written.
+		// Dynamic imported fields (distributed across the section tabs): one
+		// write, shared with the update-listing AI tool.
 		if ( isset( $_POST[ self::OTHER_FIELD_NS ] ) && is_array( $_POST[ self::OTHER_FIELD_NS ] ) ) {
-			$other   = wp_unslash( $_POST[ self::OTHER_FIELD_NS ] ); // phpcs:ignore WordPress.Security.ValidatedSanitized.InputNotSanitized -- sanitized per-field below.
-			$allowed = self::dynamic_field_keys( $post_id );
-			foreach ( $other as $field => $raw ) {
-				if ( empty( $allowed[ (string) $field ] ) ) {
-					continue;
-				}
-				$val = is_array( $raw )
-					? implode( ', ', array_map( 'sanitize_text_field', $raw ) )
-					: sanitize_text_field( (string) $raw );
-				update_post_meta( $post_id, 'mlsimport_' . (string) $field, $val );
-			}
+			self::save_dynamic_fields( (int) $post_id, wp_unslash( $_POST[ self::OTHER_FIELD_NS ] ) ); // phpcs:ignore WordPress.Security.ValidatedSanitized.InputNotSanitized -- sanitized per-field inside.
 		}
 
 		// Keep the flat search/sort row consistent with the edited meta.
 		if ( class_exists( 'Mlsimport_Standalone_Reindex' ) ) {
 			Mlsimport_Standalone_Reindex::rebuild_post( $post_id );
 		}
+	}
+
+	/**
+	 * Store the lead agent choice: the same two meta keys the Import Task
+	 * sets. A real agent post id assigns that local agent; the "feed" sentinel
+	 * (or an id that is not a published mlsimport_agent) means "use the MLS
+	 * feed's listing agent", which routes leads to the recipient.
+	 *
+	 * @param int    $post_id Property post ID.
+	 * @param string $choice  An agent post id, or self::LEAD_AGENT_FEED.
+	 * @return void
+	 */
+	public static function save_lead_agent( int $post_id, string $choice ): void {
+		$agent_id = ctype_digit( $choice ) ? (int) $choice : 0;
+		// Only trust an id that is an existing published agent post.
+		$is_agent = $agent_id > 0 && 'mlsimport_agent' === get_post_type( $agent_id ) && 'publish' === get_post_status( $agent_id );
+		if ( $is_agent ) {
+			update_post_meta( $post_id, 'mlsimport_list_agent_id', $agent_id );
+			update_post_meta( $post_id, 'mlsimport_use_mls_agent', 0 );
+		} else {
+			// Feed / no local agent: clear the link and flag feed mode explicitly.
+			update_post_meta( $post_id, 'mlsimport_list_agent_id', 0 );
+			update_post_meta( $post_id, 'mlsimport_use_mls_agent', 1 );
+		}
+	}
+
+	/**
+	 * Store dynamic imported-field values. The whitelist is dynamic_field_keys()
+	 * (ticked for import AND not a catalog key), so a forged key, or a catalog
+	 * field slipped in here, can never be written.
+	 *
+	 * @param int   $post_id Property post ID.
+	 * @param array $other   Field => raw value (a list is stored comma separated).
+	 * @return string[] The fields that were written.
+	 */
+	public static function save_dynamic_fields( int $post_id, array $other ): array {
+		$allowed = self::dynamic_field_keys( $post_id );
+		$written = array();
+		foreach ( $other as $field => $raw ) {
+			if ( empty( $allowed[ (string) $field ] ) ) {
+				continue;
+			}
+			$val = is_array( $raw )
+				? implode( ', ', array_map( 'sanitize_text_field', $raw ) )
+				: sanitize_text_field( (string) $raw );
+			update_post_meta( $post_id, 'mlsimport_' . (string) $field, $val );
+			$written[] = (string) $field;
+		}
+		return $written;
+	}
+
+	/**
+	 * The dynamic imported fields of a property with their values: exactly the
+	 * fields the edit screen's tabs show (see dynamic_field_keys()).
+	 *
+	 * @param int $post_id Property post ID.
+	 * @return array<string, string> Field => value, in field-selector order.
+	 */
+	public static function dynamic_field_values( int $post_id ): array {
+		$values = array();
+		foreach ( array_keys( self::dynamic_field_keys( $post_id ) ) as $field ) {
+			$values[ $field ] = function_exists( 'mlsimport_property_field_value' )
+				? mlsimport_property_field_value( $post_id, $field )
+				: (string) get_post_meta( $post_id, 'mlsimport_' . $field, true );
+		}
+		return $values;
 	}
 }

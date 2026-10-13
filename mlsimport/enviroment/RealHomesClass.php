@@ -64,6 +64,31 @@ class RealHomesClass {
 	}
 
 	/**
+	 * Return the post meta key holding a listing's current price (issue #222).
+	 *
+	 * Named by the AWS Real Homes theme schema (mls_theme_enviroments.py). The
+	 * Stored Listing Write module reads the stored price under this key before
+	 * it overwrites it, so a price change becomes a Listing Change Event.
+	 *
+	 * @return string Real Homes price meta key.
+	 */
+	public function price_meta_key(): string {
+		return 'REAL_HOMES_property_price';
+	}
+
+	/**
+	 * Return the post meta key holding a listing's zip code.
+	 *
+	 * On a theme site the SaaS delivers PostalCode only under this key (it
+	 * is moved out of extra_meta), so the listing facts read the zip here.
+	 *
+	 * @return string Real Homes zip meta key.
+	 */
+	public function zip_meta_key(): string {
+		return 'property_zip';
+	}
+
+	/**
 	 * Replace Real Homes' repeated gallery-meta rows with the final ordered set.
 	 *
 	 * @param int             $property_id   Managed Listing post ID.

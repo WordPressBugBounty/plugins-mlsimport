@@ -3,7 +3,7 @@
  * Plugin Name:       MlsImport
  * Plugin URI:        https://mlsimport.com/
  * Description:       MLS Import - The MLSImport plugin facilitates the connection to your real estate MLS database, allowing you to download and synchronize real estate property data from the MLS.
- * Version:           7.2.2
+ * Version:           7.2.3
  * Requires at least: 5.2
  * Requires PHP:      7.4
  * License: GPLv3
@@ -40,7 +40,7 @@ if ( ! defined( 'WPINC' ) ) {
 
 
 // Current plugin version (kept in sync with the header above and the readme).
-define( 'MLSIMPORT_VERSION', '7.2.2');
+define( 'MLSIMPORT_VERSION', '7.2.3');
 // Marketing/portal host used to build sign-up and affiliate links.
 define( 'MLSIMPORT_CLUBLINK', 'mlsimport.com' );
 // Scheme for the portal host links.
@@ -166,6 +166,11 @@ add_action( 'wp_ajax_mlsimport_dismiss_protected_notice', 'mlsimport_handle_dism
 function mlsimport_handle_dismiss_protected_notice() {
     // Verify the nonce created in the modal markup above.
     check_ajax_referer( 'mlsimport_dismiss_protected_notice' );
+    // A nonce proves where the request came from, not who sent it: only an
+    // administrator may switch the notice off for the whole site.
+    if ( ! current_user_can( 'manage_options' ) ) {
+        wp_send_json_error( array( 'message' => 'Unauthorized' ), 403 );
+    }
     // Persist that this notice has been acknowledged so it never shows again.
     update_option( 'mlsimport_dismiss_protected_status_notice', true );
     // Remove the one-time "show modal" flag.
@@ -226,6 +231,8 @@ require_once plugin_dir_path( __FILE__ ) . 'includes/class-mlsimport-reconciliat
 require_once plugin_dir_path( __FILE__ ) . 'includes/class-mlsimport-reconciliation-wordpress-environment.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/class-mlsimport-import-task-execution.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/class-mlsimport-import-task-execution-wordpress-environment.php';
+// The single "start a manual import" function: task screen, setup wizard, AI tool.
+require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-manual-import-start.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-status-normalize.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/class-mlsimport-stored-listing-fields.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/class-mlsimport-stored-listing-title.php';
@@ -242,9 +249,16 @@ require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-settings-transfer
 // N-entitlement SaaS contract consumer (#276): entitlements parsing, the
 // mls_id echo guard, and the stable not_entitled rejection handling.
 require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-entitlements.php';
+// Friendly wording for MLS query errors the customer can fix on the Import
+// Task (unsupported InternetEntireListingDisplayYN / InternetAddressDisplayYN).
+require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-mls-error-messages.php';
 // Import task connection binding + cron isolation (#277): a task belongs to
 // ONE connection for life; the hourly cron gates each task on ITS connection.
 require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-task-binding.php';
+// The Tools tab actions as plain functions (Tools tab + AI tools).
+require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-admin-tools.php';
+// The one save of an Import Task's settings (task editor + AI tool update-task).
+require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-task-settings.php';
 // Per-connection reconciliation (#279): the daily event runs the untouched
 // decision module once per connection, each with an echo-guarded scoped
 // snapshot and an inventory limited to that connection's stamped listings.
@@ -299,6 +313,10 @@ require_once plugin_dir_path( __FILE__ ) . 'includes/addons/agents_offices.php';
 // one "not connected" box every screen prints.
 require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-account-status.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-onboarding.php';
+// AI assistant access (MCP). Only this bootstrap loads on every request; it
+// loads the rest of includes/mcp/ and the bundled adapter when the Tools tab
+// switch is on and WordPress is 6.9 or newer.
+require_once plugin_dir_path( __FILE__ ) . 'includes/mcp/mlsimport-mcp-bootstrap.php';
 
 require_once plugin_dir_path( __FILE__ ) . 'includes/class-mlsimport-field-configuration.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-field-selector-functions.php';
@@ -311,9 +329,23 @@ require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-telemetry.php';
 // #283: per-connection telemetry (sync stamps + the connections payload seam).
 require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-telemetry-connections.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-activity-log.php';
+// The one Import History query (wp-admin table + AI tool import-history).
+require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-activity-query.php';
+// #222: Listing Change Events — pure diff at the write boundary + the events
+// table, hooks, retention prune. Read in wp-admin (Listing Changes page) only.
+require_once plugin_dir_path( __FILE__ ) . 'includes/class-mlsimport-listing-events-diff.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/class-mlsimport-listing-events.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/class-mlsimport-listing-event-facts.php';
+// Listing change email notifications: kind + filter matcher, saved settings.
+require_once plugin_dir_path( __FILE__ ) . 'includes/class-mlsimport-listing-notification-matcher.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/class-mlsimport-listing-notification-settings.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/class-mlsimport-buyer-searches.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/class-mlsimport-listing-notification-digest.php';
 // #208: internal incident alerts (dedup + resolve) and import/connection health watch.
 require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-alerts.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-import-health.php';
+// A page's own CSS (post meta), printed in that page's head; written by the AI tools.
+require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-custom-css.php';
 
 /*
  * Standalone (theme_id 990) mode — own listings table, CPTs and taxonomies.
@@ -351,6 +383,7 @@ require_once plugin_dir_path( __FILE__ ) . 'includes/standalone/class-mlsimport-
 require_once plugin_dir_path( __FILE__ ) . 'includes/standalone/class-mlsimport-saved-search-front.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/standalone/class-mlsimport-saved-search-admin.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/standalone/page-block-registry.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/standalone/page-block-styles.php'; // Per-block look of the listing-card blocks (block editor `styles` attribute + scoped CSS).
 require_once plugin_dir_path( __FILE__ ) . 'includes/standalone/class-mlsimport-page-block-shortcodes.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/standalone/class-mlsimport-page-block-blocks.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/standalone/class-mlsimport-page-block-elementor.php';
@@ -564,9 +597,7 @@ function mlsimport_saas_event_mls_import_auto_function() {
     // stays equal to the sum of the per-connection buckets.
     mlsimport_telemetry_set( 'last_sync_attempt', time() );
 
-    // 3. Set batch size for gathering and initialize loop variables
-    $batch_size = 100;
-    $paged = 1;
+    // 3. Initialize the loop counter.
     $total_processed = 0;
 
     // 4. Gather every cron-enabled task id first (ids only — a few bytes each,
@@ -779,6 +810,26 @@ function mlsimport_saas_filter_timelimit( $time_limit ) {
  **/
 
 /**
+ * The path of one daily log file.
+ *
+ * The one place that knows where a log bucket is stored, shared by the log
+ * writer below and the read-log AI tool (includes/mcp/mlsimport-mcp-history.php).
+ * Each bucket has one file per day (UTC).
+ *
+ * @param string $tip_import Log bucket: normal|cron|delete|server_cron.
+ * @param string $date       The day as 'Y-m-d'.
+ * @return string Full path of that day's log file.
+ */
+function mlsimport_log_file_path( string $tip_import, string $date ): string {
+	// Bucket to file name; anything unknown is the import log.
+	$log_file_name =  'cron' 		 ===  $tip_import  ? 'cron_logs' :
+					(  'delete' 	 ===  $tip_import  ? 'delete_logs' :
+					(  'server_cron' ===  $tip_import  ? 'server_cron_logs' : 'import_logs' ) );
+
+	return WP_PLUGIN_DIR . "/mlsimport/logs/{$log_file_name}-" . $date . '.log';
+}
+
+/**
  * Append a timestamped line to a per-type import log file (when logging is on).
  *
  * @param string|array $message    Message to log; arrays are JSON-encoded.
@@ -801,13 +852,8 @@ function mlsimport_saas_single_write_import_custom_logs( $message, $tip_import =
 	// Prefix the message with a UTC timestamp.
 	$formatted_message = gmdate( 'F j, Y, g:i a' ) . ' -> ' . $message;
 
-	// Determine the log file path based on the import type
-	$log_file_name =  'cron' 		 ===  $tip_import  ? 'cron_logs' :
-					(  'delete' 	 ===  $tip_import  ? 'delete_logs' :
-					(  'server_cron' ===  $tip_import  ? 'server_cron_logs' : 'import_logs' ) );
-
-	// Construct the full path with a date suffix
-	$log_file_path = WP_PLUGIN_DIR . "/mlsimport/logs/{$log_file_name}-" . gmdate( 'Y-m-d' ) . '.log';
+	// The day's log file for this bucket.
+	$log_file_path = mlsimport_log_file_path( (string) $tip_import, gmdate( 'Y-m-d' ) );
 
 	// Error handling for file operations
 	try {

@@ -161,7 +161,8 @@ class Mlsimport_Standalone_Block {
 		wp_register_script(
 			self::EDITOR_HANDLE,
 			$url . 'admin/js/mlsimport-standalone-block.js',
-			array( 'wp-blocks', 'wp-element', 'wp-components', 'wp-block-editor', 'wp-server-side-render' ),
+			// mlsimport-page-block-styles: the shared "Look" panel (page-block-styles.php).
+			array( 'wp-blocks', 'wp-element', 'wp-components', 'wp-block-editor', 'wp-server-side-render', 'mlsimport-page-block-styles' ),
 			$ver,
 			true
 		);

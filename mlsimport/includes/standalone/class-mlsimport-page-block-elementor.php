@@ -99,6 +99,7 @@ class Mlsimport_Page_Block_Elementor {
 			return;
 		}
 		require_once __DIR__ . '/elementor/class-mlsimport-elementor-page-block-widget.php';
+		require_once __DIR__ . '/elementor/class-mlsimport-elementor-blog-posts-widget.php';
 		// Guard against an unexpected manager shape before calling register().
 		if ( ! is_object( $widgets_manager ) || ! method_exists( $widgets_manager, 'register' ) ) {
 			return;
@@ -211,6 +212,12 @@ class Mlsimport_Page_Block_Elementor {
 				$value = (string) $value['url'];
 			}
 			$args[ $key ] = $value;
+		}
+		// The style options with no Style tab control of their own (set by the AI
+		// tools in the hidden mlsimport_styles control): the dispatcher's scoped CSS
+		// applies them, as on a block editor page (page-block-styles.php).
+		if ( ! empty( $settings['mlsimport_styles'] ) && is_array( $settings['mlsimport_styles'] ) ) {
+			$args['styles'] = $settings['mlsimport_styles'];
 		}
 		return mlsimport_render_page_block( $slug, $args );
 	}

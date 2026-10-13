@@ -636,7 +636,11 @@ function mlsimport_render_onboarding_step($step) {
  * Create the initial import item
  *
  * @since 6.1.0
- * @param array $import_data The import configuration data
+ * @param array $import_data The import configuration data. An optional
+ *                           'mls_id' names the MLS Connection the task is for;
+ *                           the wizard sends none (the helper then resolves the
+ *                           single or current connection), the create-task AI
+ *                           tool sends the one the client chose.
  * @return int The post ID of the created import item
  */
 function mlsimport_create_initial_import_item($import_data) {
@@ -653,8 +657,11 @@ function mlsimport_create_initial_import_item($import_data) {
         // Connection binding (#277): stamp the new task's MLS at creation —
         // onboarding always runs against the connection being set up, which
         // the helper resolves (single registered connection or the current
-        // selection).
-        mlsimport_bind_task_connection((int) $post_id, 0);
+        // selection). A caller that knows the MLS (the create-task AI tool)
+        // names it in $import_data['mls_id']; the binding honors it only when
+        // it is a registered connection.
+        $requested_mls_id = isset($import_data['mls_id']) ? (int) $import_data['mls_id'] : 0;
+        mlsimport_bind_task_connection((int) $post_id, $requested_mls_id);
         // Set up import item defaults
         mlsimport_setup_import_item_defaults($post_id, $import_data);
     }
@@ -729,7 +736,9 @@ add_action('wp_ajax_mlsimport_save_account', 'mlsimport_save_account_callback');
 /**
  * AJAX handler: save the MLSImport username or email/password and test login.
  *
- * Verifies the onboarding nonce, stores credentials in mlsimport_admin_options,
+ * Verifies the onboarding nonce and capability, then saves and tests the login
+ * through mlsimport_account_login() (includes/mlsimport-account-status.php),
+ * the plugin's single login function, which stores credentials in mlsimport_admin_options,
  * fetches a fresh API token, and returns connected/not-connected HTML + flag.
  * Clears the prior account verdict before that request: HTTP 400 or a transport
  * failure must not inherit a no-subscription message from an earlier login.
@@ -748,69 +757,29 @@ function mlsimport_save_account_callback() {
 		wp_send_json_error( array( 'message' => 'Unauthorized' ), 403 );
 	}
 
-	/*
-	 * Validate the live Save Account payload before loading prior account state.
-	 * Falling through on blanks let a warm token from the saved account answer
-	 * "connected" for an empty form (#306).
-	 */
+	// Read the live Save Account payload. The password is kept verbatim after
+	// unslashing and trim: text sanitization strips valid %xx sequences (#204).
 	$username = isset($_POST['mlsimport_username'])
 		? sanitize_text_field(wp_unslash($_POST['mlsimport_username']))
 		: '';
 	$password = isset($_POST['mlsimport_password'])
 		? trim(wp_unslash($_POST['mlsimport_password']))
 		: '';
-	$missing_fields = array();
-	if ('' === $username) {
-		$missing_fields[] = __('MLSImport.com Username or email', 'mlsimport');
-	}
-	if ('' === $password) {
-		$missing_fields[] = __('MLSImport.com Password', 'mlsimport');
-	}
 
-	if (!empty($missing_fields)) {
-		$message = 1 === count($missing_fields)
-			? sprintf(
-				/* translators: %s: one missing MLSImport account field label. */
-				__('%s is required.', 'mlsimport'),
-				$missing_fields[0]
-			)
-			: sprintf(
-				/* translators: 1: username label, 2: password label. */
-				__('%1$s and %2$s are required.', 'mlsimport'),
-				$missing_fields[0],
-				$missing_fields[1]
-			);
+	// Save and test the login through the plugin's single login function
+	// (shared with the account-connect AI tool).
+	$login = mlsimport_account_login($username, $password);
 
-		wp_send_json_error(array('message' => $message));
+	// Blank fields: nothing was saved; answer with the field-naming error.
+	if ('missing_fields' === $login['error']) {
+		wp_send_json_error(array('message' => $login['message']));
 	}
 
-	// Load current plugin options.
-	$options = get_option('mlsimport_admin_options', []);
-	// Both values are present. Preserve the password verbatim after unslashing
-	// and trim because text sanitization strips valid %xx sequences (#204).
-	$options['mlsimport_username'] = $username;
-	$options['mlsimport_password'] = $password;
-	update_option('mlsimport_admin_options', $options);
-
-	// Force the check below to exercise the credentials just saved rather than
-	// a token minted from the previous password (#205).
-	delete_transient('mlsimport_saas_token');
-	delete_option('mlsimport_token_expiry');
-	// This is a new login attempt. Only its response may confirm no subscription;
-	// short passwords (HTTP 400) and timeouts do not overwrite an old verdict.
-	delete_option( MLSIMPORT_ACCOUNT_STATUS_OPTION );
-
-	global $mlsimport;
-
-	// Refresh token
-	$token = $mlsimport->admin->mlsimport_saas_get_mls_api_token_from_transient();
-
-	// Empty token means the login failed. The box names the reason the
-	// server gave (no subscription vs wrong password) — see
-	// includes/mlsimport-account-status.php.
-	if (trim($token) === '') {
+	// The login failed. The box names the reason the server gave (no
+	// subscription vs wrong password) — see includes/mlsimport-account-status.php.
+	if (!$login['connected']) {
 		$html            = mlsimport_account_not_connected_html();
-		$account_status  = mlsimport_account_status();
+		$account_status  = $login['account_status'];
 		$is_unsubscribed = 'no_subscription' === $account_status;
 
 		// Return one public account-state contract for both consumers. The
@@ -827,10 +796,6 @@ function mlsimport_save_account_callback() {
 			'subscribe_label' => $is_unsubscribed ? esc_html__( 'View plans', 'mlsimport' ) : '',
 		]);
 	} else {
-		// Signed in: re-read the account's entitlements (connection cap +
-		// registered MLS blocks) so a plan change shows up on reconnect.
-		mlsimport_refresh_entitlements();
-
 		ob_start();
 		?>
 		<div class="mlsimport_warning mlsimport_validated">
@@ -845,6 +810,41 @@ function mlsimport_save_account_callback() {
 			'connected' => true
 		]);
 	}
+}
+
+/**
+ * Run the setup wizard's test import: at most 5 listings of one Import Task.
+ *
+ * The one test-import sequence, shared by the wizard
+ * (mlsimport_ajax_run_test_import() below) and the run-test-import AI tool
+ * (includes/mcp/mlsimport-mcp-site.php). The caller has already checked
+ * that the user may manage the task.
+ *
+ * Step by step:
+ * 1. Cap the task at 5 listings.
+ * 2. Setup has no count displayed by the page, so the plugin's single
+ *    manual-start function counts once at the MLS, then starts the run (run
+ *    slot, log lines, worker queue). Shared with the task screen and the
+ *    run-import AI tool.
+ * 3. Log the start in the onboarding log.
+ *
+ *
+ * @param int $import_id Import Task post id.
+ * @return array The answer of mlsimport_start_manual_import(): 'started', and
+ *               'run_id' + 'found' or 'reason' + 'message'.
+ */
+function mlsimport_run_test_import( int $import_id ): array {
+    // Step 1: the test imports 5 listings.
+    update_post_meta( $import_id, 'mlsimport_item_how_many', 5 );
+
+    // Step 2: count at the MLS and start the run.
+    $start = mlsimport_start_manual_import( $import_id, 5, null, 1 );
+
+    // Step 3: the onboarding log.
+    if ( true === $start['started'] ) {
+        mlsimport_log_onboarding_event( 'Starting test import of up to 5 properties', 'info' );
+    }
+    return $start;
 }
 
 /**
@@ -878,36 +878,12 @@ function mlsimport_ajax_run_test_import() {
         wp_send_json_error( array( 'message' => __( 'You are not allowed to manage this import task.', 'mlsimport' ) ), 403 );
     }
 
-    update_post_meta( $import_id, 'mlsimport_item_how_many', 5 );
-    global $mlsimport;
-
     try {
-        // Setup has no count displayed by the page, so this small scheduling
-        // adapter performs one count and passes it into the shared manual run.
-        $mlsrequest = $mlsimport->admin->mlsimport_make_listing_requests( $import_id );
-        if ( ! isset( $mlsrequest['results'] ) || 0 === intval( $mlsrequest['results'] ) ) {
-            wp_send_json_error( array( 'message' => __( 'No listings found with current configuration', 'mlsimport' ) ) );
+        // The test import itself is shared with the run-test-import AI tool.
+        $start = mlsimport_run_test_import( (int) $import_id );
+        if ( true !== $start['started'] ) {
+            wp_send_json_error( array( 'message' => $start['message'] ) );
         }
-        $found_items = min( 5, max( 0, intval( $mlsrequest['results'] ) ) );
-        $start       = $mlsimport->admin->mlsimport_import_task_execution()->start(
-            array(
-                'task_id'    => (int) $import_id,
-                'source'     => 'manual',
-                'found'      => $found_items,
-                'limit'      => 5,
-                'is_onboard' => 1,
-            )
-        );
-        if ( true !== ( $start['accepted'] ?? false ) ) {
-            wp_send_json_error(
-                array( 'message' => __( 'Another import is already running. Please wait for it to finish.', 'mlsimport' ) )
-            );
-        }
-
-        mlsimport_log_onboarding_event( 'Starting test import of up to 5 properties', 'info' );
-        // Shared worker scheduling: clears dead/superseded queue entries first
-        // so a previously crashed worker can never block this start.
-        $mlsimport->admin->mlsimport_enqueue_import_worker( (string) $start['run_id'] );
 
         wp_send_json_success(
             array(
@@ -1013,10 +989,22 @@ function mlsimport_clear_onboarding_state() {
 /**
  * Maybe restart wizard
  *
+ * Hooked on admin_init, which also fires for admin-ajax.php and
+ * admin-post.php requests from visitors who are not logged in. The reset
+ * therefore runs only for an administrator who followed the wizard's own
+ * "Restart Setup" link (it carries a nonce); any other request is ignored.
+ *
  * @since 6.1.0
  */
 function mlsimport_maybe_restart_wizard() {
     if (isset($_GET['restart_wizard']) && $_GET['restart_wizard'] == 1) {
+        // Who: administrators only. Where from: the wizard's restart link.
+        if ( ! current_user_can( 'manage_options' )
+            || ! isset( $_GET['_wpnonce'] )
+            || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_GET['_wpnonce'] ) ), 'mlsimport_restart_wizard' ) ) {
+            return;
+        }
+
         // Clear onboarding state
         mlsimport_clear_onboarding_state();
         

@@ -153,13 +153,45 @@ function mlsimport_connections_run_test( int $mls_id ): ?array {
 }
 
 /**
+ * Persist a new priority order of the registered connections.
+ *
+ * The one reorder sequence, shared by the Connections screen's drag-reorder
+ * (AJAX handler below) and the AI tool reorder-mls-connections
+ * (includes/mcp/mlsimport-mcp-connection-manage.php).
+ *
+ * Step by step:
+ * 1. Validate + apply the id order through the pure helper — an order that
+ *    does not name every registered connection exactly once is refused.
+ * 2. Persist each record's new priority through the registry accessor.
+ * 3. Priority drives the dedupe winner (#267/#282) — re-decide every
+ *    currently flagged duplicate group under the new order, deterministically.
+ *
+ * @param array $order mls_ids in the new priority order (1 first).
+ * @return bool True when the order was saved, false when it was refused.
+ */
+function mlsimport_connections_reorder_execute( array $order ): bool {
+	// Step 1: validate + apply (ids are cast to int inside the helper).
+	$updated = mlsimport_connections_apply_order( $order, Mlsimport_Connections::all() );
+	if ( null === $updated ) {
+		return false;
+	}
+
+	// Step 2: persist.
+	foreach ( $updated as $record ) {
+		Mlsimport_Connections::save( $record );
+	}
+
+	// Step 3: re-decide the flagged duplicates.
+	mlsimport_dedupe_reevaluate_flagged();
+	return true;
+}
+
+/**
  * AJAX: persist a drag-reorder as registry priorities.
  *
  * Step by step:
  * 1. Nonce + administrator capability.
- * 2. Validate + apply the posted id order through the pure helper — an order
- *    that does not name every registered connection exactly once is refused.
- * 3. Persist each record's new priority through the registry accessor.
+ * 2. Hand the posted id order to mlsimport_connections_reorder_execute().
  *
  * @return void
  */
@@ -170,21 +202,11 @@ function mlsimport_ajax_connections_reorder() {
 		wp_send_json_error( array( 'message' => 'Unauthorized' ) );
 	}
 
-	// Step 2: validate + apply (ids are cast to int inside the helper).
-	$order   = isset( $_POST['order'] ) && is_array( $_POST['order'] ) ? wp_unslash( $_POST['order'] ) : array();
-	$updated = mlsimport_connections_apply_order( $order, Mlsimport_Connections::all() );
-	if ( null === $updated ) {
+	// Step 2: validate, save and re-decide duplicates.
+	$order = isset( $_POST['order'] ) && is_array( $_POST['order'] ) ? wp_unslash( $_POST['order'] ) : array();
+	if ( ! mlsimport_connections_reorder_execute( $order ) ) {
 		wp_send_json_error( array( 'message' => 'Invalid connection order' ) );
 	}
-
-	// Step 3: persist.
-	foreach ( $updated as $record ) {
-		Mlsimport_Connections::save( $record );
-	}
-
-	// Step 4: priority drives the dedupe winner (#267/#282) — re-decide every
-	// currently flagged duplicate group under the new order, deterministically.
-	mlsimport_dedupe_reevaluate_flagged();
 	wp_send_json_success();
 }
 
@@ -244,22 +266,33 @@ function mlsimport_ajax_connections_disconnect() {
 		wp_send_json_error( array( 'message' => 'Unauthorized' ) );
 	}
 
-	// Step 2: forget the password (credentials are never sanitized — this
-	// only removes the key).
+	// Step 2: the one disconnect (shared with the account-disconnect AI tool).
+	mlsimport_account_disconnect();
+
+	wp_send_json_success();
+}
+
+/**
+ * Disconnect the MLSImport account: what the Connections screen's Disconnect
+ * button does. The caller has already decided the disconnect is allowed.
+ *
+ * Step by step:
+ * 1. Forget the password (credentials are never sanitized; this only removes
+ *    the key). The username stays, so signing in again needs only the password.
+ * 2. End the current session (token and its expiry).
+ * 3. The connection cap was this account's grant; forget it with the account.
+ *
+ * @return void
+ */
+function mlsimport_account_disconnect(): void {
 	$options = get_option( 'mlsimport_admin_options', array() );
 	if ( is_array( $options ) ) {
 		unset( $options['mlsimport_password'] );
 		update_option( 'mlsimport_admin_options', $options );
 	}
-
-	// Step 3: end the current session.
 	delete_transient( 'mlsimport_saas_token' );
 	delete_option( 'mlsimport_token_expiry' );
-
-	// Step 4: the cap was this account's grant — forget it with the account.
 	delete_option( 'mlsimport_entitlement_cap' );
-
-	wp_send_json_success();
 }
 
 add_action( 'wp_ajax_mlsimport_connections_reorder', 'mlsimport_ajax_connections_reorder' );

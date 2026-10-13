@@ -292,6 +292,18 @@ final class Mlsimport_Reconciliation_WordPress_Environment implements Mlsimport_
 		if ( ! $post_type || $owner_id <= 0 || '' === $live_key || $live_key !== $listing_key ) {
 			return false;
 		}
+		// Listing Change Events (#222): the last known status is read BEFORE the
+		// raw delete wipes the term relationships; it becomes the Removal's old
+		// value once the deletion is durable and recorded.
+		$status_fields = mlsimport_active_field_configuration( false, $this->mls_id );
+		$last_status   = (string) mlsimport_read_property_status(
+			$listing_id,
+			isset( $status_fields['mls-fields-map-taxonomy'] ) ? $status_fields['mls-fields-map-taxonomy'] : array()
+		);
+		// Email notifications: the listing details saved by the last write are
+		// read here too — the raw delete below wipes them with the post meta.
+		$facts = get_post_meta( $listing_id, Mlsimport_Listing_Event_Facts::META_KEY, true );
+		$facts = is_array( $facts ) ? $facts : array();
 
 		$allowed_types = array( 'estate_property', 'property', 'mlsimport_property' );
 		if ( isset( $mlsimport->admin->env_data ) && method_exists( $mlsimport->admin->env_data, 'get_property_post_type' ) ) {
@@ -360,6 +372,24 @@ final class Mlsimport_Reconciliation_WordPress_Environment implements Mlsimport_
 		}
 		mlsimport_record_activity( 'deleted', $listing_id, $listing_key, $owner_id, 'reconciliation', '', '', $reason );
 		mlsimport_telemetry_bump( 'deleted', 1, $provenance_mls );
+		// A Removal (#222): the listing vanished from the MLS snapshot, so there
+		// is no incoming status — new_value stays ''.
+		Mlsimport_Listing_Events::record(
+			array(
+				'mls_id'      => $provenance_mls,
+				'listing_key' => $listing_key,
+				'post_id'     => $listing_id,
+				'task_id'     => $owner_id,
+				'facts'       => $facts,
+			),
+			array(
+				array(
+					'type' => 'removed',
+					'old'  => $last_status,
+					'new'  => '',
+				),
+			)
+		);
 		return true;
 	}
 

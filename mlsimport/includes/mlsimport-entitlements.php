@@ -197,7 +197,8 @@ function mlsimport_refresh_entitlements(): void {
 	$options = get_option( 'mlsimport_admin_options', array() );
 	$options = is_array( $options ) ? $options : array();
 	$answer  = ThemeImport::globalApiRequestSaas(
-		'clients?theme_id=' . intval( $options['mlsimport_theme_used'] ?? 0 ),
+		// Saved choice, else the detected theme, else standalone (990).
+		'clients?theme_id=' . mlsimport_resolve_theme_id(),
 		array(),
 		'GET'
 	);

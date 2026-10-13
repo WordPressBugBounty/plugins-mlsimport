@@ -401,31 +401,41 @@
 
 	// Register one dynamic block per entry in the localized manifest
 	window.MLSImportPageBlocks.forEach( function ( block ) {
-		var blockName = 'mlsimport/' + block.slug;
-		var fields    = block.args || [];
+		var blockName  = 'mlsimport/' + block.slug;
+		var fields     = block.args || [];
+		var attributes = buildAttributes( fields );
+
+		// Every page block carries its look in `styles` (option => value; see
+		// includes/standalone/page-block-styles.php). The AI tools and the shared
+		// "Look" panel (mlsimport-page-block-styles.js) both write it; declared here
+		// so the editor serializes it and forwards it to the server-side render.
+		attributes.styles = { type: 'object', 'default': {} };
 
 		blocks.registerBlockType( blockName, {
 			apiVersion: 2,
 			title: block.title,
 			icon: icon,
 			category: 'mlsimport-real-estate',
-			attributes: buildAttributes( fields ),
+			attributes: attributes,
 			// Editor view: inspector controls + a non-interactive server-rendered preview
 			edit: function ( props ) {
 				// apiVersion 2 requires the edit root to carry useBlockProps(), or the
 				// editor never builds the selectable block wrapper (block unselectable,
 				// so its InspectorControls — which only show on selection — never appear).
 				var blockProps = useBlockProps ? useBlockProps() : {};
+				// The shared "Look" panel (colors, sizes, columns) under the block's own panel.
+				var lookPanel = window.MLSImportBlockStyles ? window.MLSImportBlockStyles.panel( props, blockName ) : null;
 				var inspector = el(
 					InspectorControls,
 					{ key: 'inspector' },
 					el(
 						PanelBody,
-						{ title: block.title, initialOpen: true },
+						{ key: 'options', title: block.title, initialOpen: true },
 						fields.map( function ( f ) {
 							return controlFor( f, props );
 						} )
-					)
+					),
+					lookPanel
 				);
 				// Wrap the preview so its links/forms can't be clicked: the card markup
 				// is a full anchor, and an inline SSR preview would otherwise navigate

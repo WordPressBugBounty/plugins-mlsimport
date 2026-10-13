@@ -72,7 +72,8 @@ function mlsimport_gather_connection_metadata( int $mls_id = 0 ): array {
 	$options = get_option( 'mlsimport_admin_options' );
 	$options = is_array( $options ) ? $options : array();
 	$target  = $mls_id > 0 ? $mls_id : mlsimport_current_mls_id();
-	$url     = 'clients?theme_id=' . intval( $options['mlsimport_theme_used'] ?? 0 );
+	// Saved choice, else the detected theme, else standalone (990).
+	$url     = 'clients?theme_id=' . mlsimport_resolve_theme_id();
 	if ( $target > 0 ) {
 		$url .= '&mls_id=' . $target;
 	}

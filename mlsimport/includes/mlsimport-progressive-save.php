@@ -274,6 +274,29 @@ function mlsimport_import_field_configuration( array $incoming, int $mls_id = 0 
 }
 
 /**
+ * Apply one Field Configuration Change to one connection's mapping.
+ *
+ * The one place that hands a change command to the domain module with that
+ * connection's metadata, the allowed taxonomies and the theme defaults. Used
+ * by the Field Options screen (AJAX handler below) and by the AI tool
+ * change-field-mapping (includes/mcp/mlsimport-mcp-mapping.php).
+ *
+ * @param int   $mls_id   Connection whose mapping to change; 0 = current connection.
+ * @param int   $revision The revision the caller read the mapping at.
+ * @param array $command  The change command (type set | bulk | move).
+ * @return array Field Configuration Result.
+ */
+function mlsimport_change_field_configuration( int $mls_id, int $revision, array $command ): array {
+	return mlsimport_field_configuration( $mls_id )->change(
+		$revision,
+		$command,
+		mlsimport_field_configuration_metadata( $mls_id ),
+		mlsimport_field_configuration_taxonomies(),
+		mlsimport_hardocde_theme_schema()
+	);
+}
+
+/**
  * Handle the sole browser Field Configuration mutation endpoint.
  *
  * Security and request-shape validation happen before decoding the compact
@@ -304,13 +327,7 @@ function mlsimport_ajax_change_field_configuration() {
 	// request without one (legacy) resolves to the current connection.
 	$mls_id = mlsimport_field_mapping_request_scope( isset( $_POST['mls_id'] ) && is_scalar( $_POST['mls_id'] ) ? wp_unslash( $_POST['mls_id'] ) : null );
 
-	$result = mlsimport_field_configuration( $mls_id )->change(
-		$revision,
-		$command,
-		mlsimport_field_configuration_metadata( $mls_id ),
-		mlsimport_field_configuration_taxonomies(),
-		mlsimport_hardocde_theme_schema()
-	);
+	$result = mlsimport_change_field_configuration( $mls_id, $revision, $command );
 	if ( ! $result['success'] ) {
 		$status = 'stale_revision' === $result['error']['code'] ? 409 : ( 'persistence_failed' === $result['error']['code'] ? 500 : 422 );
 		wp_send_json_error( $result, $status );

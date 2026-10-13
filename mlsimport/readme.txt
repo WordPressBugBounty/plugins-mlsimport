@@ -4,7 +4,7 @@ Tags: idx, idx-plugin, mls, real-estate, wordpress-idx
 Requires at least: 5.2
 Tested up to: 7.1.1
 Requires PHP: 7.4
-Stable tag: 7.2.2
+Stable tag: 7.2.3
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -103,6 +103,21 @@ Read the terms and conditions of using MLSimport APIs here : https://mlsimport.c
 
 
 == Changelog ==
+= 7.2.3 =
+* New "Alerts" page under MLS Import Settings lists what changed on your listings: new listings, price drops and increases, status changes, listings under contract, sold, off market, back on market, and agent or office changes. Search by MLS number and filter by event or import task.
+* New daily email alerts, set up in the "Notifications" section of the Alerts page. Tick the kinds of change you want, add one or more email addresses, and switch each MLS on or off. Each MLS has its own filter (city, neighborhood, zip, price range, property type, status), prefilled from that MLS's import tasks. You get one email per MLS per day, and none on a day with nothing to report. "Sold" is reported only when the MLS sends a closed record.
+* The daily email also has a "Buyers to contact" section: buyers whose saved search matches a listing that is new or was just changed, with their contact email, the matching listings and a link to their search. Works with saved searches from MLSImport standalone, WpResidence, Houzez and Real Homes.
+* New "Blog Posts" page block (standalone mode) - shows your blog posts as cards with the featured image, date, title, excerpt and a read-more link, in a responsive grid with an optional pager. Use the [mlsimport_blog_posts] shortcode, the "Blog Posts" Gutenberg block or the Elementor widget; the card background and radius, title color and size and image height can be styled on both builders.
+* New "Studio" tile on the Beds row of the search form (standalone mode) - a studio has 0 bedrooms and could only be found with no bed filter at all. Studio now finds exactly 0 bedrooms; every other tile still means "at least". The beds and baths popup is wider so all the tiles fit on one line.
+* New "Country" filter on the Import Task for multi-country MLS feeds (Omni MLS South America) - pick one or more countries, with a Select all. Feeds that cover a single country do not show the control.
+* Import Task editor for MLS Grid feeds now offers only the filters MLS Grid accepts (status, property type, MLS number and listing office). The price range is no longer shown for these feeds because MLS Grid rejects it and the import would stop with an error. Values saved on a task before this change for a filter the editor no longer shows (for example "Internet Entire Listing Display") are no longer sent either, so such a task imports instead of stopping with an error about an option you cannot see.
+* Clearer message when an MLS does not support the Internet display filters - setting "Internet Entire Listing Display" or "Internet Address Display" to "yes" on a feed without those fields used to show the MLS's raw error text. The Import Task screen, the hourly import count and the Import Run log now tell you which Import Task option to set back to "no", with a link that scrolls to it.
+* Fixed the Import Task screen showing "connection NOT successful" on every task when the current MLS on the Connections tab was a failed or never-registered connection - each task is now judged by its own MLS connection. Adding an MLS from the "+ Add MLS" drawer also makes it the current MLS when the saved one is not a registered connection.
+* Fixed the daily alert emails never listing a change on WpResidence, Houzez, Real Homes and WpEstate sites when the notification filter had a price range - the price and zip are now read from the theme's own fields.
+* Fixed saving the Tools tab (or any settings form that does not include the theme select) clearing the saved theme, after which price, bedrooms, size and coordinates stayed empty on newly imported listings. The saved theme now survives such a save.
+* Delete Properties now removes 5 listings per request instead of 20. Removing a listing also deletes all its photos and thumbnails from disk, and on slower hosting a batch of 20 ran long enough for the host to cut the request off: the listings were gone but the page reported "Error during deletion. Deleted 0 so far." and stopped.
+* Fixed the Property List block (Gutenberg and Elementor) showing an empty search box with a lone Search button when every search field was switched off. The search box and button are now hidden in that case.
+
 = 7.2.2 =
 * New "MLS #" search field (standalone mode) - visitors can type the MLS number from a yard sign or flyer (for example TB8541851) and land on that exact listing. The field is available in the search form shortcode, the Gutenberg block and the Elementor widget, and in the filter bar above the results. Upper or lower case both work.
 * Listings imported before this update are picked up automatically when they have an MLS number stored. If a listing was imported without the ListingId field selected, select that field and re-import so its number can be found.

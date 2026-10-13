@@ -56,6 +56,30 @@ class ResidenceClass {
 	}
 
 	/**
+	 * Return the post meta key holding a listing's current price (issue #222).
+	 *
+	 * The Stored Listing Write module reads the stored price under this key
+	 * before it overwrites it, so a price change becomes a Listing Change Event.
+	 *
+	 * @return string WpResidence price meta key.
+	 */
+	public function price_meta_key(): string {
+		return 'property_price';
+	}
+
+	/**
+	 * Return the post meta key holding a listing's zip code.
+	 *
+	 * On a theme site the SaaS delivers PostalCode only under this key (it
+	 * is moved out of extra_meta), so the listing facts read the zip here.
+	 *
+	 * @return string WpResidence zip meta key.
+	 */
+	public function zip_meta_key(): string {
+		return 'property_zip';
+	}
+
+	/**
 	 * Persist WpResidence's one-array gallery representation.
 	 *
 	 * @param int             $property_id   Managed Listing post ID.

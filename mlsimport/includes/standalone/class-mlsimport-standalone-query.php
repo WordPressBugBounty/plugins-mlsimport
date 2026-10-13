@@ -21,6 +21,7 @@ class Mlsimport_Standalone_Query {
 	/**
 	 * Numeric range filters: param => [ column-with-operator placeholder, cast ].
 	 * Evaluated in this order, so the produced clause order is deterministic.
+	 * One exception lives in build_where: beds=0 (the Studio tile) is "exactly 0".
 	 */
 	private const NUMERIC = array(
 		'price_min'  => array( 'price >= %d', 'int' ),
@@ -128,9 +129,15 @@ class Mlsimport_Standalone_Query {
 			}
 			// $spec is [ clause-with-placeholder, cast ]; the clause SQL is fixed.
 			list( $sql, $cast ) = $spec;
-			$clauses[]          = $sql;
 			// Bind the value coerced to the declared type.
-			$args[]             = 'int' === $cast ? (int) $params[ $param ] : (float) $params[ $param ];
+			$value = 'int' === $cast ? (int) $params[ $param ] : (float) $params[ $param ];
+			// beds=0 is the search form's Studio tile. Every other numeric filter is a
+			// bound, but "0 or more bedrooms" would match everything, so 0 means exactly 0.
+			if ( 'beds' === $param && 0 === $value ) {
+				$sql = 'bedrooms = %d';
+			}
+			$clauses[] = $sql;
+			$args[]    = $value;
 		}
 
 		// Exact-match string filters: "column = %s" with the value bound as a string.

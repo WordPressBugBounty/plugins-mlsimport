@@ -43,6 +43,9 @@ class ResoBase {
 	/** @var bool Whether Direct MLS sends the saved provider token unchanged. */
 	protected $direct_uses_stored_token = false;
 
+	/** @var bool Whether the MLS accepts a ListPrice range as a request filter. */
+	protected $price_filter_supported = true;
+
 	/** @var object|null Active theme importer used by Stored mode. */
 	public $theme_importer;
 
@@ -151,6 +154,19 @@ class ResoBase {
 			'arguments' => $arguments,
 			'error'     => null,
 		);
+	}
+
+	/**
+	 * Report whether the Import Task editor should offer the price range.
+	 *
+	 * The price inputs are rendered outside the field catalog, so an adapter
+	 * whose MLS refuses a ListPrice filter (MLS Grid) says so here and the
+	 * editor skips them.
+	 *
+	 * @return bool
+	 */
+	public function price_filter_supported() {
+		return $this->price_filter_supported;
 	}
 
 	/**
