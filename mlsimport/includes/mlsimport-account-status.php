@@ -165,11 +165,18 @@ function mlsimport_account_login( string $username, string $password ): array {
 	// registered MLS blocks) so a plan change shows up on reconnect.
 	mlsimport_refresh_entitlements();
 
+	// Step 7: an install with no MLS Connection yet gets the Test MLS (#376),
+	// once, so the customer can import sample listings before their own MLS
+	// approves any credentials. The wizard reloads its step when this
+	// happened, so the MLS box and the pre-filled MLS render from real state.
+	$seeded = mlsimport_seed_test_connection();
+
 	return array(
-		'connected'      => true,
-		'error'          => '',
-		'message'        => __( 'Connected successfully!', 'mlsimport' ),
-		'account_status' => '',
+		'connected'       => true,
+		'error'           => '',
+		'message'         => __( 'Connected successfully!', 'mlsimport' ),
+		'account_status'  => '',
+		'test_mls_seeded' => (bool) $seeded['seeded'],
 	);
 }
 

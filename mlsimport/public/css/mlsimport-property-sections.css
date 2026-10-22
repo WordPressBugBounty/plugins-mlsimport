@@ -905,6 +905,8 @@ nav.mlsimport-property-subnav::-webkit-scrollbar {
 	font-size: 16px;
 	font-weight: 500;
 	color: var(--mlsimport-ink);
+	/* A long unbroken value (a 24-char MLS key) must wrap inside the tile. */
+	overflow-wrap: anywhere;
 }
 
 /* =========================================================================

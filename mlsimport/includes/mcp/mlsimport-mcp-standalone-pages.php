@@ -116,6 +116,9 @@ function mlsimport_mcp_page_blocks_schema(): array {
  *    naming the slugs that exist.
  * 3. Every option is one of that block's options; a wrong one is refused
  *    naming the options of that block.
+ * 4. A term picker (a city list of the Categories widgets, the Blog Posts
+ *    categories) takes names, slugs or ids and comes back as term ids; a
+ *    value that is no term is refused (mlsimport_mcp_resolve_term_picks()).
  *
  * @param array $blocks The blocks input: list of { block, options }.
  * @return array|WP_Error The blocks as [ slug => options ] rows, or the refusal.
@@ -144,6 +147,10 @@ function mlsimport_mcp_page_blocks_input( array $blocks ) {
 				/* translators: 1: the block, 2: the unknown options, 3: the options of that block. */
 				sprintf( __( 'The %1$s block has no option %2$s. Its options are: %3$s.', 'mlsimport' ), $slug, implode( ', ', array_map( 'sanitize_text_field', $unknown ) ), implode( ', ', array_keys( (array) $manifest[ $slug ]['args'] ) ) )
 			);
+		}
+		$options = mlsimport_mcp_resolve_term_picks( $slug, $options );
+		if ( is_wp_error( $options ) ) {
+			return $options;
 		}
 		$rows[] = array(
 			'slug'    => $slug,

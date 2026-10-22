@@ -10,6 +10,8 @@
  *   - how tokens are made and how they are stored (hashed);
  *   - when a Connected AI App may still act;
  *   - which "resource" a token may be asked for;
+ *   - whether a request is really the MLSImport MCP address;
+ *   - which discovery document a request path asks for (ours only);
  *   - which browser Origin may call the MCP address;
  *   - how many registrations the open register address accepts.
  *
@@ -23,6 +25,7 @@
  *   mlsimport_oauth_grant_problem( $last_used, $approver_is_admin, $now )
  *   mlsimport_oauth_resource_ok( $resource, $mcp_url )
  *   mlsimport_oauth_route_is_mcp( $front_index, $get_route, $post_route, $path, $mcp_path )
+ *   mlsimport_oauth_document_for_path( $path, $resource_path, $server_path )
  *   mlsimport_oauth_origin_allowed( $origin, $site_host, $allowed )
  *   mlsimport_oauth_registration_refused( $body_size, $from_this_address, $pending )
  *
@@ -209,6 +212,41 @@ function mlsimport_oauth_route_is_mcp( bool $front_index, $get_route, $post_rout
 
 	// Step 3: the path.
 	return '' !== $mcp_path && rtrim( $path, '/' ) === rtrim( $mcp_path, '/' );
+}
+
+/**
+ * Which discovery document a request path asks for, if any of ours.
+ *
+ * MLSImport and the WpResidence theme can both be sign-in providers on one
+ * site, so each must answer only the two well-known paths it advertises and
+ * leave every other path alone (the theme's own documents included). The
+ * two paths are the ones this plugin names itself: the protected-resource
+ * address from the 401 header (RFC 9728 form, the MCP path appended) and
+ * the sign-in provider address of the issuer (RFC 8414). Matching is exact;
+ * only a trailing slash is tolerated.
+ *
+ * @param string $path          Request path.
+ * @param string $resource_path Path of the protected-resource document (for example /.well-known/oauth-protected-resource/wp-json/mlsimport/mcp).
+ * @param string $server_path   Path of the sign-in provider document (for example /.well-known/oauth-authorization-server).
+ * @return string 'resource', 'server', or '' when the path is not one of ours.
+ */
+function mlsimport_oauth_document_for_path( string $path, string $resource_path, string $server_path ): string {
+	// Step 1: nothing to compare.
+	$path = rtrim( $path, '/' );
+	if ( '' === $path ) {
+		return '';
+	}
+
+	// Step 2: the protected-resource document of the MCP address.
+	if ( rtrim( $resource_path, '/' ) === $path ) {
+		return 'resource';
+	}
+
+	// Step 3: the sign-in provider document of the issuer.
+	if ( rtrim( $server_path, '/' ) === $path ) {
+		return 'server';
+	}
+	return '';
 }
 
 /**

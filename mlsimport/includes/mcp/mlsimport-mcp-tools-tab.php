@@ -107,7 +107,7 @@ function mlsimport_mcp_tools_tab_tools(): array {
 		),
 		'list-delete-terms' => array(
 			'label'       => 'Categories that properties can be deleted by',
-			'description' => 'Reads the taxonomies of the properties (city, county, status, type ...) and, when one taxonomy is named, its terms with how many properties each has. Use the taxonomy and term slugs with delete-properties-by-term.',
+			'description' => 'Reads the taxonomies of the properties (city, county, status, type ...) and, when one taxonomy is named, its terms with id, slug, name and how many properties each has. Use the taxonomy and term slugs with delete-properties-by-term; the ids or names fill the term pickers of the Categories page blocks (mlsimport_city, mlsimport_property_type ...).',
 			'input'       => array(
 				'taxonomy' => array(
 					'type'        => 'string',

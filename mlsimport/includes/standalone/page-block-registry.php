@@ -307,6 +307,32 @@ function mlsimport_register_builtin_page_blocks(): void {
 	// (shared by the Search Form, MLS Listings and Half Map widgets). 3–6 only.
 	$fields_per_row_options = array( '3' => '3', '4' => '4', '5' => '5', '6' => '6' );
 
+	// Custom parameters (Property List, Property Slider, Map with Listings): rows of
+	// { field, compare, value } on the listing's imported post meta, AND-ed. See
+	// Mlsimport_Custom_Parameters for how a row becomes SQL.
+	$custom_parameters = array(
+		'type'        => 'repeater',
+		'label'       => __( 'Custom parameters', 'mlsimport' ),
+		'default'     => array(),
+		'title_field' => '{{{ field }}} {{{ compare }}} {{{ value }}}',
+		'fields'      => array(
+			'field'   => array( 'type' => 'text', 'label' => __( 'Field (MLS name, e.g. BuildingName)', 'mlsimport' ), 'default' => '' ),
+			'compare' => array(
+				'type'    => 'select',
+				'label'   => __( 'How', 'mlsimport' ),
+				'default' => 'equals',
+				'options' => array(
+					'equals'       => __( 'Equals', 'mlsimport' ),
+					'not_equals'   => __( 'Not equals', 'mlsimport' ),
+					'greater_than' => __( 'Greater than', 'mlsimport' ),
+					'less_than'    => __( 'Less than', 'mlsimport' ),
+					'contains'     => __( 'Contains', 'mlsimport' ),
+				),
+			),
+			'value'   => array( 'type' => 'text', 'label' => __( 'Value', 'mlsimport' ), 'default' => '' ),
+		),
+	);
+
 	// Half Map = the shared initial-filter presets + search-bar display config + map layout.
 	$half_map_args = $listings_presets;
 	$half_map_args['search_fields']  = array( 'type' => 'text', 'label' => __( 'Search fields (comma list; empty = all)', 'mlsimport' ), 'default' => '' );
@@ -337,6 +363,7 @@ function mlsimport_register_builtin_page_blocks(): void {
 	$item_list_args['show_filter_bar'] = array( 'type' => 'toggle', 'label' => __( 'Show filter bar', 'mlsimport' ), 'default' => '1' );
 	$item_list_args['fields_per_row']  = array( 'type' => 'select', 'label' => __( 'Search fields per row', 'mlsimport' ), 'default' => '4', 'options' => $fields_per_row_options );
 	$item_list_args['search_fields']   = array( 'type' => 'text', 'label' => __( 'Search fields (comma list; empty = all)', 'mlsimport' ), 'default' => '' );
+	$item_list_args['custom_parameters'] = $custom_parameters;
 
 	// Content Slider = friendly How-many + Order + explicit IDs, then the SAME initial-
 	// filter presets the Half Map exposes (so city/type/status/features/price/beds/…
@@ -353,6 +380,7 @@ function mlsimport_register_builtin_page_blocks(): void {
 		'sort'  => $selection['sort'],
 		'ids'   => $selection['ids'],
 	) + $slider_presets;
+	$slider_args['custom_parameters'] = $custom_parameters;
 
 	// Map with Listings = ONLY the shared initial-filter presets (city/type/status/price/
 	// beds/…) — the SAME rich pickers the Content Slider and Gutenberg map expose. A map
@@ -362,6 +390,7 @@ function mlsimport_register_builtin_page_blocks(): void {
 	// term-picker (autocomplete) values and nothing else. Was a flat $selection (raw text
 	// City/Type/Status/Features), which is why the Elementor widget showed plain text boxes.
 	$map_args = $slider_presets;
+	$map_args['custom_parameters'] = $custom_parameters;
 
 	// Category widgets (Category Slider + Display Categories): one term multi-select
 	// PER plugin taxonomy (Cities, Property Types, Areas, County, …). The operator

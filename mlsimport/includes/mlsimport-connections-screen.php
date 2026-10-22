@@ -262,9 +262,10 @@ function mlsimport_connections_activity(): array {
  *    activity counts (zeros when a connection has no activity yet).
  * 2. Account state: connected = a SaaS token exists for the saved account
  *    credentials; the username identifies the account in the summary bar.
- * 3. Plan slots: used = registered connections, cap = the #276 entitlement
- *    cap (minimum 1), re-read from the SaaS first when the account is
- *    connected. at_cap switches "+ Add MLS" to "Upgrade plan".
+ * 3. Plan slots: used = registered connections minus the Test MLS (#376),
+ *    cap = the #276 entitlement cap (minimum 1), re-read from the SaaS first
+ *    when the account is connected. at_cap switches "+ Add MLS" to
+ *    "Upgrade plan".
  *
  * @return array{rows:array, used:int, cap:int, at_cap:bool,
  *               account:array{connected:bool, username:string}}
@@ -300,7 +301,8 @@ function mlsimport_connections_screen_data(): array {
 	if ( '' !== $token ) {
 		mlsimport_refresh_entitlements();
 	}
-	$used = count( $rows );
+	// The Test MLS (#376) is never a slot: the shared counter skips it.
+	$used = mlsimport_connections_used( array_keys( $rows ) );
 	$cap  = mlsimport_entitlement_cap();
 
 	return array(

@@ -54,9 +54,18 @@ function mlsimport_format_odata_modification_time( $last_date ) {
  *
  * Callers give this module the provider type saved with the MLS configuration
  * and the numeric MLS ID. The saved type is checked first so old numeric ranges
- * cannot override authoritative provider data.
+ * cannot override authoritative provider data. The one exception is the Test
+ * MLS, chosen by id alone (see TEST_MLS_ID).
  */
 class Mlsimport_Provider_Family {
+
+	/**
+	 * Catalogue row of "Test MLS (sample listings)", Bridge's public sample
+	 * dataset (issue #376). It needs no Provider Credentials on the site, never
+	 * counts as one of the MLSImport Account's MLS slots, and has no Direct
+	 * mode. Every rule about it hangs off this one constant.
+	 */
+	const TEST_MLS_ID = 100;
 
 	/**
 	 * Return the adapter selected by saved provider type.
@@ -70,6 +79,12 @@ class Mlsimport_Provider_Family {
 		// Normalize the saved value once before choosing the provider class.
 		$type = strtolower( trim( (string) $saved_type ) );
 		$id   = (int) $mls_id;
+
+		// The Test MLS (#376) is chosen by id, before any type: the SaaS reports
+		// it as plain "bridge", but on the site it needs no credentials.
+		if ( self::TEST_MLS_ID === $id ) {
+			return new TestMlsResoClass( $theme_importer );
+		}
 
 		// Only a missing saved type may use the old numeric-ID compatibility map.
 		if ( '' === $type ) {

@@ -66,7 +66,7 @@ function mlsimport_featured_card( int $id, int $design ): string {
 		'permalink' => $v['permalink'],
 		'address'   => $v['address'],
 		'price'     => $v['price_fmt'],
-		'status'    => $v['status'],
+		'status'    => $v['badge'], // The badge over the photo: status, or the Listing Type term per the card_badge setting (#355).
 		'specs'     => implode( ' · ', $v['specs'] ),
 		'excerpt'   => $excerpt,
 		'img'       => $v['has_thumb'] ? get_the_post_thumbnail( $id, 'large', array( 'class' => 'mlsimport-featured__img', 'alt' => $v['address'] ) ) : '',

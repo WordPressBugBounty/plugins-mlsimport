@@ -61,7 +61,7 @@ function mlsimport_mcp_standalone_page_edit_tools(): array {
 		),
 		'update-page-block' => array(
 			'label'       => 'Change a block on a page',
-			'description' => 'Changes one plugin block on a page, found by its position from page-blocks. The options you name change (names from list-page-blocks), the styles you name change (names and current values from page-blocks: a color is a hex value like #2a7f62, a size a whole number of pixels, an empty value removes that style). Everything else stays. Works the same on an Elementor page and on a block editor page.',
+			'description' => 'Changes one plugin block on a page, found by its position from page-blocks. The options you name change (names from list-page-blocks), the styles you name change (names and current values from page-blocks: a color is a hex value like #2a7f62, a size a whole number of pixels, an empty value removes that style). Everything else stays. A term picker option (mlsimport_city, mlsimport_property_type ... on the Categories blocks) takes a list of term names, slugs or ids; the answer lists the terms it holds. Works the same on an Elementor page and on a block editor page.',
 			'input'       => array(
 				'page_id'  => $page_id,
 				'position' => $position,
@@ -191,7 +191,7 @@ function mlsimport_mcp_page_blocks( array $input ) {
 		foreach ( mlsimport_page_block_style_options( $row['slug'] ) as $key => $option ) {
 			$style_options[ $key ] = $option['label'];
 		}
-		$blocks[] = array(
+		$block = array(
 			'position'      => $index + 1,
 			'block'         => $row['slug'],
 			'label'         => (string) $manifest[ $row['slug'] ]['label'],
@@ -199,6 +199,12 @@ function mlsimport_mcp_page_blocks( array $input ) {
 			'styles'        => $row['styles'],
 			'style_options' => $style_options,
 		);
+		// A term picker stores ids; show the AI the terms they stand for.
+		$terms = mlsimport_mcp_term_pick_names( $row['slug'], $row['options'] );
+		if ( ! empty( $terms ) ) {
+			$block['terms'] = $terms;
+		}
+		$blocks[] = $block;
 	}
 
 	$edit_url = $elementor ? (string) \Elementor\Plugin::instance()->documents->get( $page->ID )->get_edit_url() : (string) get_edit_post_link( $page->ID, 'raw' );

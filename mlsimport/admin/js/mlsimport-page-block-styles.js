@@ -22,6 +22,9 @@
 	}
 
 	var el             = wp.element.createElement;
+	// Visible words go through __() with the mlsimport domain (#374).
+	// wp-i18n is a script dependency.
+	var __             = wp.i18n.__;
 	var components     = wp.components;
 	var PanelBody      = components.PanelBody;
 	var TextControl    = components.TextControl;
@@ -100,7 +103,7 @@
 						style: { display: 'flex', alignItems: 'center', gap: '8px', width: '100%' }
 					},
 						ColorIndicator ? el( ColorIndicator, { colorValue: value || 'transparent' } ) : null,
-						el( 'span', null, value ? value : 'Default' )
+						el( 'span', null, value ? value : __( 'Default', 'mlsimport' ) )
 					);
 				},
 				renderContent: function () {
@@ -155,7 +158,7 @@
 		var styles = props.attributes.styles && typeof props.attributes.styles === 'object' ? props.attributes.styles : {};
 		return el(
 			PanelBody,
-			{ key: 'look', title: 'Look', initialOpen: false, className: 'mlsimport-block-inspector' },
+			{ key: 'look', title: __( 'Look', 'mlsimport' ), initialOpen: false, className: 'mlsimport-block-inspector' },
 			options.map( function ( option ) {
 				return option.kind === 'color'
 					? colorControl( props, option, styles[ option.key ] )

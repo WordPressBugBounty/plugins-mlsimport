@@ -80,6 +80,8 @@ function mlsimport_card_view( $post, $row ): array {
 		'price'     => $price,
 		'price_fmt' => $price_fmt,
 		'status'    => isset( $row->status ) ? trim( (string) $row->status ) : '',
+		// The badge over the photo: the status, or the Listing Type term (#355).
+		'badge'     => mlsimport_listing_badge( $pid, isset( $row->status ) ? trim( (string) $row->status ) : '' ),
 		'specs'     => $specs,
 		'office'    => trim( (string) get_post_meta( $pid, 'mlsimport_ListOfficeName', true ) ),
 		'logo'      => function_exists( 'mlsimport_standalone_mls_logo_url' ) ? mlsimport_standalone_mls_logo_url() : '',
@@ -91,6 +93,38 @@ function mlsimport_card_view( $post, $row ): array {
 
 	/** Filter one card's view model before the template lays it out. @since 6.4 */
 	return (array) apply_filters( 'mlsimport_card_view', $view, $post, $row );
+}
+
+/**
+ * The text of the badge over a listing's photo, on the card and on the
+ * property page (issue #355).
+ *
+ * Step by step:
+ * 1. The design setting card_badge says what the badge shows. "status" (the
+ *    default) is the MLS status as sent, the value the row already holds.
+ * 2. "listing_type" is the listing's Listing Type term, by its current name:
+ *    the owner may have renamed "Residential" to "For Sale", and that is the
+ *    word the visitor should read. WordPress caches the post's terms, and a
+ *    grid primes them for the page's posts in one query.
+ * 3. A listing with no Listing Type term falls back to the status, so the
+ *    badge never goes blank because of the setting.
+ *
+ * @param int    $post_id The listing post.
+ * @param string $status  The MLS status of the listing (the row's status column).
+ * @return string The badge text, '' when there is nothing to show.
+ */
+function mlsimport_listing_badge( int $post_id, string $status ): string {
+	// Step 1: the default badge is the MLS status.
+	if ( 'listing_type' !== (string) mlsimport_standalone_option( 'card_badge', 'status' ) ) {
+		return $status;
+	}
+	// Step 2: the Listing Type term, under the name the owner gave it.
+	$terms = get_the_terms( $post_id, 'mlsimport_listing_type' );
+	if ( is_array( $terms ) && ! empty( $terms ) ) {
+		return (string) reset( $terms )->name;
+	}
+	// Step 3: no term, the status stands in.
+	return $status;
 }
 
 /**

@@ -129,12 +129,14 @@ function mlsimport_tools_clear_fields_data( int $mls_id = 0 ): void {
  *         (including empty ones), by name.
  */
 function mlsimport_tools_taxonomy_terms( string $taxonomy ): array {
-	// Fetch all terms (including empties) and flatten to slug/name/count.
+	// Fetch all terms (including empties) and flatten to id/slug/name/count.
+	// The id is what the page blocks' term pickers store (#372).
 	$terms  = get_terms( array( 'taxonomy' => $taxonomy, 'hide_empty' => false, 'orderby' => 'name' ) );
 	$result = array();
 	if ( ! is_wp_error( $terms ) ) {
 		foreach ( $terms as $term ) {
 			$result[] = array(
+				'id'    => (int) $term->term_id,
 				'slug'  => $term->slug,
 				'name'  => $term->name,
 				'count' => $term->count,

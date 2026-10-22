@@ -476,6 +476,10 @@ function mlsimport_page_block_map_node( array $params, ?array $bounds, string $t
  * — so the two can never disagree. Initial-filter presets (every listings filter
  * key) seed both panes identically, exactly like the standalone listings block.
  *
+ * The Half Map can also be the Search Form's results page (#354): a search in
+ * the URL is applied on top of the block's presets, so a homepage search lands
+ * on a map already narrowed to what the visitor asked for.
+ *
  * @param array $args Block args: every filter key (initial filter) + search_fields,
  *                    map_side, height.
  * @return string
@@ -484,7 +488,17 @@ function mlsimport_page_block_half_map( array $args ): string {
 	// Same atts->args path as the listings block, so the initial filter behaves
 	// identically. search_fields is display config (which filters show), not a
 	// filter key, so it is injected after atts_to_args strips non-filter keys.
+	// Step 1: the block's own presets.
 	$filter_args = Mlsimport_Standalone_Shortcodes::atts_to_args( $args );
+
+	// Step 2: the search the visitor submitted (the Search Form sends a GET to its
+	// results page). Each URL filter key overrides the block's preset of the same
+	// key; presets the URL does not mention stay. atts_to_args whitelists the URL
+	// to the real filter keys and the query binds every value, as in the Search
+	// Results block.
+	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only GET search; the query binds every value.
+	$request     = isset( $_GET ) ? wp_unslash( $_GET ) : array();
+	$filter_args = array_merge( $filter_args, Mlsimport_Standalone_Shortcodes::atts_to_args( $request ) );
 	if ( isset( $args['search_fields'] ) && '' !== $args['search_fields'] ) {
 		$filter_args['search_fields'] = (string) $args['search_fields'];
 	}
@@ -653,6 +667,12 @@ function mlsimport_search_form_hidden_args( array $args, ?array $visible ): arra
 			continue;
 		}
 		$hidden[ $key ] = (string) $value;
+	}
+
+	// Custom parameters never have a search field, so they always ride along hidden,
+	// as the one JSON string atts_to_args() made of the block's rows.
+	if ( isset( $args['custom_parameters'] ) && is_string( $args['custom_parameters'] ) && '' !== $args['custom_parameters'] ) {
+		$hidden['custom_parameters'] = $args['custom_parameters'];
 	}
 
 	/** Filter the hidden filter inputs the search form carries through an AJAX repaint. @since 6.6 */

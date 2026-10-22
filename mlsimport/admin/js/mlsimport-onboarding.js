@@ -223,7 +223,15 @@ jQuery(document).ready(function (jQuery) {
             if (response.success) {
                 // Success: flash the success label
                 showButtonStatus(button, mlsimportOnboarding.strings.success);
-    
+
+                // The login just set up the Test MLS (sample listings, #376):
+                // reload the step so the MLS box, the pre-filled MLS and the
+                // Continue button render from the saved state.
+                if (response.data.test_mls_seeded) {
+                    window.location.reload();
+                    return;
+                }
+
                 // Replace the status feedback message
                 jQuery('.mlsimport_warning').remove();
                 jQuery('#mlsimport_admin_options-mlsimport_username')

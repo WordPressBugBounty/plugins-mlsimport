@@ -44,7 +44,7 @@ function mlsimport_mcp_elementor_edit_tools(): array {
 	return array(
 		'update-elementor-element' => array(
 			'label'       => 'Change an element of an Elementor page',
-			'description' => 'Changes the settings of one element of a page built with Elementor (any container, section, column or widget), found by its id from get-elementor-page. The settings you name change (names from list-elementor-controls; a responsive one takes _tablet / _mobile variants), a null value removes one, everything else stays. For a plugin widget the settings are Elementor\'s (a toggle is "yes" or ""); update-page-block takes the page-block names instead.',
+			'description' => 'Changes the settings of one element of a page built with Elementor (any container, section, column or widget), found by its id from get-elementor-page. The settings you name change (names from list-elementor-controls; a responsive one takes _tablet / _mobile variants), a null value removes one, everything else stays. For a plugin widget the settings are Elementor\'s (a toggle is "yes" or ""; a term picker such as mlsimport_city takes a list of term names, slugs or ids and is stored as ids, the answer lists the terms); update-page-block takes the page-block names instead.',
 			'input'       => array(
 				'page_id'    => $page_id,
 				'element_id' => $element_id,
@@ -131,9 +131,11 @@ function mlsimport_mcp_elementor_stack_of( array $element ) {
  *
  * Step by step:
  * 1. The page, the element and its type must exist; settings must be sent.
- * 2. Every setting name must be a control of the type.
+ * 2. Every setting name must be a control of the type; on a plugin widget a
+ *    term picker's names/slugs become term ids (an unknown term is refused).
  * 3. A null removes the setting, anything else replaces it; the rest stay.
- * 4. Save through Elementor and answer with the element as it is now.
+ * 4. Save through Elementor and answer with the element as it is now, plus
+ *    the terms its pickers hold (id and name) when it is a plugin widget.
  *
  * @param array $input page_id, element_id, settings.
  * @return array|WP_Error The element row, or the refusal.
@@ -163,6 +165,16 @@ function mlsimport_mcp_update_elementor_element( array $input ) {
 	if ( is_wp_error( $checked ) ) {
 		return $checked;
 	}
+	// A plugin widget's term pickers take names, slugs or ids; they are
+	// stored as term ids (the control name equals the option name, see
+	// Mlsimport_Page_Block_Elementor::control_key()).
+	$slug = mlsimport_mcp_elementor_slug( $found['element'] );
+	if ( '' !== $slug ) {
+		$settings = mlsimport_mcp_resolve_term_picks( $slug, $settings );
+		if ( is_wp_error( $settings ) ) {
+			return $settings;
+		}
+	}
 
 	// Step 3.
 	$element = $found['element'];
@@ -180,12 +192,18 @@ function mlsimport_mcp_update_elementor_element( array $input ) {
 	if ( is_wp_error( $saved ) ) {
 		return $saved;
 	}
-	$rows = array_column( mlsimport_mcp_elementor_flat( (array) $document->get_elements_data() ), null, 'id' );
-	return array(
+	$rows   = array_column( mlsimport_mcp_elementor_flat( (array) $document->get_elements_data() ), null, 'id' );
+	$answer = array(
 		'page_id'  => (int) $document->get_main_id(),
 		'element'  => $rows[ $element['id'] ] ?? array(),
 		'edit_url' => (string) $document->get_edit_url(),
 	);
+	// The terms a plugin widget's pickers now hold, by id and name.
+	$terms = '' === $slug ? array() : mlsimport_mcp_term_pick_names( $slug, (array) ( $answer['element']['settings'] ?? array() ) );
+	if ( ! empty( $terms ) ) {
+		$answer['terms'] = $terms;
+	}
+	return $answer;
 }
 
 /**

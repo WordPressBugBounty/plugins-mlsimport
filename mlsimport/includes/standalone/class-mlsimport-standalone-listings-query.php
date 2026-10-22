@@ -17,6 +17,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 require_once __DIR__ . '/class-mlsimport-standalone-query.php';
+require_once __DIR__ . '/class-mlsimport-term-mls-value.php';
+require_once __DIR__ . '/class-mlsimport-custom-parameters.php';
 
 /**
  * Executes filtered searches against the standalone listings table.
@@ -178,6 +180,10 @@ class Mlsimport_Standalone_Listings_Query {
 	private static function full_where( array $params ): array {
 		global $wpdb;
 
+		// Fast-column taxonomy filters arrive as term names (the owner's names,
+		// issue #355); the column holds the raw MLS value, so translate first.
+		$params = Mlsimport_Term_Mls_Value::translate_params( $params );
+
 		$where = Mlsimport_Standalone_Query::build_where( $params );
 
 		// Advanced escape hatch: callbacks may rewrite the WHERE fragment but MUST
@@ -247,6 +253,14 @@ class Mlsimport_Standalone_Listings_Query {
 		if ( $agent > 0 ) {
 			$where_sql .= " AND L.post_id IN (SELECT pm.post_id FROM {$wpdb->postmeta} pm WHERE pm.meta_key = 'mlsimport_list_agent_id' AND pm.meta_value = %d)";
 			$body_args[] = $agent;
+		}
+
+		// Custom parameters (Property List / Slider / Map blocks): one post-meta
+		// subquery per { field, compare, value } row, AND-ed. Values bind as %s.
+		if ( isset( $params['custom_parameters'] ) ) {
+			$custom     = Mlsimport_Custom_Parameters::where( Mlsimport_Custom_Parameters::rows( $params['custom_parameters'] ), $wpdb->postmeta );
+			$where_sql .= $custom['sql'];
+			$body_args  = array_merge( $body_args, $custom['args'] );
 		}
 
 		return array( $where_sql, $body_args );

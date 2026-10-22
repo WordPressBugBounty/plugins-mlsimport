@@ -197,7 +197,8 @@ function mlsimport_mcp_list_page_blocks(): array {
 		foreach ( $manifest as $slug => $definition ) {
 			$options = array();
 			foreach ( (array) $definition['args'] as $name => $option ) {
-				$options[ $name ] = array_intersect_key( (array) $option, array_flip( array( 'type', 'label', 'default', 'options' ) ) );
+				// taxonomy marks a term picker: it takes term ids, names or slugs.
+				$options[ $name ] = array_intersect_key( (array) $option, array_flip( array( 'type', 'label', 'default', 'options', 'taxonomy' ) ) );
 			}
 			$list[] = array(
 				'slug'      => (string) $slug,
@@ -212,7 +213,7 @@ function mlsimport_mcp_list_page_blocks(): array {
 	return array(
 		'blocks'            => $rows( mlsimport_get_page_blocks(), 'mlsimport_' ),
 		'property_sections' => $rows( mlsimport_get_property_sections(), 'mlsimport_property_' ),
-		'note'              => __( 'An option is written inside the shortcode, for example [mlsimport_results limit="12"]. create-page builds a Gutenberg or Elementor page from the page blocks, add-page-blocks appends them to an existing page (not the property sections, which belong to the single-property template).', 'mlsimport' ),
+		'note'              => __( 'An option is written inside the shortcode, for example [mlsimport_results limit="12"]. create-page builds a Gutenberg or Elementor page from the page blocks, add-page-blocks appends them to an existing page (not the property sections, which belong to the single-property template). A multiselect option with a taxonomy (the city, property type ... pickers of the Categories blocks) takes a list of term names, slugs or ids; list-delete-terms names the terms of a taxonomy.', 'mlsimport' ),
 	);
 }
 

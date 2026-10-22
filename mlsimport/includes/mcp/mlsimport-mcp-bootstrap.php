@@ -193,6 +193,7 @@ function mlsimport_mcp_boot(): void {
 	require_once $directory . 'mlsimport-mcp-standalone-people.php';
 	require_once $directory . 'mlsimport-mcp-standalone-people-write.php';
 	require_once $directory . 'mlsimport-mcp-standalone-site.php';
+	require_once $directory . 'mlsimport-mcp-term-picks.php';
 	require_once $directory . 'mlsimport-mcp-standalone-pages.php';
 	require_once $directory . 'mlsimport-mcp-standalone-pages-elementor.php';
 	require_once $directory . 'mlsimport-mcp-standalone-pages-add.php';

@@ -3,7 +3,7 @@
  * Plugin Name:       MlsImport
  * Plugin URI:        https://mlsimport.com/
  * Description:       MLS Import - The MLSImport plugin facilitates the connection to your real estate MLS database, allowing you to download and synchronize real estate property data from the MLS.
- * Version:           7.2.3
+ * Version:           7.2.5
  * Requires at least: 5.2
  * Requires PHP:      7.4
  * License: GPLv3
@@ -40,7 +40,7 @@ if ( ! defined( 'WPINC' ) ) {
 
 
 // Current plugin version (kept in sync with the header above and the readme).
-define( 'MLSIMPORT_VERSION', '7.2.3');
+define( 'MLSIMPORT_VERSION', '7.2.5');
 // Marketing/portal host used to build sign-up and affiliate links.
 define( 'MLSIMPORT_CLUBLINK', 'mlsimport.com' );
 // Scheme for the portal host links.
@@ -274,6 +274,7 @@ require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-metadata-gather.p
 require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-connections-add.php';
 // The follow-up field-mapping seed the drawer posts after a saved add (#325).
 require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-connections-seed.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/mlsimport-test-mls.php';
 // Edit-connection drawer (tab consolidation): the retired "MLS Connection"
 // credentials tab's replacement — refuse/test/store flow that updates a
 // registered connection's credentials (and mirrors the current connection's
@@ -302,6 +303,7 @@ require_once plugin_dir_path( __FILE__ ) . 'enviroment/RealHomesClass.php';
 require_once plugin_dir_path( __FILE__ ) . 'enviroment/ResoBase.php';
 require_once plugin_dir_path( __FILE__ ) . 'enviroment/SparkResoClass.php';
 require_once plugin_dir_path( __FILE__ ) . 'enviroment/BridgeResoClass.php';
+require_once plugin_dir_path( __FILE__ ) . 'enviroment/TestMlsResoClass.php';
 require_once plugin_dir_path( __FILE__ ) . 'enviroment/TresleResoClass.php';
 require_once plugin_dir_path( __FILE__ ) . 'enviroment/MlsgridResoClass.php';
 require_once plugin_dir_path( __FILE__ ) . 'enviroment/BrightMlsResoClass.php';
@@ -373,6 +375,7 @@ require_once plugin_dir_path( __FILE__ ) . 'includes/standalone/property-schema.
 require_once plugin_dir_path( __FILE__ ) . 'includes/standalone/class-mlsimport-property-metabox.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/standalone/class-mlsimport-agent-metabox.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/standalone/class-mlsimport-term-meta.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/standalone/class-mlsimport-term-mls-value.php'; // The MLS value a renamed category term stands for (#355).
 require_once plugin_dir_path( __FILE__ ) . 'includes/standalone/class-mlsimport-property-columns.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/standalone/class-mlsimport-property-featured-admin.php'; // "Featured" bulk actions + list column on the Properties screen.
 require_once plugin_dir_path( __FILE__ ) . 'includes/standalone/class-mlsimport-favorites.php';
@@ -477,6 +480,8 @@ add_action( 'admin_init', array( 'Mlsimport_Standalone_Table', 'maybe_upgrade' )
 add_action( 'init', array( 'Mlsimport_Standalone_Table', 'maybe_upgrade' ), 1 );
 // One-time repair of comma-glued taxonomy terms written before 7.1.2 (#290).
 add_action( 'admin_init', array( 'Mlsimport_Standalone_Cpt', 'maybe_split_packed_terms' ) );
+// One-time stamp of the MLS value on terms created before 7.2.4, so a renamed term keeps receiving the sync (#355).
+add_action( 'admin_init', array( 'Mlsimport_Term_Mls_Value', 'maybe_stamp_existing' ) );
 add_action( 'before_delete_post', array( 'StandaloneClass', 'cleanup_on_delete' ) );
 // Trash/unpublish (not a permanent delete) must also drop the listings row, so the
 // search index only ever holds published listings.

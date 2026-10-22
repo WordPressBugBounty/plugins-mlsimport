@@ -9,8 +9,13 @@
  *   3. the sign-in provider document lists the register, approve and token
  *      addresses and what they support.
  *
- * The two documents live under /.well-known/, which is outside /wp-json/,
- * and the approval page lives at /mlsimport-oauth/authorize. All three are
+ * The WpResidence theme can be a sign-in provider on the same site, so
+ * MLSImport answers only its own two well-known paths, by exact match:
+ *   /.well-known/oauth-protected-resource/wp-json/mlsimport/mcp
+ *     (RFC 9728 form for a resource with a path: the MCP path appended)
+ *   /.well-known/oauth-authorization-server
+ *     (RFC 8414 for the issuer, which is the site itself, without a path)
+ * The approval page lives at /mlsimport-oauth/authorize. All three are
  * answered early on 'init' straight from the request path, so no rewrite
  * rule (and no permalink flush) is needed.
  *
@@ -18,8 +23,10 @@
  *   mlsimport_oauth_issuer()                       this site as sign-in provider
  *   mlsimport_oauth_authorize_url()                the approval page address
  *   mlsimport_oauth_resource_metadata_url()        the protected-resource document address
+ *   mlsimport_oauth_server_metadata_url()          the sign-in provider document address
  *   mlsimport_oauth_protected_resource_document()  document 2
  *   mlsimport_oauth_server_document()              document 3
+ *   mlsimport_oauth_requested_document( $path )    which document a path asks for
  *   mlsimport_oauth_route_request()                hook: init
  *   mlsimport_oauth_unauthorized_header()          hook: rest_post_dispatch
  *
@@ -52,10 +59,24 @@ function mlsimport_oauth_authorize_url(): string {
 /**
  * The protected-resource document address named in the 401 header.
  *
+ * RFC 9728 form for a resource with a path: the well-known folder, then the
+ * MCP path appended. The bare /.well-known/oauth-protected-resource is
+ * claimed by nobody, so the theme and MLSImport each have their own.
+ *
  * @return string
  */
 function mlsimport_oauth_resource_metadata_url(): string {
-	return home_url( '/.well-known/oauth-protected-resource' );
+	$mcp_path = (string) wp_parse_url( mlsimport_mcp_endpoint_url(), PHP_URL_PATH );
+	return home_url( '/.well-known/oauth-protected-resource' . untrailingslashit( $mcp_path ) );
+}
+
+/**
+ * The sign-in provider document address (RFC 8414 for an issuer without a path).
+ *
+ * @return string
+ */
+function mlsimport_oauth_server_metadata_url(): string {
+	return home_url( '/.well-known/oauth-authorization-server' );
 }
 
 /**
@@ -98,31 +119,49 @@ function mlsimport_oauth_server_document(): array {
 }
 
 /**
+ * Which discovery document a request path asks for, if any of ours.
+ *
+ * The exact-path rule lives in mlsimport-oauth-rules.php; this hands it the
+ * paths of the two addresses this site advertises, so the router and the
+ * 401 header can never disagree (a site in a subdirectory included).
+ *
+ * @param string $path Request path.
+ * @return array|null The document, or null when the path is not one of ours.
+ */
+function mlsimport_oauth_requested_document( string $path ): ?array {
+	$resource_path = (string) wp_parse_url( mlsimport_oauth_resource_metadata_url(), PHP_URL_PATH );
+	$server_path   = (string) wp_parse_url( mlsimport_oauth_server_metadata_url(), PHP_URL_PATH );
+
+	switch ( mlsimport_oauth_document_for_path( $path, $resource_path, $server_path ) ) {
+		case 'resource':
+			return mlsimport_oauth_protected_resource_document();
+		case 'server':
+			return mlsimport_oauth_server_document();
+		default:
+			return null;
+	}
+}
+
+/**
  * Answer the discovery documents and the approval page from the request path.
  *
- * Hooked on 'init'. Any other request passes through untouched.
- * The well-known paths are matched with any suffix, because a site installed
- * in a subdirectory is asked for the path-suffixed form.
+ * Hooked on 'init'. Any other request passes through untouched, including
+ * the theme's own discovery paths on a site that runs both products.
  *
  * @return void
  */
 function mlsimport_oauth_route_request(): void {
 	$path = isset( $_SERVER['REQUEST_URI'] ) ? (string) wp_parse_url( esc_url_raw( wp_unslash( $_SERVER['REQUEST_URI'] ) ), PHP_URL_PATH ) : '';
 
-	// The two discovery documents.
-	$document = null;
-	if ( false !== strpos( $path, '/.well-known/oauth-protected-resource' ) ) {
-		$document = mlsimport_oauth_protected_resource_document();
-	} elseif ( false !== strpos( $path, '/.well-known/oauth-authorization-server' ) ) {
-		$document = mlsimport_oauth_server_document();
-	}
+	// Step 1: one of the two discovery documents.
+	$document = mlsimport_oauth_requested_document( $path );
 	if ( null !== $document ) {
 		nocache_headers();
 		header( 'Access-Control-Allow-Origin: *' );
 		wp_send_json( $document );
 	}
 
-	// The approval page.
+	// Step 2: the approval page.
 	$authorize_path = (string) wp_parse_url( mlsimport_oauth_authorize_url(), PHP_URL_PATH );
 	if ( untrailingslashit( $path ) === untrailingslashit( $authorize_path ) ) {
 		mlsimport_oauth_authorize_page();

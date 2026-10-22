@@ -15,6 +15,9 @@
 
 	// Local aliases for the WP editor primitives used below
 	var el                = element.createElement;
+	// Every visible word goes through __() with the mlsimport domain, so a
+	// translation file can reach it (#374). wp-i18n is a script dependency.
+	var __                = window.wp.i18n.__;
 	var InspectorControls = blockEditor.InspectorControls;
 	var useBlockProps     = blockEditor.useBlockProps;
 	// Wrap PanelBody so every inspector panel carries the mlsimport-block-inspector
@@ -150,7 +153,7 @@
 							ColorIndicator ? el( ColorIndicator, { colorValue: value || 'transparent' } ) : null,
 							// An empty value is not "no colour" but "whatever the stylesheet
 							// already uses", so it reads as Default rather than as blank.
-							el( 'span', null, value ? value : 'Default' )
+							el( 'span', null, value ? value : __( 'Default', 'mlsimport' ) )
 						);
 					},
 					renderContent: function () {
@@ -179,8 +182,8 @@
 						render: function ( open ) {
 							return el( 'div', null,
 								value ? el( 'img', { src: value, style: { maxWidth: '48px', display: 'block', marginBottom: '6px' } } ) : null,
-								el( Button, { variant: 'secondary', onClick: open.open }, value ? 'Replace' : 'Select image' ),
-								value ? el( Button, { isDestructive: true, isSmall: true, onClick: function () { onChange( '' ); } }, 'Remove' ) : null
+								el( Button, { variant: 'secondary', onClick: open.open }, value ? __( 'Replace', 'mlsimport' ) : __( 'Select image', 'mlsimport' ) ),
+								value ? el( Button, { isDestructive: true, isSmall: true, onClick: function () { onChange( '' ); } }, __( 'Remove', 'mlsimport' ) ) : null
 							);
 						}
 					} )
@@ -325,7 +328,7 @@
 					isSmall: true,
 					variant: 'tertiary',
 					disabled: i === 0,
-					'aria-label': 'Move up',
+					'aria-label': __( 'Move up', 'mlsimport' ),
 					onClick: function () { moveRow( i, i - 1 ); }
 				}, '↑' ),
 				el( Button, {
@@ -333,7 +336,7 @@
 					isSmall: true,
 					variant: 'tertiary',
 					disabled: i === rows.length - 1,
-					'aria-label': 'Move down',
+					'aria-label': __( 'Move down', 'mlsimport' ),
 					onClick: function () { moveRow( i, i + 1 ); }
 				}, '↓' ),
 				el( Button, {
@@ -341,7 +344,7 @@
 					isDestructive: true,
 					isSmall: true,
 					onClick: function () { removeRow( i ); }
-				}, 'Remove' )
+				}, __( 'Remove', 'mlsimport' ) )
 			) );
 			return el( 'div', {
 				key: i,

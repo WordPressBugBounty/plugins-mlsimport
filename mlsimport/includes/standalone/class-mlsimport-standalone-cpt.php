@@ -32,22 +32,32 @@ class Mlsimport_Standalone_Cpt {
 	private const DEFAULT_PROPERTY_SLUG = 'listing';
 
 	/**
-	 * The flat taxonomies (§7), all attached to mlsimport_property. Flat
-	 * (hierarchical=false) — term trees confuse non-technical realtors.
+	 * The flat taxonomies (§7), all attached to mlsimport_property, as
+	 * slug => translated label. Flat (hierarchical=false) — term trees confuse
+	 * non-technical realtors.
+	 *
+	 * A method, not a constant: a constant cannot call __(), and a label that is
+	 * not wrapped in __() never reaches a translation file, so the admin menu
+	 * stayed in English on translated sites (#374). Every caller runs at init or
+	 * later, after the text domain is loaded.
+	 *
+	 * @return array<string,string>
 	 */
-	private const TAXONOMIES = array(
-		'mlsimport_property_type'        => 'Property Types',
-		'mlsimport_listing_type'         => 'Listing Types',
-		'mlsimport_status'               => 'Statuses',
-		'mlsimport_city'                 => 'Cities',
-		'mlsimport_area'                 => 'Areas',
-		'mlsimport_county'               => 'Counties',
-		'mlsimport_state'                => 'States',
-		'mlsimport_zip'                  => 'ZIP Codes',
-		'mlsimport_high_school_district' => 'High School Districts',
-		'mlsimport_feature'              => 'Features',
-		'mlsimport_label'                => 'Labels',
-	);
+	private static function taxonomies(): array {
+		return array(
+			'mlsimport_property_type'        => __( 'Property Types', 'mlsimport' ),
+			'mlsimport_listing_type'         => __( 'Listing Types', 'mlsimport' ),
+			'mlsimport_status'               => __( 'Statuses', 'mlsimport' ),
+			'mlsimport_city'                 => __( 'Cities', 'mlsimport' ),
+			'mlsimport_area'                 => __( 'Areas', 'mlsimport' ),
+			'mlsimport_county'               => __( 'Counties', 'mlsimport' ),
+			'mlsimport_state'                => __( 'States', 'mlsimport' ),
+			'mlsimport_zip'                  => __( 'ZIP Codes', 'mlsimport' ),
+			'mlsimport_high_school_district' => __( 'High School Districts', 'mlsimport' ),
+			'mlsimport_feature'              => __( 'Features', 'mlsimport' ),
+			'mlsimport_label'                => __( 'Labels', 'mlsimport' ),
+		);
+	}
 
 	/**
 	 * The plugin taxonomy slugs, after the mlsimport_taxonomies filter — the
@@ -57,7 +67,7 @@ class Mlsimport_Standalone_Cpt {
 	 * @return string[]
 	 */
 	public static function taxonomy_slugs(): array {
-		return array_keys( (array) apply_filters( 'mlsimport_taxonomies', self::TAXONOMIES ) );
+		return array_keys( self::taxonomy_labels() );
 	}
 
 	/**
@@ -68,7 +78,7 @@ class Mlsimport_Standalone_Cpt {
 	 * @return array<string,string>
 	 */
 	public static function taxonomy_labels(): array {
-		return (array) apply_filters( 'mlsimport_taxonomies', self::TAXONOMIES );
+		return (array) apply_filters( 'mlsimport_taxonomies', self::taxonomies() );
 	}
 
 	/**
@@ -194,7 +204,7 @@ class Mlsimport_Standalone_Cpt {
 					'has_archive'  => $standalone,
 					'rewrite'      => $standalone ? array( 'slug' => self::property_slug() ) : false,
 					'supports'     => array( 'title', 'editor', 'thumbnail', 'excerpt', 'custom-fields', 'comments', 'author' ),
-					'labels'       => array( 'name' => 'MLS Properties' ),
+					'labels'       => array( 'name' => __( 'MLS Properties', 'mlsimport' ) ),
 					// Group above core Comments (25) so all MLSImport menus stay together.
 					'menu_position' => 22,
 				)
@@ -216,14 +226,14 @@ class Mlsimport_Standalone_Cpt {
 					// Core keys rewrite generation off this arg, not off 'public'.
 					'rewrite'      => $standalone,
 					'supports'     => array( 'title', 'editor', 'thumbnail' ),
-					'labels'       => array( 'name' => 'Real Estate Agents' ),
+					'labels'       => array( 'name' => __( 'Real Estate Agents', 'mlsimport' ) ),
 					'menu_position' => 23,
 				)
 			)
 		);
 
 		/** Filter the standalone taxonomy list (slug => label). @since 6.3 */
-		$taxonomies = (array) apply_filters( 'mlsimport_taxonomies', self::TAXONOMIES );
+		$taxonomies = self::taxonomy_labels();
 		// Register each taxonomy against the property CPT with the shared arg set.
 		foreach ( $taxonomies as $taxonomy => $label ) {
 			/** Filter a taxonomy's registration args. @since 6.3 */

@@ -16,6 +16,10 @@
 	}
 
 	var el                = wp.element.createElement;
+	// Every visible word goes through __() with the mlsimport domain, so a
+	// translation file (and plugins like Loco Translate) can reach it (#374).
+	// wp-i18n is a script dependency; PHP loads the translations before this runs.
+	var __                = wp.i18n.__;
 	var components        = wp.components || {};
 	var blockEditor       = wp.blockEditor || {};
 	var InspectorControls = blockEditor.InspectorControls;
@@ -29,6 +33,7 @@
 		next.className = ( next.className ? next.className + ' ' : '' ) + 'mlsimport-block-inspector';
 		return el( RawPanelBody, next );
 	} : RawPanelBody;
+	var Button            = components.Button;
 	var TextControl       = components.TextControl;
 	var ToggleControl     = components.ToggleControl;
 	var SelectControl     = components.SelectControl;
@@ -42,12 +47,12 @@
 
 	// Friendly sort presets -> the orderby/order attribute pair the render path uses.
 	var SORT_OPTIONS = [
-		{ label: 'Default',               value: '',             orderby: '',          order: '' },
-		{ label: 'Newest',                value: 'list_date|desc', orderby: 'list_date', order: 'desc' },
-		{ label: 'Oldest',                value: 'list_date|asc',  orderby: 'list_date', order: 'asc' },
-		{ label: 'Price (low to high)',   value: 'price|asc',      orderby: 'price',     order: 'asc' },
-		{ label: 'Price (high to low)',   value: 'price|desc',     orderby: 'price',     order: 'desc' },
-		{ label: 'Bedrooms (most first)', value: 'bedrooms|desc',  orderby: 'bedrooms',  order: 'desc' }
+		{ label: __( 'Default', 'mlsimport' ),               value: '',             orderby: '',          order: '' },
+		{ label: __( 'Newest', 'mlsimport' ),                value: 'list_date|desc', orderby: 'list_date', order: 'desc' },
+		{ label: __( 'Oldest', 'mlsimport' ),                value: 'list_date|asc',  orderby: 'list_date', order: 'asc' },
+		{ label: __( 'Price (low to high)', 'mlsimport' ),   value: 'price|asc',      orderby: 'price',     order: 'asc' },
+		{ label: __( 'Price (high to low)', 'mlsimport' ),   value: 'price|desc',     orderby: 'price',     order: 'desc' },
+		{ label: __( 'Bedrooms (most first)', 'mlsimport' ), value: 'bedrooms|desc',  orderby: 'bedrooms',  order: 'desc' }
 	];
 
 	// Same image as the admin sidebar menu icon. The PNG is 19x14, so it is left at
@@ -155,7 +160,7 @@
 			'div',
 			{ key: minKey, className: 'mlsimport-range' },
 			el( 'p', { style: { margin: '0 0 4px' } }, label ),
-			el( 'div', { style: { display: 'flex', gap: '8px' } }, field( minKey, 'Min' ), field( maxKey, 'Max' ) )
+			el( 'div', { style: { display: 'flex', gap: '8px' } }, field( minKey, __( 'Min', 'mlsimport' ) ), field( maxKey, __( 'Max', 'mlsimport' ) ) )
 		);
 	}
 
@@ -218,7 +223,7 @@
 		} );
 		return el( SelectControl, {
 			key:      'sort',
-			label:    'Order',
+			label:    __( 'Order', 'mlsimport' ),
 			value:    current,
 			options:  SORT_OPTIONS.map( function ( o ) { return { label: o.label, value: o.value }; } ),
 			onChange: function ( v ) {
@@ -238,32 +243,105 @@
 			// Keep these item-list-only so Slider and Map retain their smaller,
 			// deliberate inspectors while site builders can configure every
 			// listing constraint promised by item_list_attributes() (issue #313).
-			children.push( textControl( props, 'keywords', 'Keywords' ) );
-			children.push( textControl( props, 'location', 'Location' ) );
+			children.push( textControl( props, 'keywords', __( 'Keywords', 'mlsimport' ) ) );
+			children.push( textControl( props, 'location', __( 'Location', 'mlsimport' ) ) );
 		}
-		children.push( rangeControl( props, 'Price', 'price_min', 'price_max' ) );
-		children.push( numberControl( props, 'beds', 'Min beds' ) );
-		children.push( numberControl( props, 'baths', 'Min baths' ) );
+		children.push( rangeControl( props, __( 'Price', 'mlsimport' ), 'price_min', 'price_max' ) );
+		children.push( numberControl( props, 'beds', __( 'Min beds', 'mlsimport' ) ) );
+		children.push( numberControl( props, 'baths', __( 'Min baths', 'mlsimport' ) ) );
 		if ( opts.full ) {
-			children.push( rangeControl( props, 'Living Area (sq ft)', 'sqft_min', 'sqft_max' ) );
-			children.push( rangeControl( props, 'Lot Size', 'lot_min', 'lot_max' ) );
-			children.push( rangeControl( props, 'Year Built', 'year_min', 'year_max' ) );
-			children.push( numberControl( props, 'garage_min', 'Garage Spaces' ) );
-			children.push( numberControl( props, 'stories', 'Stories' ) );
-			children.push( numberControl( props, 'hoa_max', 'Max HOA Fee' ) );
-			children.push( numberControl( props, 'dom_max', 'Max Days on Market' ) );
-			children.push( textControl( props, 'subdivision', 'Subdivision' ) );
-			children.push( textControl( props, 'list_date_min', 'Listed After', 'date' ) );
+			children.push( rangeControl( props, __( 'Living Area (sq ft)', 'mlsimport' ), 'sqft_min', 'sqft_max' ) );
+			children.push( rangeControl( props, __( 'Lot Size', 'mlsimport' ), 'lot_min', 'lot_max' ) );
+			children.push( rangeControl( props, __( 'Year Built', 'mlsimport' ), 'year_min', 'year_max' ) );
+			children.push( numberControl( props, 'garage_min', __( 'Garage Spaces', 'mlsimport' ) ) );
+			children.push( numberControl( props, 'stories', __( 'Stories', 'mlsimport' ) ) );
+			children.push( numberControl( props, 'hoa_max', __( 'Max HOA Fee', 'mlsimport' ) ) );
+			children.push( numberControl( props, 'dom_max', __( 'Max Days on Market', 'mlsimport' ) ) );
+			children.push( textControl( props, 'subdivision', __( 'Subdivision', 'mlsimport' ) ) );
+			children.push( textControl( props, 'list_date_min', __( 'Listed After', 'mlsimport' ), 'date' ) );
 		}
 		// Agent post ID — narrows the set to that agent's listings (the mlsimport_list_agent_id
 		// link the agent profile uses). Empty (or 0) means every agent.
-		children.push( numberControl( props, 'agent', 'Agent (post ID)' ) );
+		children.push( numberControl( props, 'agent', __( 'Agent (post ID)', 'mlsimport' ) ) );
 		if ( ! opts.noSort ) {
 			children.push( sortControl( props ) );
 		}
 		return el(
 			PanelBody,
-			{ key: 'initial-filter', title: title || 'Initial filter', initialOpen: !! opts.open },
+			{ key: 'initial-filter', title: title || __( 'Initial filter', 'mlsimport' ), initialOpen: !! opts.open },
+			children
+		);
+	}
+
+	// The "How" choices of a Custom parameters row. Values match
+	// Mlsimport_Custom_Parameters::COMPARE in PHP.
+	var COMPARE_OPTIONS = [
+		{ label: __( 'Equals', 'mlsimport' ),       value: 'equals' },
+		{ label: __( 'Not equals', 'mlsimport' ),   value: 'not_equals' },
+		{ label: __( 'Greater than', 'mlsimport' ), value: 'greater_than' },
+		{ label: __( 'Less than', 'mlsimport' ),    value: 'less_than' },
+		{ label: __( 'Contains', 'mlsimport' ),     value: 'contains' }
+	];
+
+	// Custom parameters panel (Property List, Property Slider, Map with Listings): one
+	// row per condition — Field (the MLS field name, e.g. BuildingName), How, Value —
+	// stored in the custom_parameters array attribute. A listing must match every row.
+	function customParametersPanel( props ) {
+		var rows = Array.isArray( props.attributes.custom_parameters ) ? props.attributes.custom_parameters : [];
+
+		// Write one changed row (or a removed / added one) back as a new array.
+		function save( next ) {
+			props.setAttributes( { custom_parameters: next } );
+		}
+		function update( index, key, value ) {
+			save( rows.map( function ( row, i ) {
+				if ( i !== index ) {
+					return row;
+				}
+				var copy = Object.assign( {}, row );
+				copy[ key ] = value;
+				return copy;
+			} ) );
+		}
+
+		var children = rows.map( function ( row, index ) {
+			return el(
+				'div',
+				{ key: 'row-' + index, className: 'mlsimport-custom-parameter', style: { borderBottom: '1px solid #e0e0e0', marginBottom: '12px' } },
+				TextControl ? el( TextControl, {
+					label:    __( 'Field (MLS name, e.g. BuildingName)', 'mlsimport' ),
+					value:    row.field || '',
+					onChange: function ( v ) { update( index, 'field', v ); }
+				} ) : null,
+				SelectControl ? el( SelectControl, {
+					label:    __( 'How', 'mlsimport' ),
+					value:    row.compare || 'equals',
+					options:  COMPARE_OPTIONS,
+					onChange: function ( v ) { update( index, 'compare', v ); }
+				} ) : null,
+				TextControl ? el( TextControl, {
+					label:    __( 'Value', 'mlsimport' ),
+					value:    row.value || '',
+					onChange: function ( v ) { update( index, 'value', v ); }
+				} ) : null,
+				Button ? el( Button, {
+					isDestructive: true,
+					variant:       'link',
+					onClick:       function () { save( rows.filter( function ( r, i ) { return i !== index; } ) ); }
+				}, __( 'Remove', 'mlsimport' ) ) : null
+			);
+		} );
+		if ( Button ) {
+			children.push( el( Button, {
+				key:     'add',
+				variant: 'secondary',
+				onClick: function () { save( rows.concat( [ { field: '', compare: 'equals', value: '' } ] ) ); }
+			}, __( 'Add condition', 'mlsimport' ) ) );
+		}
+
+		return el(
+			PanelBody,
+			{ key: 'custom-parameters', title: __( 'Custom parameters', 'mlsimport' ), initialOpen: false },
 			children
 		);
 	}
@@ -273,17 +351,17 @@
 	function layoutPanel( props ) {
 		return el(
 			PanelBody,
-			{ key: 'layout', title: 'Layout', initialOpen: false },
+			{ key: 'layout', title: __( 'Layout', 'mlsimport' ), initialOpen: false },
 			SelectControl ? el( SelectControl, {
 				key:      'map_side',
-				label:    'Map side',
+				label:    __( 'Map side', 'mlsimport' ),
 				value:    props.attributes.map_side || 'right',
-				options:  [ { label: 'Right', value: 'right' }, { label: 'Left', value: 'left' } ],
+				options:  [ { label: __( 'Right', 'mlsimport' ), value: 'right' }, { label: __( 'Left', 'mlsimport' ), value: 'left' } ],
 				onChange: function ( v ) { props.setAttributes( { map_side: v } ); }
 			} ) : null,
 			TextControl ? el( TextControl, {
 				key:      'height',
-				label:    'Height (CSS, e.g. 100vh)',
+				label:    __( 'Height (CSS, e.g. 100vh)', 'mlsimport' ),
 				value:    props.attributes.height || '',
 				onChange: function ( v ) { props.setAttributes( { height: v } ); }
 			} ) : null
@@ -297,10 +375,10 @@
 		var showBar = props.attributes.show_filter_bar;
 		return el(
 			PanelBody,
-			{ key: 'results', title: title || 'Search results', initialOpen: true },
+			{ key: 'results', title: title || __( 'Search results', 'mlsimport' ), initialOpen: true },
 			TextControl ? el( TextControl, {
 				key: 'count',
-				label: 'Properties per page',
+				label: __( 'Properties per page', 'mlsimport' ),
 				type: 'number',
 				min: 1,
 				value: props.attributes.count || '',
@@ -310,13 +388,13 @@
 			} ) : null,
 			ToggleControl ? el( ToggleControl, {
 				key: 'show_filter_bar',
-				label: 'Show filter bar',
+				label: __( 'Show filter bar', 'mlsimport' ),
 				checked: showBar !== '' && showBar !== '0',
 				onChange: function ( on ) { props.setAttributes( { show_filter_bar: on ? '1' : '' } ); }
 			} ) : null,
 			SelectControl ? el( SelectControl, {
 				key: 'fields_per_row',
-				label: 'Search fields per row',
+				label: __( 'Search fields per row', 'mlsimport' ),
 				value: props.attributes.fields_per_row || '4',
 				options: [
 					{ label: '3', value: '3' },
@@ -335,10 +413,10 @@
 	function sliderPanel( props ) {
 		return el(
 			PanelBody,
-			{ key: 'slider', title: 'Slider', initialOpen: true },
+			{ key: 'slider', title: __( 'Slider', 'mlsimport' ), initialOpen: true },
 			TextControl ? el( TextControl, {
 				key: 'limit',
-				label: 'How many',
+				label: __( 'How many', 'mlsimport' ),
 				type: 'number',
 				min: 1,
 				value: props.attributes.limit || '',
@@ -348,7 +426,7 @@
 			} ) : null,
 			TextControl ? el( TextControl, {
 				key: 'ids',
-				label: 'Explicit property IDs (comma list)',
+				label: __( 'Explicit property IDs (comma list)', 'mlsimport' ),
 				value: props.attributes.ids || '',
 				onChange: function ( v ) { props.setAttributes( { ids: v } ); }
 			} ) : null
@@ -373,7 +451,7 @@
 		// same taxonomy dropdowns / price / beds / order the Half Map exposes). No search
 		// bar, so no per-field toggle panel.
 		if ( isSlider ) {
-			return el( InspectorControls, { key: 'inspector' }, [ sliderPanel( props ), initialFilterPanel( props ), lookPanel ] );
+			return el( InspectorControls, { key: 'inspector' }, [ sliderPanel( props ), initialFilterPanel( props ), customParametersPanel( props ), lookPanel ] );
 		}
 
 		// Map with Listings: ONLY the shared Initial filter panel — the filter that
@@ -382,12 +460,12 @@
 		// strips limit/page), no order (pins have no sequence) and no explicit-ID surface.
 		// The panel opens on load since it is the sole panel. Matches the Elementor widget.
 		if ( isMap ) {
-			return el( InspectorControls, { key: 'inspector' }, [ initialFilterPanel( props, 'Initial filters', { noSort: true, open: true } ), lookPanel ] );
+			return el( InspectorControls, { key: 'inspector' }, [ initialFilterPanel( props, __( 'Initial filters', 'mlsimport' ), { noSort: true, open: true } ), customParametersPanel( props ), lookPanel ] );
 		}
 
 		var fieldsPanel = el(
 			PanelBody,
-			{ key: 'fields', title: 'Search fields', initialOpen: false },
+			{ key: 'fields', title: __( 'Search fields', 'mlsimport' ), initialOpen: false },
 			searchFields.map( function ( f ) {
 				return ToggleControl ? el( ToggleControl, {
 					key: f.key,
@@ -402,7 +480,7 @@
 		// Initial filter presets + the per-field toggles. The same rich inspector the
 		// Half Map uses, minus the map Layout panel.
 		if ( isItemList ) {
-			return el( InspectorControls, { key: 'inspector' }, [ resultsPanel( props, 'Settings' ), initialFilterPanel( props, 'Initial filters', { full: true } ), fieldsPanel, lookPanel ] );
+			return el( InspectorControls, { key: 'inspector' }, [ resultsPanel( props, __( 'Settings', 'mlsimport' ) ), initialFilterPanel( props, __( 'Initial filters', 'mlsimport' ), { full: true } ), customParametersPanel( props ), fieldsPanel, lookPanel ] );
 		}
 
 		// Results block: just the trimmed panel + the per-field toggles.
@@ -412,10 +490,10 @@
 
 		var listingsPanel = el(
 			PanelBody,
-			{ key: 'listings', title: 'Listings', initialOpen: true },
+			{ key: 'listings', title: __( 'Listings', 'mlsimport' ), initialOpen: true },
 			TextControl ? el( TextControl, {
 				key: 'limit',
-				label: 'Properties to display',
+				label: __( 'Properties to display', 'mlsimport' ),
 				type: 'number',
 				min: 1,
 				value: props.attributes.limit || '',
@@ -425,7 +503,7 @@
 			} ) : null,
 			SelectControl ? el( SelectControl, {
 				key: 'fields_per_row',
-				label: 'Search fields per row',
+				label: __( 'Search fields per row', 'mlsimport' ),
 				value: props.attributes.fields_per_row || ( hasLayout ? '3' : '4' ),
 				options: [
 					{ label: '3', value: '3' },
@@ -449,6 +527,10 @@
 	// written by the shared "Look" panel and by the AI tools. Every block declares it so
 	// the editor serializes it and ServerSideRender forwards it to the render_callback.
 	var STYLES_ATTRIBUTE = { type: 'object', 'default': {} };
+
+	// The Custom parameters rows (Property List, Slider, Map). Mirrors
+	// custom_parameters_attribute() in PHP.
+	var CUSTOM_PARAMETERS_ATTRIBUTE = { type: 'array', 'default': [] };
 
 	// Every attribute the inspector writes must be declared here so the editor
 	// serializes it and ServerSideRender forwards it to the PHP render_callback. The
@@ -482,7 +564,8 @@
 				baths:     { type: 'string', 'default': '' },
 				agent:     { type: 'string', 'default': '' },
 				orderby:   { type: 'string', 'default': '' },
-				order:     { type: 'string', 'default': '' }
+				order:     { type: 'string', 'default': '' },
+				custom_parameters: CUSTOM_PARAMETERS_ATTRIBUTE
 			};
 			taxonomies.forEach( function ( tax ) {
 				sliderAttrs[ tax.key ] = { type: 'string', 'default': '' };
@@ -498,7 +581,8 @@
 				count:           { type: 'string', 'default': '12' },
 				show_filter_bar: { type: 'string', 'default': '1' },
 				fields_per_row:  { type: 'string', 'default': '4' },
-				search_fields:   { type: 'string', 'default': '' }
+				search_fields:   { type: 'string', 'default': '' },
+				custom_parameters: CUSTOM_PARAMETERS_ATTRIBUTE
 			};
 			// PHP supplies the canonical set used by item_list_attributes(). The
 			// editor now serializes every server-supported preset even when a
@@ -522,7 +606,8 @@
 				baths:     { type: 'string', 'default': '' },
 				agent:     { type: 'string', 'default': '' },
 				orderby:   { type: 'string', 'default': '' },
-				order:     { type: 'string', 'default': '' }
+				order:     { type: 'string', 'default': '' },
+				custom_parameters: CUSTOM_PARAMETERS_ATTRIBUTE
 			};
 			taxonomies.forEach( function ( tax ) { mapAttrs[ tax.key ] = { type: 'string', 'default': '' }; } );
 			return mapAttrs;
@@ -557,7 +642,7 @@
 	// Map adds a Layout panel. Localized from PHP; a single-block fallback keeps the
 	// listings block working if the config predates the blocks array.
 	var blocks = ( cfg && cfg.blocks ) || [
-		{ name: name, title: 'MLS Listings', description: 'Display imported MLS listings in a filterable grid.', category: 'widgets', layout: false }
+		{ name: name, title: __( 'MLS Listings', 'mlsimport' ), description: __( 'Display imported MLS listings in a filterable grid.', 'mlsimport' ), category: 'widgets', layout: false }
 	];
 
 	blocks.forEach( function ( block ) {

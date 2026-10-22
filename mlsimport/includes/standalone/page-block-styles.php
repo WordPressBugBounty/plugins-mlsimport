@@ -196,10 +196,13 @@ function mlsimport_page_block_styles_editor_script(): void {
 	wp_register_script(
 		'mlsimport-page-block-styles',
 		$url . 'admin/js/mlsimport-page-block-styles.js',
-		array( 'wp-element', 'wp-components', 'wp-block-editor' ),
+		array( 'wp-element', 'wp-components', 'wp-block-editor', 'wp-i18n' ),
 		$ver,
 		true
 	);
+	// Hand the script its translation file, so the panel's words ("Look",
+	// "Default") follow the site language (#374).
+	wp_set_script_translations( 'mlsimport-page-block-styles', 'mlsimport' );
 	$options = array();
 	foreach ( mlsimport_page_block_style_blocks() as $slug ) {
 		$rows = array();

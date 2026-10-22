@@ -28,8 +28,8 @@ $mli = mlsimport_card_view( $post, $row );
 			// (the plugin's own "Featured" flag) inline after it.
 			?>
 			<span class="mlsimport-listing-card__badges">
-				<?php if ( '' !== $mli['status'] ) : ?>
-					<span class="mlsimport-listing-card__badge"><?php echo esc_html( $mli['status'] ); ?></span>
+				<?php if ( '' !== $mli['badge'] ) : ?>
+					<span class="mlsimport-listing-card__badge"><?php echo esc_html( $mli['badge'] ); ?></span>
 				<?php endif; ?>
 				<?php do_action( 'mlsimport_card_badges', $post, $row ); ?>
 			</span>

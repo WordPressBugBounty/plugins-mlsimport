@@ -109,10 +109,13 @@ class Mlsimport_Page_Block_Blocks {
 				$handle,
 				$url,
 				// mlsimport-page-block-styles: the shared "Look" panel (page-block-styles.php).
-				array( 'wp-blocks', 'wp-element', 'wp-components', 'wp-block-editor', 'wp-server-side-render', 'mlsimport-page-block-styles' ),
+				array( 'wp-blocks', 'wp-element', 'wp-components', 'wp-block-editor', 'wp-server-side-render', 'wp-i18n', 'mlsimport-page-block-styles' ),
 				$ver,
 				true
 			);
+			// Hand the script its translation file, so the inspector's buttons
+			// (Select image, Remove, Move up...) follow the site language (#374).
+			wp_set_script_translations( $handle, 'mlsimport' );
 
 			$blocks = array();
 			foreach ( mlsimport_get_page_blocks() as $slug => $def ) {

@@ -199,10 +199,11 @@ abstract class Mlsimport_Elementor_Page_Block_Widget extends \Elementor\Widget_B
 	 * Add a repeater control built from a field's row sub-schema.
 	 *
 	 * @param string $key   Control key.
-	 * @param array  $field Repeater schema ( label, default rows, fields sub-schema ).
+	 * @param array  $field Repeater schema ( label, default rows, fields sub-schema,
+	 *                      optional title_field for the collapsed row title ).
 	 * @return void
 	 */
-	private function add_repeater_control( string $key, array $field ): void {
+	protected function add_repeater_control( string $key, array $field ): void {
 		// Build a fresh Elementor Repeater and register one control per row field.
 		$repeater = new \Elementor\Repeater();
 		foreach ( (array) $field['fields'] as $sub_key => $sub ) {
@@ -217,7 +218,7 @@ abstract class Mlsimport_Elementor_Page_Block_Widget extends \Elementor\Widget_B
 				'type'        => \Elementor\Controls_Manager::REPEATER,
 				'fields'      => $repeater->get_controls(),
 				'default'     => isset( $field['default'] ) ? $field['default'] : array(),
-				'title_field' => '{{{ label }}}',
+				'title_field' => isset( $field['title_field'] ) ? $field['title_field'] : '{{{ label }}}',
 			)
 		);
 	}
@@ -842,6 +843,24 @@ trait Mlsimport_Listing_Selection_Controls {
 
 		$this->end_controls_section();
 	}
+
+	/**
+	 * Custom parameters — the { field, compare, value } repeater, built from the block
+	 * schema's custom_parameters entry so its rows match what the render reads. Only
+	 * Property List, Property Slider and Map with Listings call it (their schemas
+	 * carry the key); Half Map shares this trait but has no such filter.
+	 *
+	 * @return void
+	 */
+	protected function register_custom_parameters_section(): void {
+		$schema = Mlsimport_Page_Block_Elementor::schema( $this->get_block_slug() );
+		if ( empty( $schema['custom_parameters'] ) ) {
+			return;
+		}
+		$this->start_controls_section( 'mlsimport_custom_parameters', array( 'label' => __( 'Custom parameters', 'mlsimport' ) ) );
+		$this->add_repeater_control( 'custom_parameters', $schema['custom_parameters'] );
+		$this->end_controls_section();
+	}
 }
 
 /**
@@ -1011,6 +1030,7 @@ class Mlsimport_Elementor_Item_List_Widget extends Mlsimport_Elementor_Page_Bloc
 	protected function register_controls() {
 		$this->register_settings_section();
 		$this->register_initial_filters_section();
+		$this->register_custom_parameters_section();
 		$this->register_search_fields_section();
 		$this->register_style_controls();
 	}
@@ -1105,6 +1125,7 @@ class Mlsimport_Elementor_Content_Slider_Widget extends Mlsimport_Elementor_Page
 	protected function register_controls() {
 		$this->register_settings_section();
 		$this->register_initial_filters_section();
+		$this->register_custom_parameters_section();
 		$this->register_style_controls();
 	}
 
@@ -1892,6 +1913,7 @@ class Mlsimport_Elementor_Map_Listings_Widget extends Mlsimport_Elementor_Page_B
 	 */
 	protected function register_controls() {
 		$this->register_initial_filters_section();
+		$this->register_custom_parameters_section();
 		$this->register_style_controls();
 	}
 

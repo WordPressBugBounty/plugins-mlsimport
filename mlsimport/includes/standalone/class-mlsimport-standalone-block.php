@@ -162,10 +162,13 @@ class Mlsimport_Standalone_Block {
 			self::EDITOR_HANDLE,
 			$url . 'admin/js/mlsimport-standalone-block.js',
 			// mlsimport-page-block-styles: the shared "Look" panel (page-block-styles.php).
-			array( 'wp-blocks', 'wp-element', 'wp-components', 'wp-block-editor', 'wp-server-side-render', 'mlsimport-page-block-styles' ),
+			array( 'wp-blocks', 'wp-element', 'wp-components', 'wp-block-editor', 'wp-server-side-render', 'wp-i18n', 'mlsimport-page-block-styles' ),
 			$ver,
 			true
 		);
+		// Hand the script its translation file, so the inspector's words (sort
+		// choices, panel titles, Custom parameters) follow the site language (#374).
+		wp_set_script_translations( self::EDITOR_HANDLE, 'mlsimport' );
 		return self::EDITOR_HANDLE;
 	}
 
@@ -428,7 +431,22 @@ class Mlsimport_Standalone_Block {
 			'type'    => 'string',
 			'default' => '',
 		);
+		$attributes['custom_parameters'] = self::custom_parameters_attribute();
 		return $attributes;
+	}
+
+	/**
+	 * The Custom parameters attribute: the { field, compare, value } rows the
+	 * "Custom parameters" panel writes (Property List, Property Slider, Map with
+	 * Listings). Mlsimport_Custom_Parameters cleans them at query time.
+	 *
+	 * @return array
+	 */
+	private static function custom_parameters_attribute(): array {
+		return array(
+			'type'    => 'array',
+			'default' => array(),
+		);
 	}
 
 	/**
@@ -451,6 +469,7 @@ class Mlsimport_Standalone_Block {
 		$attributes['show_filter_bar'] = array( 'type' => 'string', 'default' => '1' );
 		$attributes['fields_per_row']  = array( 'type' => 'string', 'default' => '4' );
 		$attributes['search_fields']   = array( 'type' => 'string', 'default' => '' );
+		$attributes['custom_parameters'] = self::custom_parameters_attribute();
 		return $attributes;
 	}
 
@@ -475,6 +494,7 @@ class Mlsimport_Standalone_Block {
 		}
 		$attributes['count'] = array( 'type' => 'string', 'default' => '' );
 		$attributes['ids']   = array( 'type' => 'string', 'default' => '' );
+		$attributes['custom_parameters'] = self::custom_parameters_attribute();
 		return $attributes;
 	}
 

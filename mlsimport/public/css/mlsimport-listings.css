@@ -1396,7 +1396,11 @@ a.mlsimport-pager__btn:hover {
 	left: 0;
 	right: 0;
 	bottom: 0;
-	padding: 28px 16px 14px;
+	/* Column + gap like the v1 body, so the price span is a block and a site can space the lines. */
+	display: flex;
+	flex-direction: column;
+	gap: 5px;
+	padding: 28px 18px 18px;
 	color: #fff;
 	background: linear-gradient( to top, rgba( 0, 0, 0, 0.72 ) 0%, rgba( 0, 0, 0, 0 ) 100% );
 }
@@ -1407,7 +1411,20 @@ a.mlsimport-pager__btn:hover {
 }
 .mlsimport-listing-card--v3 .mlsimport-listing-card__price {
 	font-size: 20px;
-	font-weight: 700;
+	font-weight: 500;
+}
+/* Status badges and heart sit on the same 18px inset as the text. */
+.mlsimport-listing-card--v3 .mlsimport-listing-card__badges {
+	top: 18px;
+	left: 18px;
+}
+.mlsimport-listing-card--v3 .mlsimport-fav.mlsimport-fav--heart {
+	top: 18px;
+	right: 18px;
+}
+/* Details line at the address size (14px), so the two lines read as one block. */
+.mlsimport-listing-card--v3 .mlsimport-listing-card__specs {
+	font-size: 14px;
 }
 
 /* -------------------------------------------------------------------------

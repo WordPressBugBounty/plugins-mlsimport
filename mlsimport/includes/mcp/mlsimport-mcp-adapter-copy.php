@@ -11,11 +11,13 @@
  *   2. the reader of the version of a copy ANOTHER plugin already loaded, so
  *      the bootstrap can decide whether that copy is the one we tested.
  *
- * Why the version is read from a file: the adapter defines its version
- * constant (WP_MCP_VERSION) only in its main plugin file, mcp-adapter.php. A
- * plugin that bundles the adapter and loads it with an autoloader (Elementor
- * does) never runs that file, so the constant does not exist. The version is
- * then read from the mcp-adapter.php that sits beside the loaded classes.
+ * Where the version comes from: the adapter class carries it as
+ * McpAdapter::VERSION, which is read first. The global constant
+ * WP_MCP_VERSION exists only when the copy was started from its main plugin
+ * file, mcp-adapter.php; a plugin that bundles the adapter and loads it with
+ * an autoloader (Elementor, the WpResidence theme) never runs that file. As
+ * a last resort the version is read from the mcp-adapter.php that sits
+ * beside the loaded classes.
  *
  * Loaded by mlsimport-mcp-bootstrap.php on every request.
  *
@@ -97,18 +99,27 @@ function mlsimport_mcp_adapter_version_of( string $class_file ): string {
  * Call only when the adapter class exists.
  *
  * Step by step:
- * 1. The constant, when the copy was started from its main file.
- * 2. Otherwise the main file beside the loaded class (autoloaded copies).
+ * 1. The class constant McpAdapter::VERSION (0.6 carries it). This is the
+ *    only version a copy loaded by another product's PSR-4 loader has: the
+ *    WpResidence theme loads the adapter that way, with no WP_MCP_VERSION
+ *    and no mcp-adapter.php beside the classes.
+ * 2. The global constant, when the copy was started from its main file.
+ * 3. Otherwise the main file beside the loaded class (older autoloaded copies).
  *
  * @return string The version, or '' when it cannot be read.
  */
 function mlsimport_mcp_loaded_adapter_version(): string {
-	// Step 1: the constant.
+	// Step 1: the class constant.
+	if ( defined( '\\WP\\MCP\\Core\\McpAdapter::VERSION' ) ) {
+		return (string) \WP\MCP\Core\McpAdapter::VERSION;
+	}
+
+	// Step 2: the global constant.
 	if ( defined( 'WP_MCP_VERSION' ) ) {
 		return (string) WP_MCP_VERSION;
 	}
 
-	// Step 2: the file the loaded class came from.
+	// Step 3: the file the loaded class came from.
 	$class = new ReflectionClass( 'WP\\MCP\\Core\\McpAdapter' );
 	return mlsimport_mcp_adapter_version_of( (string) $class->getFileName() );
 }

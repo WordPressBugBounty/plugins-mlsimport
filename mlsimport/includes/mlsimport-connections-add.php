@@ -35,6 +35,29 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
+ * How many of the MLSImport Account's MLS slots the registered connections
+ * use. Pure.
+ *
+ * The one rule the Connections screen ("N of M used") and the drawer's at_cap
+ * refusal share: every registered MLS Connection counts EXCEPT the Test MLS
+ * (#376), which is free sample data the SaaS serves with its own token and
+ * never one of the plan's slots.
+ *
+ * @param array $registered_ids mls_ids already in the registry (option keys,
+ *                              so they may arrive as strings).
+ * @return int Slots in use.
+ */
+function mlsimport_connections_used( array $registered_ids ): int {
+	$used = 0;
+	foreach ( $registered_ids as $mls_id ) {
+		if ( Mlsimport_Provider_Family::TEST_MLS_ID !== (int) $mls_id ) {
+			$used++;
+		}
+	}
+	return $used;
+}
+
+/**
  * Decide whether an add request must be refused before any network call. Pure.
  *
  * Step by step:
@@ -181,10 +204,11 @@ function mlsimport_connections_add_execute( int $mls_id, string $mls_name, array
 		'already_registered' => esc_html__( 'This MLS is already one of your connections.', 'mlsimport' ),
 		'at_cap'             => esc_html__( 'All your plan\'s MLS connections are in use — upgrade your plan to add another.', 'mlsimport' ),
 	);
+	$registered_ids   = array_keys( Mlsimport_Connections::all() );
 	$refusal          = mlsimport_connections_add_refusal(
 		$mls_id,
-		array_keys( Mlsimport_Connections::all() ),
-		count( Mlsimport_Connections::all() ),
+		$registered_ids,
+		mlsimport_connections_used( $registered_ids ),
 		mlsimport_entitlement_cap()
 	);
 	if ( null !== $refusal ) {

@@ -120,7 +120,7 @@ const TABS_FALLBACK = [
 				key: 'terms_link_text',
 				label: __( 'Text for terms link', 'mlsimport' ),
 				type: 'text',
-				help: __( 'e.g. Privacy Policy.', 'mlsimport' ),
+				help: __( 'The words that link to your privacy page in the consent checkbox on every lead form, e.g. Privacy Policy. The link opens the page chosen in Settings > Privacy.', 'mlsimport' ),
 			},
 			{
 				key: 'show_looking_dropdown',
@@ -903,6 +903,14 @@ function SettingsApp() {
 						value={ settings[ field.key ] }
 						onChange={ ( v ) => update( field.key, v ) }
 					/>
+					{ /* Optional PHP-sent warning under the field: { text, link, url }
+					     (e.g. no privacy page set, under "Text for terms link"). */ }
+					{ field.notice && field.notice.text && (
+						<Notice status="warning" isDismissible={ false } className="mlsimport-field-notice">
+							{ field.notice.text }{ ' ' }
+							<a href={ field.notice.url }>{ field.notice.link }</a>
+						</Notice>
+					) }
 				</div>
 			) )
 		);

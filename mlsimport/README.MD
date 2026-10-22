@@ -4,50 +4,120 @@ Tags: idx, idx-plugin, mls, real-estate, wordpress-idx
 Requires at least: 5.2
 Tested up to: 7.1.1
 Requires PHP: 7.4
-Stable tag: 7.2.3
+Stable tag: 7.2.5
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
-IDX and MLS plugin for WordPress. Import and sync real estate listings from 800+ MLS via the RESO Web API, on any theme.
+IDX plugin for WordPress. Show MLS listings with IDX search, maps and saved searches on any theme. 800+ MLS via the RESO Web API.
 
 == Description ==
 
+[youtube https://www.youtube.com/watch?v=S3nlRmpKcNQ]
+
+MLSImport is an IDX plugin for WordPress. It puts homes for sale from your MLS on your real estate website. Every hour, it checks your MLS for new homes and changes. Each day, it removes homes that are no longer for sale.
+
+It works with more than 800 MLS in the US and Canada. You need an account at <a href="https://mlsimport.com/" target="_blank">MLSImport.com</a>. You also need access from your MLS.
+
+<h3>Try the IDX plugin before your MLS says yes</h3>
+
+Your MLS can take days or weeks to give you access. You do not have to wait. The first time you sign in, MLSImport connects a Test MLS full of sample homes. Import them and see how your site looks. When your own MLS is ready, remove the Test MLS.
+
+<h3>IDX for any WordPress theme</h3>
+
+You do not need a real estate theme. MLSImport has its own pages for the search, the listings, the map, each home and your agents, and they work on any theme. Add them with Gutenberg blocks, Elementor widgets or shortcodes. You can translate the menus and block settings, for example with Loco Translate.
+
+MLSImport also works with <a href="https://wpresidence.net/" target="_blank">WPResidence</a>, <a href="https://wpestate.org/" target="_blank">WpEstate</a>, Houzez and Real Homes. With these themes, the homes look just like homes you added by hand.
+
+<h3>More than one MLS on one IDX site</h3>
+
+If you sell homes in more than one MLS area, connect them all on one site. Each MLS keeps its own settings. If one MLS stops working, the others keep going. If two MLS send the same home, your site shows it once.
+
+<h3>IDX property search for buyers</h3>
+
+MLSImport's own pages come with these tools:
+
+* Search by city, price, beds, baths and more. Pick "Studio" to find homes with no bedroom.
+* Search by MLS number, like the one on a yard sign.
+* Saved searches. A buyer types a name and an email to save a search. Each day, they get an email with new homes that match. They do not need an account.
+* Featured homes. Pick the homes you want people to see first. They get a "Featured" badge.
+* Saved homes. Visitors tap the heart on a home to keep it for later.
+
+<h3>Daily email when a listing changes</h3>
+
+The Alerts page shows what changed on your listings: new homes, lower prices, sold homes and more. You can also get one email a day with these changes. The email lists the buyers whose saved search matches a new home, so you know who to call.
+
+<h3>IDX blocks for Gutenberg and Elementor</h3>
+
+MLSImport comes with 14 ready blocks to build your pages. Each one is a Gutenberg block, an Elementor widget and a shortcode, so you can use the page builder you like.
+
+* Search Form. A search box for your home page. It sends people to your results page.
+* Search Results. The homes that match a search, with a filter bar and a "Save this search" button.
+* Half Map. Homes on one side, a map on the other. The map groups homes that sit close together.
+* Map with Listings. A map with the homes on it.
+* Property List. A list of homes. Pick the city, the type, the status, the order and how many to show.
+* Property Slider. Homes that slide by, one after another.
+* List Properties by ID. Only the homes you pick.
+* Featured Property. One home, shown big.
+* Saved Properties. The homes a visitor saved with the heart.
+* Category Slider and Display Categories. Tiles for cities, home types and more, each with its own photo.
+* Team Directory. Your agents, with their photo, job title and office.
+* Contact Form. A form people use to write to you.
+* Blog Posts. Your newest blog posts as cards.
+
+You can show only the homes you want. For example, show only the homes in one building. You can also give categories your own names, like "For Sale" and "For Rent".
+
+<h3>A full listing page for each home</h3>
+
+Each home gets its own page. You pick which parts to show and in what order:
+
+* Photos, in a gallery or a slider, with many styles to pick from.
+* The price, beds, baths and all the facts the MLS sends.
+* A map.
+* A video and a virtual tour.
+* A "Schedule a Tour" form and a form to write to the agent.
+* A mortgage calculator.
+* Similar homes.
+* Share and print buttons.
+
+Each part is also a Gutenberg block, an Elementor widget and a shortcode. Use them to make your own layout for the home pages.
+
+<h3>A page for each agent</h3>
+
+Each agent gets a page with their photo, their story, their homes and a way to reach them, by phone, email or WhatsApp.
+
+<h3>Make it look like your brand</h3>
+
+Pick your colors, the look of the home cards and more. Change them in Design Settings or in the WordPress Customizer, where you see each change right away. The badge on the photo can show the status, like "Active", or your own words, like "For Sale".
+
+<h3>Use an AI assistant</h3>
+
+Connect an AI assistant like Claude to your site. Then tell it what you want in plain words, the way you would tell a helper. It asks you first before it changes anything, and you can turn that off.
+
+Here is what you can ask it to do:
+
+* Set up. Sign in to your MLSImport account, pick your MLS, add your MLS login, test it and choose which MLS fields to bring in.
+* Import homes. Make an import task, for example "homes for sale in Tampa under $500,000". Start it, stop it, see how many homes it will bring in and check how it went.
+* Fix a listing. Find a home by city or MLS number, change its text, remove a photo, mark it as featured or delete it.
+* See what changed. Ask which homes are new, which dropped in price and which sold, or look at the history of one home.
+* Build pages. Make a new page, add home sliders, maps, search forms and other blocks, change them and set your home page. It also works with Elementor pages.
+* Change your menus. Make a menu, add or remove links and put the menu in your site's header.
+* Change the look. Change colors, add your own CSS, and set your logo, site title and site icon.
+* Write blog posts. Make and change posts and blog categories.
+* Manage agents. Add, change or remove your agents.
+* Handle buyers. See saved searches, send an alert email now, or turn a search off.
+* Fix problems. Read the import log, clear the cache and try a stuck import again.
+
+<h3>An SEO friendly IDX plugin</h3>
+
+Many IDX plugins show homes in a frame that comes from another site. Google gives the credit for those pages to the other site. MLSImport saves each home as a real page on your own site, so Google can find it and your pages load fast. Each home page also tells Google the price, the beds and the baths in a way Google understands. The photos come from the MLS, so your server does not fill up with pictures.
+
+<h3>More videos</h3>
+
 [youtube https://www.youtube.com/watch?v=3WSb8BDA07c]
 
-Connect your real estate website with <a href="https://mlsimport.com/" target="_blank">MLSImport.com plugin</a> to effortlessly sync, import, and manage MLS property listings, providing your users with up-to-date and accurate real estate information directly on your site.
+<a href="https://mlsimport.com/reso-standard-explained-in-detail/" target="_blank">How MLS data works (the RESO standard)</a>
 
-MlsImport is an IDX and MLS plugin for WordPress that downloads and synchronizes real estate listings from 800+ MLS (Multiple Listing Services) using the modern RESO Web API. It works by calling the MLSimport API and your MLS API, reading the data from your Multiple Listing Association, and transforming it into a WordPress-like format. You will need a valid access token from your MLS to use this plugin and an MLSImport account. The plugin now runs on ANY WordPress theme through its built-in standalone mode, and additionally offers deep, native integration with <a href="https://wpresidence.net/" target="_blank">WPResidence</a>, Houzez, Real Homes, and <a href="https://wpestate.org/" target="_blank">WpEstate</a>.
-
-<h3>Works with any WordPress theme (IDX for Gutenberg &amp; Elementor)</h3>
-
-MLS Import now includes a built-in standalone mode that renders its own property search, IDX listing cards, half-map search, single-property pages and agent profiles on ANY WordPress theme — no dedicated real estate theme required. Place listings anywhere on your site with shortcodes, Gutenberg blocks or Elementor widgets.
-
-<h3>Deep integration with the top real estate themes</h3>
-
-Prefer a dedicated real estate theme? MLS Import also offers deep, native integration with <a href="https://wpresidence.net/" target="_blank">WPResidence</a>, <a href="https://wpestate.org/" target="_blank">WpEstate</a>, Houzez and Real Homes, importing MLS listings directly into each theme's own property format so they behave exactly like listings you added by hand.
-
-If you are the owner of a real estate theme and want to be integrated with MLSimport, feel free to contact us.
-
-<h3>A modern WordPress IDX plugin built on the RESO Web API</h3>
-
-MLS Import is a modern WordPress IDX plugin that links your website to the MLS through the RESO Web API. Instead of embedding a slow third-party IDX iframe or relying on the old RETS protocol, it imports and synchronizes real MLS listings directly into your own WordPress site — for faster pages, full control of your content, and better SEO because the listings live on your own domain.
-
-<a href="https://mlsimport.com/reso-standard-explained-in-detail/" target="_blank">RESO Standard Explained in Detail</a> 
-
-
-<h3>Direct Integration</h3>
-
-Our MLS solution smoothly brings your chosen properties directly into your WordPress website. Additionally, it optimizes performance by serving images from a content delivery network (CDN).
-
-<h3>Sync Listings Automatically</h3>
-
-MLS Import regularly updates your published property listings to match the most recent changes in MLS listings, ensuring that your website always displays accurate and up-to-date information.
-
-<h3>800+ MLS Markets Coverage</h3>
-
-We can establish connections with more than 800 MLS markets in the United States and Canada. If you don't see your specific MLS listed, please get in touch with us, and we'll gladly assist you.
-
-
+If you own a real estate theme and want it to work with MLSImport, contact us.
 
 
 == CONNECT WITH US ==
@@ -108,6 +178,18 @@ In standalone (theme-agnostic) mode, the plugin renders its own search, cards, h
 See `docs/standalone-hooks-guide.md` for the detailed guide (a worked example for every hook), `docs/standalone-hooks.md` for the at-a-glance signature tables, `includes/standalone/mlsimport-hooks.php` for the canonical machine-readable list, and `docs/adr/0006-standalone-hook-conventions.md` for the naming/argument conventions. Themes override templates by copying them into a `mlsimport/` sub-directory (the WooCommerce pattern).
 
 == Changelog ==
+= 7.2.5 =
+* Test MLS for new sites: on your first sign-in with an MLSImport account, the plugin connects "Test MLS (sample listings)" and creates a first import task, so you can see listings import before your own MLS approves your data access. It needs no MLS credentials and does not use one of your account's MLS slots. Remove it from the Connections tab when your own MLS is connected.
+* Test MLS listings now come with property photos.
+= 7.2.4 =
+* Your own category names (standalone mode). Rename a Listing Type, Property Type or Status category under MLS Properties, name and slug, for example Residential to "For Sale" and Residential Lease to "For Rent". The hourly sync keeps filing listings under your renamed category instead of creating a second one with the MLS name, and the search form, the category page, the page blocks with a preset filter and the saved searches all find the listings by your name. Categories imported before this update are picked up automatically.
+* New "Badge over the photo" setting under Design Settings, Property Card: show the MLS status (Active, Pending) as before, or the listing's Listing Type category with the name you gave it, so cards and the property page can say FOR SALE or FOR RENT.
+* Half Map page block now applies the search sent by a Search Form on another page, so a half-map page can be the results page: the listing list and the map both narrow to the search, and the block's own preset filters stay for anything the search does not mention.
+* The "Text for terms link" setting of the lead forms now says where the Privacy Policy link goes, and shows a warning with a link to Settings, Privacy when no privacy page is set or it is not published.
+* AI assistant: the city, property type and other category pickers of the Categories page blocks accept category names or slugs, not only ids, and the tools answer with the names they resolved.
+* AI assistant: works side by side with the WpResidence theme's own AI assistant on the same site. Each product keeps its own sign-in addresses, and the theme's copy of the MCP adapter is recognised instead of reported as a version mismatch.
+* New "Custom parameters" filter on the Property List, Property Slider and Map with Listings blocks (standalone mode), in Gutenberg and Elementor. Add rows of MLS field, comparison (equals, not equals, greater than, less than, contains) and value to show only the listings that match, for example BuildingName equals Kahala Beach for one building. Works with any imported MLS field, and keeps applying when visitors filter, change page or move the map.
+* Translations: the MLS Properties and Real Estate Agents menus, their lists (Property Types, Cities, ZIP Codes and the rest) and the block editor settings of the MLSImport blocks (sort choices, panel titles, image and reorder buttons) can now be translated with translation files or plugins like Loco Translate.
 = 7.2.3 =
 * New "Alerts" page under MLS Import Settings lists what changed on your listings: new listings, price drops and increases, status changes, listings under contract, sold, off market, back on market, and agent or office changes. Search by MLS number and filter by event or import task.
 * New daily email alerts, set up in the "Notifications" section of the Alerts page. Tick the kinds of change you want, add one or more email addresses, and switch each MLS on or off. Each MLS has its own filter (city, neighborhood, zip, price range, property type, status), prefilled from that MLS's import tasks. You get one email per MLS per day, and none on a day with nothing to report. "Sold" is reported only when the MLS sends a closed record.

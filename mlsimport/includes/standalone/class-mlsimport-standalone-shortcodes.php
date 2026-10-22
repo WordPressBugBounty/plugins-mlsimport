@@ -115,6 +115,11 @@ class Mlsimport_Standalone_Shortcodes {
 	 * @return array
 	 */
 	public static function atts_to_args( $atts ): array {
+		// Custom parameters rows ({ field, compare, value }, from the block repeater, or
+		// the JSON string the form / map carry through AJAX). Not a scalar filter key, so
+		// read it before the whitelist drops it; it travels on as one JSON string.
+		$custom = Mlsimport_Custom_Parameters::rows( isset( $atts['custom_parameters'] ) ? $atts['custom_parameters'] : array() );
+
 		// Whitelist to the known filter keys (unknown atts are dropped, defaults '').
 		$atts = shortcode_atts( array_fill_keys( self::FILTER_ATTS, '' ), (array) $atts, 'mlsimport_listings' );
 
@@ -138,6 +143,10 @@ class Mlsimport_Standalone_Shortcodes {
 				// Single-value filter: pass the scalar straight through.
 				$args[ $key ] = $value;
 			}
+		}
+
+		if ( $custom ) {
+			$args['custom_parameters'] = (string) wp_json_encode( $custom );
 		}
 
 		return $args;

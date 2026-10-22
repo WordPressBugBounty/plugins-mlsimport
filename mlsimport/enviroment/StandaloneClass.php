@@ -19,6 +19,7 @@ require_once __DIR__ . '/../includes/standalone/class-mlsimport-standalone-reso-
 require_once __DIR__ . '/../includes/standalone/class-mlsimport-standalone-derive.php';
 require_once __DIR__ . '/../includes/standalone/class-mlsimport-standalone-table.php';
 require_once __DIR__ . '/../includes/standalone/class-mlsimport-standalone-row.php';
+require_once __DIR__ . '/../includes/standalone/class-mlsimport-term-mls-value.php';
 
 /**
  * Standalone (theme_id 990) write adapter.
@@ -196,7 +197,19 @@ class StandaloneClass {
 		}
 
 		// Write the accumulated terms, one taxonomy at a time (replace, not append).
+		// A fast-column taxonomy (type, status, city ...) is written by term id,
+		// found through the MLS value the term stores (issue #355): the owner may
+		// have renamed the term, and a lookup by name would create a second one.
 		foreach ( $terms_by_tax as $taxonomy => $terms ) {
+			if ( Mlsimport_Term_Mls_Value::applies( $taxonomy ) ) {
+				$terms = array();
+				foreach ( $terms_by_tax[ $taxonomy ] as $mls_value ) {
+					$term_id = Mlsimport_Term_Mls_Value::term_id( $taxonomy, (string) $mls_value );
+					if ( $term_id > 0 ) {
+						$terms[] = $term_id;
+					}
+				}
+			}
 			wp_set_object_terms( $property_id, $terms, $taxonomy, false );
 		}
 

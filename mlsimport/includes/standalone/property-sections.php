@@ -152,6 +152,9 @@ function mlsimport_property_data( int $id = 0 ): array {
 		'property_sub_type' => (string) $meta( 'PropertySubType' ),
 		'listing_type'   => $str( 'listing_type' ),
 		'status'         => '' !== $str( 'status' ) ? $str( 'status' ) : (string) $meta( 'MlsStatus' ),
+		// The badge over the photo and beside the title: the status, or the
+		// Listing Type term under the owner's name (#355), as on the cards.
+		'badge'          => mlsimport_listing_badge( $id, '' !== $str( 'status' ) ? $str( 'status' ) : (string) $meta( 'MlsStatus' ) ),
 
 		// Provenance / freshness (display-only).
 		'mls_id'         => '' !== (string) $meta( 'ListingId' ) ? (string) $meta( 'ListingId' ) : (string) $meta( 'ListingKey' ),
@@ -568,12 +571,12 @@ function mlsimport_property_title( int $id = 0, array $args = array() ): string 
 function mlsimport_property_status( int $id = 0, array $args = array() ): string {
 	// No status, no section.
 	$data = mlsimport_property_data( $id );
-	if ( empty( $data ) || '' === $data['status'] ) {
+	if ( empty( $data ) || '' === $data['badge'] ) {
 		return '';
 	}
-	// Wrapper + the status as a badge.
+	// Wrapper + the badge (status, or the Listing Type term per the card_badge setting).
 	$html  = mlsimport_property_section_open( 'status' );
-	$html .= '<span class="mlsimport-property-status__badge">' . esc_html( $data['status'] ) . '</span>';
+	$html .= '<span class="mlsimport-property-status__badge">' . esc_html( $data['badge'] ) . '</span>';
 	$html .= mlsimport_property_section_close();
 	return $html;
 }
@@ -1583,7 +1586,7 @@ function mlsimport_property_gallery( int $id = 0, array $args = array() ): strin
 
 	// Grid/masonry overlay: featured + status chips + photo count.
 	$overlay = array(
-		'status'   => '' !== (string) $data['status'] ? (string) $data['status'] : ( '' !== (string) $data['property_sub_type'] ? (string) $data['property_sub_type'] : '' ),
+		'status'   => '' !== (string) $data['badge'] ? (string) $data['badge'] : ( '' !== (string) $data['property_sub_type'] ? (string) $data['property_sub_type'] : '' ),
 		'count'    => count( $ids ),
 		'featured' => $featured,
 	);
@@ -2365,8 +2368,8 @@ function mlsimport_property_header( int $id = 0, array $args = array() ): string
 	if ( '' !== $data['address'] ) {
 		$inner .= '<p class="mlsimport-property-address__line">' . esc_html( $data['address'] ) . '</p>';
 	}
-	if ( '' !== $data['status'] ) {
-		$inner .= '<span class="mlsimport-property-status__badge">' . esc_html( $data['status'] ) . '</span>';
+	if ( '' !== $data['badge'] ) {
+		$inner .= '<span class="mlsimport-property-status__badge">' . esc_html( $data['badge'] ) . '</span>';
 	}
 	if ( null !== $data['price'] ) {
 		$inner .= '<p class="mlsimport-property-price__amount">' . esc_html( mlsimport_format_price( $data['price'] ) ) . '</p>';
@@ -2508,9 +2511,10 @@ function mlsimport_property_title_bar_chips( array $data ): string {
 	// Case-insensitive de-dupe set so a repeated value is shown once.
 	$seen  = array();
 
-	// Status is the loud "accent" chip; the type chips are quiet "soft" ones.
+	// The badge (status, or the Listing Type term per the card_badge setting) is
+	// the loud "accent" chip; the type chips are quiet "soft" ones.
 	$badges = array(
-		array( (string) ( $data['status'] ?? '' ), 'accent' ),
+		array( (string) ( $data['badge'] ?? $data['status'] ?? '' ), 'accent' ),
 		array( (string) ( $data['listing_type'] ?? '' ), 'soft' ),
 		array( (string) ( $data['property_type'] ?? '' ), 'soft' ),
 		array( (string) ( $data['property_sub_type'] ?? '' ), 'soft' ),

@@ -37,7 +37,7 @@ if ( ! defined( 'MINUTE_IN_SECONDS' ) ) {
 
 /**
  * In-memory counter deltas for the current request, nested per connection:
- * mls_id => (imported | updated | deleted | syncs | token_failures => delta).
+ * mls_id => (counter from mlsimport_telemetry_counters() => delta).
  * mls_id 0 holds unattributed (account-level) deltas — issue #283.
  * Written to wp_options exactly once — on shutdown — by mlsimport_telemetry_flush().
  *
@@ -51,7 +51,7 @@ $mlsimport_telemetry_pending = array();
 
 /**
  * Add an in-memory counter delta for the current request.
- * Allowed $metric: 'imported' | 'updated' | 'deleted' | 'syncs' | 'token_failures'.
+ * Allowed $metric: any key in mlsimport_telemetry_counters().
  * No DB access — deltas are written to wp_options once, on shutdown, by flush().
  *
  * Multi-MLS (issue #283): callers pass the connection the activity belongs to
@@ -61,16 +61,14 @@ $mlsimport_telemetry_pending = array();
  * buckets. mls_id 0 = account-level activity with no owning connection
  * (e.g. SaaS token refresh failures), counted globally only.
  *
- * @param string $metric One of the five allowed metric keys.
+ * @param string $metric One of the keys in mlsimport_telemetry_counters().
  * @param int    $amount Amount to add (default 1).
  * @param int    $mls_id Connection the activity belongs to (0 = unattributed).
  * @return void
  */
 function mlsimport_telemetry_bump( string $metric, int $amount = 1, int $mls_id = 0 ): void {
-	// Whitelist of accepted metric keys.
-	$allowed = array( 'imported', 'updated', 'deleted', 'syncs', 'token_failures' );
 	// Guard: silently ignore an unknown metric key.
-	if ( ! in_array( $metric, $allowed, true ) ) {
+	if ( ! in_array( $metric, mlsimport_telemetry_counters(), true ) ) {
 		return;
 	}
 	// Reach the request-scoped accumulator.
@@ -106,15 +104,9 @@ function mlsimport_telemetry_bump( string $metric, int $amount = 1, int $mls_id 
  * @return array The updated, pruned daily map.
  */
 function mlsimport_telemetry_fold_bucket( array $daily, array $pending, string $today ): array {
-	// Step 1: zero-base for all five counters in today's bucket.
+	// Step 1: zero-base every counter in today's bucket.
 	$bucket = array_merge(
-		array(
-			'imported'       => 0,
-			'updated'        => 0,
-			'deleted'        => 0,
-			'syncs'          => 0,
-			'token_failures' => 0,
-		),
+		array_fill_keys( mlsimport_telemetry_counters(), 0 ),
 		isset( $daily[ $today ] ) && is_array( $daily[ $today ] ) ? $daily[ $today ] : array()
 	);
 
@@ -321,13 +313,16 @@ function mlsimport_telemetry_classify_sync_failure( $answer ): string {
 		return 'token';
 	}
 	// WP_Error transport messages pass through verbatim; cURL timeouts read
-	// 'cURL error 28: Operation timed out after N milliseconds ...'.
-	if ( false !== stripos( $message, 'timed out' ) ) {
+	// 'cURL error 28: Operation timed out after N milliseconds ...'. The SaaS
+	// words an MLS that hung or answered 5xx as "Your MLS is temporarily
+	// unavailable." (#348).
+	if ( false !== stripos( $message, 'timed out' ) || false !== stripos( $message, 'temporarily unavailable' ) ) {
 		return 'timeout';
 	}
 	// AWS API Gateway rejections decode to {"message":"Unauthorized"} /
-	// {"message":"Forbidden"} with no 'results' key.
-	if ( false !== stripos( $message, 'unauthorized' ) || false !== stripos( $message, 'forbidden' ) ) {
+	// {"message":"Forbidden"} with no 'results' key. The SaaS words an MLS
+	// login failure as "Your MLS rejected the login." (#348).
+	if ( false !== stripos( $message, 'unauthorized' ) || false !== stripos( $message, 'forbidden' ) || false !== stripos( $message, 'rejected the login' ) ) {
 		return 'auth';
 	}
 	return 'api_error';
@@ -448,9 +443,26 @@ function mlsimport_telemetry_prune_buckets( array $daily, string $today, int $ke
 }
 
 /**
+ * The daily counters, one list shared by bump(), fold_bucket() and
+ * sum_buckets() so a counter added here exists everywhere at once.
+ *
+ * - imported / updated / deleted: listings written by an import or removed.
+ * - syncs: listings requests to the SaaS; token_failures: SaaS JWT failures.
+ * - alert_emails: Saved Search alert mails wp_mail accepted (standalone).
+ * - digest_emails: daily listing-changes digest mails wp_mail accepted.
+ *
+ * A bucket stored by an older version lacks the newer keys; fold and sum
+ * both treat a missing key as 0.
+ *
+ * @return string[]
+ */
+function mlsimport_telemetry_counters(): array {
+	return array( 'imported', 'updated', 'deleted', 'syncs', 'token_failures', 'alert_emails', 'digest_emails' );
+}
+
+/**
  * Sum the last $days daily buckets ending at $today.
- * Returns [ 'imported'=>int, 'updated'=>int, 'deleted'=>int, 'syncs'=>int,
- *           'token_failures'=>int ]. Pure.
+ * Returns one int per counter in mlsimport_telemetry_counters(). Pure.
  *
  * @param array  $daily Daily bucket map.
  * @param string $today Reference date string 'Y-m-d'.
@@ -458,13 +470,7 @@ function mlsimport_telemetry_prune_buckets( array $daily, string $today, int $ke
  * @return array<string,int> Summed counters.
  */
 function mlsimport_telemetry_sum_buckets( array $daily, string $today, int $days = 7 ): array {
-	$sums = array(
-		'imported'       => 0,
-		'updated'        => 0,
-		'deleted'        => 0,
-		'syncs'          => 0,
-		'token_failures' => 0,
-	);
+	$sums = array_fill_keys( mlsimport_telemetry_counters(), 0 );
 
 	// Walk back $days days from $today, accumulating each present bucket.
 	for ( $i = 0; $i < $days; $i++ ) {
@@ -692,6 +698,10 @@ function mlsimport_telemetry_collect_payload(): array {
 	$last_admin_load        = isset( $state['last_admin_load'] ) ? (int) $state['last_admin_load'] : 0;
 	$last_import_task_load  = isset( $state['last_import_task_load'] ) ? (int) $state['last_import_task_load'] : 0;
 
+	// --- notification emails ---
+	$last_alert_email  = isset( $state['last_alert_email'] ) ? (int) $state['last_alert_email'] : 0;
+	$last_digest_email = isset( $state['last_digest_email'] ) ? (int) $state['last_digest_email'] : 0;
+
 	// --- lifecycle / onboarding funnel ---
 	$installed_at         = isset( $state['installed_at'] ) ? (int) $state['installed_at'] : 0;
 	$account_connected_at = isset( $state['account_connected_at'] ) ? (int) $state['account_connected_at'] : 0;
@@ -868,6 +878,15 @@ function mlsimport_telemetry_collect_payload(): array {
 			),
 		),
 		'import_performance' => $import_performance,
+		// Notification emails the plugin sent: Saved Search alerts (standalone)
+		// and the daily listing-changes digest. Counted only when wp_mail
+		// accepted the mail; null last-send means never.
+		'notifications' => array(
+			'saved_search_emails_last_7_days' => (int) $sums['alert_emails'],
+			'digest_emails_last_7_days'       => (int) $sums['digest_emails'],
+			'last_saved_search_email'         => mlsimport_telemetry_iso( $last_alert_email ),
+			'last_digest_email'               => mlsimport_telemetry_iso( $last_digest_email ),
+		),
 		'engagement'    => array(
 			'last_admin_page_view'       => mlsimport_telemetry_iso( $last_admin_load ),
 			'last_import_task_page_view' => mlsimport_telemetry_iso( $last_import_task_load ),
@@ -903,6 +922,51 @@ function mlsimport_telemetry_collect_payload(): array {
 		),
 	);
 }
+
+// ---------------------------------------------------------------------------
+// §1 Notification emails
+// ---------------------------------------------------------------------------
+
+/**
+ * Count a Saved Search alert mail. Hooked to 'mlsimport_alert_sent', which
+ * the standalone mailer fires after EVERY attempt with wp_mail's answer first.
+ *
+ * Step by step:
+ * 1. A refused mail (wp_mail returned false) is not a sent mail: return.
+ * 2. Bump today's 'alert_emails' counter (account-level: a Saved Search is
+ *    the site's own search, not one connection's).
+ * 3. Stamp the last send time for the payload.
+ *
+ * @param bool $sent Whether wp_mail accepted the mail.
+ * @return void
+ */
+function mlsimport_telemetry_count_alert_email( $sent ): void {
+	if ( ! $sent ) {
+		return;
+	}
+	mlsimport_telemetry_bump( 'alert_emails' );
+	mlsimport_telemetry_set( 'last_alert_email', time() );
+}
+
+/**
+ * Count a daily listing-changes digest mail. Hooked to
+ * 'mlsimport_listing_notification_sent', fired only after wp_mail accepted it.
+ *
+ * Step by step:
+ * 1. Bump today's 'digest_emails' counter for the connection the digest was
+ *    about, so it lands in the global bucket and in that connection's own.
+ * 2. Stamp the last send time for the payload.
+ *
+ * @param int $mls_id MLS connection the digest covered.
+ * @return void
+ */
+function mlsimport_telemetry_count_digest_email( $mls_id ): void {
+	mlsimport_telemetry_bump( 'digest_emails', 1, (int) $mls_id );
+	mlsimport_telemetry_set( 'last_digest_email', time() );
+}
+
+add_action( 'mlsimport_alert_sent', 'mlsimport_telemetry_count_alert_email' );
+add_action( 'mlsimport_listing_notification_sent', 'mlsimport_telemetry_count_digest_email' );
 
 // ---------------------------------------------------------------------------
 // §1 Daily cron handler

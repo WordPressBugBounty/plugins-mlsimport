@@ -38,6 +38,40 @@ function mlsimport_standalone_page_options(): array {
 }
 
 /**
+ * The warning shown under "Text for terms link" on the settings page when the
+ * site has no privacy page (issue #366).
+ *
+ * The consent checkbox on every lead form links its terms text to WordPress's
+ * privacy page (Settings > Privacy, get_privacy_policy_url()). With no page set,
+ * or the page not published, WordPress returns '' and the form prints the words
+ * with no link, so visitors agree to a policy they cannot open. This warning
+ * tells the administrator and links straight to Settings > Privacy.
+ *
+ * Steps:
+ * 1. Without WordPress loaded (the pure unit tests) there is nothing to check.
+ * 2. A privacy page is set and published: no warning.
+ * 3. Otherwise: the warning text, the link label and the Settings > Privacy URL.
+ *
+ * @return array{text?:string,link?:string,url?:string} Empty when no warning is needed.
+ */
+function mlsimport_standalone_privacy_page_notice(): array {
+	// Step 1: the pure unit tests load the registry without WordPress.
+	if ( ! function_exists( 'get_privacy_policy_url' ) ) {
+		return array();
+	}
+	// Step 2: WordPress returns the page URL only for a set, published page.
+	if ( '' !== get_privacy_policy_url() ) {
+		return array();
+	}
+	// Step 3: no page — warn and point at the screen that fixes it.
+	return array(
+		'text' => __( 'No privacy page is set, so "Privacy Policy" shows as plain text with nothing to click on every lead form.', 'mlsimport' ),
+		'link' => __( 'Choose a page in Settings > Privacy', 'mlsimport' ),
+		'url'  => admin_url( 'options-privacy.php' ),
+	);
+}
+
+/**
  * The field registry — the single source of truth for every standalone setting.
  *
  * One entry per key: type (text|email|number|textarea|select|color|int|sections),
@@ -122,6 +156,9 @@ function mlsimport_standalone_field_registry(): array {
 		'details_columns'        => array( 'type' => 'select', 'default' => '3', 'options' => array( '2' => __( '2 Columns', 'mlsimport' ), '3' => __( '3 Columns', 'mlsimport' ) ), 'label' => __( 'Details Columns', 'mlsimport' ), 'section' => 'property_page' ), // Columns in every field section's details grid.
 		'media_section_type'     => array( 'type' => 'select', 'default' => 'classic', 'options' => array( 'classic' => __( 'Classic Slider', 'mlsimport' ), 'vertical' => __( 'Vertical Slider', 'mlsimport' ), 'v4' => __( 'Slider v4', 'mlsimport' ), 'multi' => __( 'Multi Image Slider', 'mlsimport' ), 'masonry1' => __( 'Masonry Gallery v1', 'mlsimport' ), 'masonry2' => __( 'Masonry Gallery v2', 'mlsimport' ) ), 'label' => __( 'Media Section Type (property images & video)', 'mlsimport' ), 'section' => 'property_page' ),
 		'card_style'             => array( 'type' => 'select', 'default' => 'v1', 'options' => array( 'v1' => __( 'V1 — Standard', 'mlsimport' ), 'v2' => __( 'V2 — Horizontal', 'mlsimport' ), 'v3' => __( 'V3 — Photo overlay', 'mlsimport' ) ), 'label' => __( 'Property card style', 'mlsimport' ), 'section' => 'property_card' ), // Property card design for every listing grid.
+		// The badge over the photo, on the card and on the property page (#355): the MLS
+		// status as sent (Active), or the Listing Type term the owner may have renamed (For Sale).
+		'card_badge'             => array( 'type' => 'select', 'default' => 'status', 'options' => array( 'status' => __( 'MLS status (Active, Pending …)', 'mlsimport' ), 'listing_type' => __( 'Listing Type (your category name)', 'mlsimport' ) ), 'label' => __( 'Badge over the photo', 'mlsimport' ), 'section' => 'property_card' ),
 		'property_sections'      => array( 'type' => 'sections', 'catalog' => 'mlsimport_standalone_section_catalog', 'default' => mlsimport_standalone_sections_default(), 'label' => __( 'Arrange Sections', 'mlsimport' ), 'section' => 'property_page' ),
 		// Similar Listings section on the property page: how many siblings to pull, and
 		// how many cards sit on one row (the grid drops to 2 then 1 on narrow screens).
@@ -282,7 +319,10 @@ function mlsimport_standalone_settings_ui(): array {
 		'lead_recipient'        => array( 'help' => __( 'Company email — e.g. office@domain.com. Also the fallback lead recipient when a listing has no agent email.', 'mlsimport' ) ),
 		'contact_form_recipients' => array( 'help' => __( 'Where the page-builder Contact Form block sends submissions. One or more emails, comma-separated. Leave empty to fall back to the company email above.', 'mlsimport' ) ),
 		'consent_label'         => array( 'help' => __( 'Shown next to the marketing-consent checkbox on contact forms.', 'mlsimport' ) ),
-		'terms_link_text'       => array( 'help' => __( 'e.g. Privacy Policy.', 'mlsimport' ) ),
+		'terms_link_text'       => array(
+			'help'   => __( 'The words that link to your privacy page in the consent checkbox on every lead form, e.g. Privacy Policy. The link opens the page chosen in Settings > Privacy.', 'mlsimport' ),
+			'notice' => mlsimport_standalone_privacy_page_notice(),
+		),
 		'show_looking_dropdown' => array( 'control' => 'yesno', 'help' => __( 'Displays an optional dropdown field on Agent, Agency, Developer, and Property contact forms.', 'mlsimport' ) ),
 		'mapbox_api_key'        => array( 'help' => __( 'Used for tiles when Open Street Maps is enabled. Get a key at https://www.mapbox.com/. If blank, the default OpenStreet server is used (can be slow).', 'mlsimport' ) ),
 		'map_start_lat'         => array( 'help' => __( 'Fallback map center — used only when a listings map has no results to show. When there are results the map zooms to fit them and this is ignored. Numbers only (ex: 40.577906).', 'mlsimport' ) ),
@@ -300,6 +340,7 @@ function mlsimport_standalone_settings_ui(): array {
 		'similar_count'         => array( 'subtab' => 'pp_similar', 'help' => __( 'How many similar listings the Similar Listings section pulls in. Default 3.', 'mlsimport' ) ),
 		'similar_per_row'       => array( 'control' => 'buttons', 'subtab' => 'pp_similar', 'help' => __( 'How many similar listing cards sit on one row. Drops to 2 then 1 automatically on narrow screens.', 'mlsimport' ) ),
 		'card_style'            => array( 'help' => __( 'The card design used in every listing grid (search results, lists, sliders, similar listings).', 'mlsimport' ) ),
+		'card_badge'            => array( 'control' => 'buttons', 'help' => __( 'What the badge over the photo says, on listing cards and on the property page. "MLS status" shows the status as the MLS sends it (Active, Pending). "Listing Type" shows the listing\'s Listing Type category, with the name you gave it under MLS Properties → Listing Types, for example For Sale or For Rent.', 'mlsimport' ) ),
 		'agent_listings_per_page' => array( 'help' => __( "Listings shown per page on a single agent's profile, with pagination. Default 12.", 'mlsimport' ) ),
 		'agent_listings_per_row' => array( 'control' => 'buttons', 'help' => __( "How many listing cards sit on one row of an agent's profile. Drops to 2 then 1 automatically on narrow screens.", 'mlsimport' ) ),
 		'agent_sections'        => array( 'help' => __( 'Drag sections between Enabled and Disabled to choose which appear on the agent profile, and reorder within a list.', 'mlsimport' ) ),
@@ -431,6 +472,11 @@ function mlsimport_standalone_settings_field_json( string $key, array $field, ar
 	// Optional help text under the control.
 	if ( ! empty( $u['help'] ) ) {
 		$out['help'] = $u['help'];
+	}
+	// Optional warning under the control: { text, link, url } (e.g. the missing
+	// privacy page under "Text for terms link"). Empty means no warning.
+	if ( ! empty( $u['notice'] ) ) {
+		$out['notice'] = $u['notice'];
 	}
 	// select/buttons carry a [{label,value}] list, rebuilt from the value=>label map.
 	if ( in_array( $control, array( 'select', 'buttons' ), true ) && ! empty( $field['options'] ) && is_array( $field['options'] ) ) {

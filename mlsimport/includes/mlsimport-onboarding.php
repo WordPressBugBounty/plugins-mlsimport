@@ -468,24 +468,12 @@ function mlsimport_handle_step_submission() {
             $mls_id = isset($submitted_options['mlsimport_mls_name'])
                 ? sanitize_text_field($submitted_options['mlsimport_mls_name'])
                 : '';
-            $token = isset($submitted_options['mlsimport_mls_token'])
-                ? trim((string) $submitted_options['mlsimport_mls_token'])
-                : '';
 
-            // Build one message from administrator-facing labels so every
-            // missing value is actionable on the same re-rendered form.
-            $required_fields = array(
-                __('MLSImport.com Username or email', 'mlsimport') => $username,
-                __('MLSImport.com Password', 'mlsimport') => $password,
-                __('Your MLS', 'mlsimport')                => $mls_id,
-                __('Your API Server token', 'mlsimport')   => $token,
-            );
-            $missing_fields = array();
-            foreach ($required_fields as $label => $value) {
-                if ('' === $value) {
-                    $missing_fields[] = $label;
-                }
-            }
+            // Account login, MLS pick, and ONLY the Provider Credentials the
+            // picked MLS declares (the Test MLS declares none, #376). One
+            // message from administrator-facing labels so every missing value
+            // is actionable on the same re-rendered form.
+            $missing_fields = mlsimport_onboarding_missing_fields($submitted_options);
 
             if (!empty($missing_fields)) {
                 add_settings_error(
@@ -501,11 +489,17 @@ function mlsimport_handle_step_submission() {
                 break;
             }
 
+            // The picked MLS's declared credentials, trimmed only (#204).
+            $credentials = array();
+            foreach (Mlsimport_Provider_Family::adapter('', $mls_id)->credential_fields() as $field) {
+                $credentials[$field] = trim((string) ($submitted_options[$field] ?? ''));
+            }
+
             $account_data = array(
                 'username'  => $username,
                 'password'  => $password,
                 'mls_id'    => $mls_id,
-                'mls_token' => $token,
+                'mls_token' => $credentials['mlsimport_mls_token'] ?? '',
             );
 
             mlsimport_save_step_data($current_step, $account_data);
@@ -516,7 +510,9 @@ function mlsimport_handle_step_submission() {
             $options['mlsimport_username'] = $username;
             $options['mlsimport_password'] = $password;
             $options['mlsimport_mls_name'] = $mls_id;
-            $options['mlsimport_mls_token'] = $token;
+            foreach ($credentials as $field => $value) {
+                $options[$field] = $value;
+            }
             update_option('mlsimport_admin_options', $options);
 
             mlsimport_redirect_to_next_step($current_step);
@@ -732,6 +728,54 @@ function mlsimport_log_onboarding_event($message, $type = 'info') {
     mlsimport_saas_single_write_import_custom_logs($formatted_message, 'onboarding');
 }
 
+/**
+ * The Account step's required fields that the native form submit left blank.
+ * Pure: reads only the submitted values and the picked MLS's adapter.
+ *
+ * Step by step:
+ * 1. Account login (username or email + password) and the MLS pick are always
+ *    required.
+ * 2. Once an MLS is picked, each Provider Credential its adapter declares is
+ *    required too — the Bridge server token, Trestle's client id + secret,
+ *    nothing at all for the Test MLS (#376, TestMlsResoClass). Before a pick
+ *    no credential can be asked for, since the family is unknown.
+ * 3. Answer the administrator-facing labels of the blank ones, in form order.
+ *
+ * @param array $submitted Unslashed mlsimport_admin_options[] values.
+ * @return string[] Labels of the missing fields; empty when the form is complete.
+ */
+function mlsimport_onboarding_missing_fields(array $submitted) {
+    $value = static function ($key) use ($submitted) {
+        return isset($submitted[$key]) ? trim((string) $submitted[$key]) : '';
+    };
+
+    // Step 1: always required.
+    $required = array(
+        __('MLSImport.com Username or email', 'mlsimport') => $value('mlsimport_username'),
+        __('MLSImport.com Password', 'mlsimport')          => $value('mlsimport_password'),
+        __('Your MLS', 'mlsimport')                        => $value('mlsimport_mls_name'),
+    );
+
+    // Step 2: the picked MLS's own credential fields.
+    $mls_id = $value('mlsimport_mls_name');
+    if ('' !== $mls_id) {
+        $labels = array('mlsimport_mls_token' => __('Your API Server token', 'mlsimport'));
+        foreach (Mlsimport_Provider_Family::adapter('', $mls_id)->credential_fields() as $field) {
+            $label            = $labels[$field] ?? ucwords(str_replace('_', ' ', preg_replace('/^mlsimport_/', '', $field)));
+            $required[$label] = $value($field);
+        }
+    }
+
+    // Step 3: the blanks, by label.
+    $missing = array();
+    foreach ($required as $label => $filled) {
+        if ('' === $filled) {
+            $missing[] = $label;
+        }
+    }
+    return $missing;
+}
+
 add_action('wp_ajax_mlsimport_save_account', 'mlsimport_save_account_callback');
 /**
  * AJAX handler: save the MLSImport username or email/password and test login.
@@ -807,7 +851,9 @@ function mlsimport_save_account_callback() {
 		wp_send_json_success([
 			'message' => __('Connected successfully!', 'mlsimport'),
 			'html'    => $html,
-			'connected' => true
+			'connected' => true,
+			// The Test MLS was just set up (#376): the step reloads to show it.
+			'test_mls_seeded' => ! empty( $login['test_mls_seeded'] ),
 		]);
 	}
 }
