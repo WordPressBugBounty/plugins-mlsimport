@@ -97,9 +97,22 @@ class RealtorCaResoClass extends ResoBase {
 		return $this->format_utc_timestamp( $value, true, true );
 	}
 
-	/** Remove PropertyType because CREA DDF does not expose that task filter. */
+	/**
+	 * Hide the task controls CREA DDF cannot honour.
+	 *
+	 * Step by step:
+	 * 1. PropertyType: DDF does not expose that filter (its field is BusinessType).
+	 * 2. StandardStatusProtect: DDF's $metadata declares a single status, "Active",
+	 *    and a listing that is no longer for sale simply leaves the feed. Its local
+	 *    status never changes, so the reconciliation sweep is the only way it is
+	 *    ever removed; protecting "Active" would keep sold listings on the site
+	 *    forever. The Status pick-list itself stays, the writer reads it.
+	 *
+	 * @param array $fields Import Task field catalog.
+	 * @return array The catalog without the two controls.
+	 */
 	public function prepare_import_task_fields( array $fields ) {
-		unset( $fields['PropertyType'] );
+		unset( $fields['PropertyType'], $fields['StandardStatusProtect'] );
 		return $fields;
 	}
 

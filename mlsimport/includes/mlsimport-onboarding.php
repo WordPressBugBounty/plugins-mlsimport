@@ -684,7 +684,19 @@ function mlsimport_setup_import_item_defaults($post_id, $import_data) {
 
     // Default statuses and visibility options
     update_post_meta($post_id, 'mlsimport_item_standardstatus', array('Active'));
-    update_post_meta($post_id, 'mlsimport_item_standardstatusprotect', array('Active', 'ActiveUnderContract', 'ComingSoon', 'Pending'));
+
+    // Protected Statuses only when the task's editor offers that control. The
+    // task is already bound (mlsimport_bind_task_connection() ran first), so
+    // its provider adapter decides, the same way the task screen does. A
+    // provider that hides the control (REALTOR.ca: one status, "Active", and
+    // sold listings just leave the feed) must get no protection, or the
+    // reconciliation sweep could never remove a sold listing.
+    global $mlsimport;
+    $offered = $mlsimport->admin->mlsimport_task_provider( mlsimport_task_mls_id( (int) $post_id ) )
+        ->prepare_import_task_fields( array( 'StandardStatusProtect' => array() ) );
+    if ( isset( $offered['StandardStatusProtect'] ) ) {
+        update_post_meta($post_id, 'mlsimport_item_standardstatusprotect', array('Active', 'ActiveUnderContract', 'ComingSoon', 'Pending'));
+    }
     update_post_meta($post_id, 'mlsimport_item_internetentirelistingdisplayyn', 'yes');
     update_post_meta($post_id, 'mlsimport_item_internetaddressdisplayyn', 'yes');
     

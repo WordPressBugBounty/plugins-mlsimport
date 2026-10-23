@@ -933,12 +933,26 @@ trait Mlsimport_Listing_Search_Bar_Controls {
 	}
 
 	/**
-	 * Search fields — one switcher per catalog field, all on by default (the default
-	 * empty search_fields means "show every field").
+	 * The search fields whose switcher starts ON. The trait default is every catalog
+	 * field (the Half Map keeps showing all); the Property List widget overrides it
+	 * with Mlsimport_Page_Block_Search_Fields::default_fields() so a new widget
+	 * renders only Property Type, Beds & Baths and Price.
+	 *
+	 * @return string[] Field keys.
+	 */
+	protected function search_fields_default_keys(): array {
+		return array_keys( Mlsimport_Page_Block_Search_Fields::labels() );
+	}
+
+	/**
+	 * Search fields — one switcher per catalog field. A switcher starts on only
+	 * for the keys search_fields_default_keys() names; a field switched off is not
+	 * rendered at all (no term query, no markup) until the owner turns it on.
 	 *
 	 * @return void
 	 */
 	protected function register_search_fields_section(): void {
+		$on = $this->search_fields_default_keys();
 		$this->start_controls_section( 'mlsimport_search_fields', array( 'label' => __( 'Search fields', 'mlsimport' ) ) );
 		foreach ( Mlsimport_Page_Block_Search_Fields::labels() as $key => $label ) {
 			$this->add_control(
@@ -946,7 +960,7 @@ trait Mlsimport_Listing_Search_Bar_Controls {
 				array(
 					'label'   => $label,
 					'type'    => \Elementor\Controls_Manager::SWITCHER,
-					'default' => 'yes',
+					'default' => in_array( $key, $on, true ) ? 'yes' : '',
 				)
 			);
 		}
@@ -974,7 +988,14 @@ trait Mlsimport_Listing_Search_Bar_Controls {
 		if ( count( $on ) === count( $all ) ) {
 			return '';
 		}
-		return empty( $on ) ? 'none' : implode( ',', $on );
+		if ( empty( $on ) ) {
+			return 'none';
+		}
+		// The toolbar Sort control gates on its own 'sort' key and this widget has
+		// no switcher for it, so it always rides along: switching a search field
+		// off must not also remove the ordering dropdown above the grid.
+		$on[] = 'sort';
+		return implode( ',', $on );
 	}
 
 	/**
@@ -1020,6 +1041,17 @@ class Mlsimport_Elementor_Item_List_Widget extends Mlsimport_Elementor_Page_Bloc
 
 	protected function get_block_slug(): string {
 		return 'item_list';
+	}
+
+	/**
+	 * A new Property List starts with only Property Type, Beds & Baths and Price
+	 * switched on. The other search fields are not rendered until the owner turns
+	 * them on, which keeps a widget on a large feed light by default.
+	 *
+	 * @return string[] Field keys.
+	 */
+	protected function search_fields_default_keys(): array {
+		return Mlsimport_Page_Block_Search_Fields::default_fields();
 	}
 
 	/**

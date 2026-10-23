@@ -126,6 +126,12 @@ function mlsimport_task_blank_keys(): array {
  * 2. Store each setting that was sent, sanitized (arrays recursively).
  * 3. Reset to '' every "blank key" that was not sent, so a cleared selection
  *    really clears.
+ * 4. Status is the one filter that must never end up empty: the stored listing
+ *    writer accepts a listing only when its status is in this list, so an
+ *    empty list skips every listing (and deletes the stored ones) while the
+ *    run still reports them as saved. The editor shows Active when nothing is
+ *    saved, so an empty selection (key not sent, or sent empty) is stored as
+ *    Active: what the screen shows is what the writer reads.
  *
  * @param int   $post_id Import Task post id.
  * @param array $posted  The settings, keyed like the task form's fields
@@ -151,5 +157,10 @@ function mlsimport_task_save_settings( int $post_id, array $posted ): void {
 		if ( ! isset( $posted[ $key ] ) ) {
 			update_post_meta( $post_id, $key, '' );
 		}
+	}
+
+	// Step 4: an empty Status selection is stored as Active (see above).
+	if ( empty( $posted['mlsimport_item_standardstatus'] ) ) {
+		update_post_meta( $post_id, 'mlsimport_item_standardstatus', array( 'Active' ) );
 	}
 }

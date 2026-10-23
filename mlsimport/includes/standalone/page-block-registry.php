@@ -362,7 +362,11 @@ function mlsimport_register_builtin_page_blocks(): void {
 	$item_list_args['count']           = array( 'type' => 'number', 'label' => __( 'Per page', 'mlsimport' ), 'default' => 12 );
 	$item_list_args['show_filter_bar'] = array( 'type' => 'toggle', 'label' => __( 'Show filter bar', 'mlsimport' ), 'default' => '1' );
 	$item_list_args['fields_per_row']  = array( 'type' => 'select', 'label' => __( 'Search fields per row', 'mlsimport' ), 'default' => '4', 'options' => $fields_per_row_options );
-	$item_list_args['search_fields']   = array( 'type' => 'text', 'label' => __( 'Search fields (comma list; empty = all)', 'mlsimport' ), 'default' => '' );
+	// A new Property List shows only Property Type, Beds & Baths and Price; the
+	// other fields are not rendered until switched on (see
+	// Mlsimport_Page_Block_Search_Fields::default_fields()). An empty value still
+	// means "every field" for shortcodes and blocks saved before this default.
+	$item_list_args['search_fields']   = array( 'type' => 'text', 'label' => __( 'Search fields (comma list; empty = all)', 'mlsimport' ), 'default' => implode( ',', Mlsimport_Page_Block_Search_Fields::default_fields() ) );
 	$item_list_args['custom_parameters'] = $custom_parameters;
 
 	// Content Slider = friendly How-many + Order + explicit IDs, then the SAME initial-

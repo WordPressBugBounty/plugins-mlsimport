@@ -4,7 +4,7 @@ Tags: idx, idx-plugin, mls, real-estate, wordpress-idx
 Requires at least: 5.2
 Tested up to: 7.1.1
 Requires PHP: 7.4
-Stable tag: 7.2.5
+Stable tag: 7.2.6
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -178,6 +178,9 @@ In standalone (theme-agnostic) mode, the plugin renders its own search, cards, h
 See `docs/standalone-hooks-guide.md` for the detailed guide (a worked example for every hook), `docs/standalone-hooks.md` for the at-a-glance signature tables, `includes/standalone/mlsimport-hooks.php` for the canonical machine-readable list, and `docs/adr/0006-standalone-hook-conventions.md` for the naming/argument conventions. Themes override templates by copying them into a `mlsimport/` sub-directory (the WooCommerce pattern).
 
 == Changelog ==
+= 7.2.6 =
+* REALTOR.ca (CREA DDF) import tasks import again. REALTOR.ca does not accept a status filter and lists Active listings only, so the task no longer sends one; a sold listing leaves the feed and the daily reconciliation removes it from your site. The Protected Statuses control is gone from REALTOR.ca tasks because it could only keep sold listings on the site.
+* An import task saved with no status selected now imports Active listings, matching what the task editor shows. Before, such a task reported the import as completed while importing nothing.
 = 7.2.5 =
 * Test MLS for new sites: on your first sign-in with an MLSImport account, the plugin connects "Test MLS (sample listings)" and creates a first import task, so you can see listings import before your own MLS approves your data access. It needs no MLS credentials and does not use one of your account's MLS slots. Remove it from the Connections tab when your own MLS is connected.
 * Test MLS listings now come with property photos.

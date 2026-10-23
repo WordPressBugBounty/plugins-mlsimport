@@ -43,6 +43,9 @@
 	var searchFields      = ( cfg && cfg.searchFields ) || [];
 	var taxonomies        = ( cfg && cfg.taxonomies ) || [];
 	var itemListFilterKeys = ( cfg && cfg.itemListFilterKeys ) || [];
+	// The Property List's default search_fields comma list (Property Type, Beds &
+	// Baths, Price), supplied by PHP so the editor and the server default agree.
+	var itemListDefaultFields = ( cfg && cfg.itemListDefaultFields ) || '';
 	var allKeys           = searchFields.map( function ( f ) { return f.key; } );
 
 	// Friendly sort presets -> the orderby/order attribute pair the render path uses.
@@ -581,7 +584,9 @@
 				count:           { type: 'string', 'default': '12' },
 				show_filter_bar: { type: 'string', 'default': '1' },
 				fields_per_row:  { type: 'string', 'default': '4' },
-				search_fields:   { type: 'string', 'default': '' },
+				// A new block starts with only the three default fields on; the other
+				// fields are not rendered until toggled on in "Search fields".
+				search_fields:   { type: 'string', 'default': itemListDefaultFields },
 				custom_parameters: CUSTOM_PARAMETERS_ATTRIBUTE
 			};
 			// PHP supplies the canonical set used by item_list_attributes(). The

@@ -220,6 +220,10 @@ class Mlsimport_Standalone_Block {
 						}
 					)
 				),
+				// The Property List's default search_fields (the same comma list
+				// item_list_attributes() registers), so a block inserted in the editor
+				// starts with the same three fields the server default renders.
+				'itemListDefaultFields' => implode( ',', Mlsimport_Page_Block_Search_Fields::default_fields() ),
 				'blocks'             => array(
 					array(
 						'name'        => self::NAME,
@@ -468,7 +472,10 @@ class Mlsimport_Standalone_Block {
 		$attributes['count']           = array( 'type' => 'string', 'default' => '12' );
 		$attributes['show_filter_bar'] = array( 'type' => 'string', 'default' => '1' );
 		$attributes['fields_per_row']  = array( 'type' => 'string', 'default' => '4' );
-		$attributes['search_fields']   = array( 'type' => 'string', 'default' => '' );
+		// Step: a new Property List starts with only Property Type, Beds & Baths and
+		// Price switched on; the rest are not rendered until toggled on. Mirrored in
+		// the editor script's buildAttributes() through itemListDefaultFields.
+		$attributes['search_fields']   = array( 'type' => 'string', 'default' => implode( ',', Mlsimport_Page_Block_Search_Fields::default_fields() ) );
 		$attributes['custom_parameters'] = self::custom_parameters_attribute();
 		return $attributes;
 	}

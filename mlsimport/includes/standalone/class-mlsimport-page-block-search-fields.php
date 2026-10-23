@@ -131,6 +131,28 @@ class Mlsimport_Page_Block_Search_Fields {
 	}
 
 	/**
+	 * The search fields a NEW Property List shows by default: Property Type, Beds &
+	 * Baths and Price. Every other field starts switched off and is not rendered at
+	 * all until the site owner turns it on in the block / widget "Search fields"
+	 * toggles.
+	 *
+	 * Why: a taxonomy field renders every term of its taxonomy as an <option>. On a
+	 * feed with thousands of cities, areas or ZIPs that is hundreds of kilobytes of
+	 * markup plus a dropdown row per option built in the browser, on every page
+	 * view. The three defaults are small, so a fresh block is light by default.
+	 *
+	 * One list, read by the block registry default, the Gutenberg attribute default
+	 * and the Elementor switcher defaults, so the three builders agree. 'sort' is
+	 * the results-toolbar Sort control, not a search field: it stays on so the
+	 * visitor keeps the ordering dropdown above the grid.
+	 *
+	 * @return string[] Field keys, in catalog order.
+	 */
+	public static function default_fields(): array {
+		return array( 'property_type', 'beds_baths', 'price', 'sort' );
+	}
+
+	/**
 	 * The field picker's options: field key => label, taxonomies then columns.
 	 *
 	 * @return array<string,string>
